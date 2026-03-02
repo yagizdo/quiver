@@ -8,11 +8,8 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
-# Read stdin JSON event
-EVENT=$(cat)
-
-# Extract transcript_path (empty string if key is missing or null)
-TRANSCRIPT_PATH=$(printf '%s' "$EVENT" | jq -r '.transcript_path // empty')
+# Extract transcript_path from stdin JSON (empty string if key is missing or null)
+TRANSCRIPT_PATH=$(jq -r '.transcript_path // empty')
 
 # Guard: no transcript path in event
 if [[ -z "$TRANSCRIPT_PATH" ]]; then
@@ -31,6 +28,7 @@ HANDOVER_DIR="${PROJECT_DIR}/.claude/handovers"
 # Ensure handover directory exists
 mkdir -p "$HANDOVER_DIR"
 
+# SYNC: The 8 section headings below must match commands/handover.md lines 17-38.
 # Prompt template prefix — transcript is appended via stdin pipe to avoid ARG_MAX limits
 PROMPT_PREFIX='Read the following Claude Code session transcript and produce a HANDOVER note.
 Goal: The next Claude session (or a teammate) should be able to continue from where we left off.
@@ -52,7 +50,7 @@ CONTENT=$(
   {
     printf '%s\n' "$PROMPT_PREFIX"
     cat "$TRANSCRIPT_PATH"
-  } | claude -p 2>/dev/null
+  } | timeout 150 claude -p 2>/dev/null
 ) || CONTENT=""
 
 # Guard: empty output (claude failed or produced nothing)
@@ -68,6 +66,12 @@ printf '%s\n' "$CONTENT" > "$OUT_FILE"
 # Prune: keep only the 3 most recent .md files
 # ls -1r gives reverse alpha order; filenames are timestamps so newest sort last alphabetically,
 # meaning ls -1r gives newest first — identical to Python's sorted(..., reverse=True)
-ls -1r "${HANDOVER_DIR}"/*.md 2>/dev/null | tail -n +4 | xargs rm -f || true
+count=0
+while IFS= read -r f; do
+  count=$((count + 1))
+  if (( count > 3 )); then
+    rm -f "$f"
+  fi
+done < <(ls -1r "${HANDOVER_DIR}"/*.md 2>/dev/null)
 
 exit 0

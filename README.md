@@ -5,7 +5,7 @@ Automatically save and restore session context across Claude Code conversations.
 ## Prerequisites
 
 - `jq` (for the auto-compact hook — `brew install jq` or `apt install jq`)
-- `claude` CLI globally available in your shell PATH
+- `claude` CLI (v1.0.0+, requires `-p` flag with stdin support) globally available in your shell PATH
 
 ## Installation
 
@@ -31,6 +31,7 @@ If you previously used the skills-based handover system, remove the old hooks fr
 | `/quiver:load-handover` | Loads the most recent handover into context |
 | `/quiver:delete-all-handovers` | Deletes all handover files |
 | `/quiver:delete-last-handover` | Deletes the most recent handover file |
+| `/quiver:status` | Shows plugin version, handover count, and hook status |
 
 ### Auto-Compact Protection
 
@@ -50,12 +51,25 @@ A PreCompact hook automatically generates a handover from the session transcript
 | `CLAUDE_PLUGIN_ROOT` | `hooks.json`, hook scripts | Path to the plugin root directory. **Not** available in command `.md` files |
 | `CLAUDE_PROJECT_DIR` | Hook scripts (via `$CLAUDE_PROJECT_DIR`) | Path to the current project. Falls back to `pwd` |
 
-## .gitignore
+## Required Setup
+
+> **Warning:** Handover files contain full session context including code snippets,
+> decisions, and work-in-progress details. You **must** add the handover directory
+> to `.gitignore` to avoid committing sensitive content to your repository.
 
 Add to your project's `.gitignore`:
 
 ```
 .claude/handovers/
+```
+
+## Recommended: Auto-load Handovers
+
+For agent sessions (subagents, CI) to benefit from context continuity,
+add this to your project's `CLAUDE.md`:
+
+```
+At session start, run /quiver:load-handover to restore context from the previous session.
 ```
 
 ## Uninstall

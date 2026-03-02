@@ -12,6 +12,7 @@ description: Summarize the current work state and prepare a handover note for th
 
 # Handover Instructions
 
+<!-- SYNC: The 8 section headings below must match hooks/scripts/pre-compact-handover.sh PROMPT_PREFIX. -->
 Using the context above and our conversation, prepare a structured handover note with these exact sections:
 
 ## Summary
