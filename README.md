@@ -4,7 +4,7 @@ Automatically save and restore session context across Claude Code conversations.
 
 ## Prerequisites
 
-- Python 3 (for the auto-compact hook)
+- `jq` (for the auto-compact hook — `brew install jq` or `apt install jq`)
 - `claude` CLI globally available in your shell PATH
 
 ## Installation
@@ -48,7 +48,7 @@ A PreCompact hook automatically generates a handover from the session transcript
 | Variable | Available In | Notes |
 |----------|-------------|-------|
 | `CLAUDE_PLUGIN_ROOT` | `hooks.json`, hook scripts | Path to the plugin root directory. **Not** available in command `.md` files |
-| `CLAUDE_PROJECT_DIR` | Hook scripts (via `os.environ`) | Path to the current project. Falls back to `os.getcwd()` |
+| `CLAUDE_PROJECT_DIR` | Hook scripts (via `$CLAUDE_PROJECT_DIR`) | Path to the current project. Falls back to `pwd` |
 
 ## .gitignore
 

@@ -15,22 +15,21 @@ quiver-plugin/
   hooks/
     hooks.json                 — Registers PreCompact hook
     scripts/
-      handover_core.py         — Shared logic: save, prune (keep 3), generate via `claude -p`
-      pre-compact-handover.py  — PreCompact hook entry point, reads transcript from stdin JSON
+      pre-compact-handover.sh  — PreCompact hook entry point (bash + jq); reads transcript from stdin JSON
 ```
 
 ## How It Works
 
 - **Commands** are Markdown files. Shell commands inside `` !`...` `` blocks run inline and inject output into the prompt.
-- **Hooks** run Python scripts. The PreCompact hook reads `transcript_path` from the stdin JSON event, calls `claude -p` to summarize, then saves to `.claude/handovers/`.
+- **Hooks** run a bash script. The PreCompact hook reads `transcript_path` from the stdin JSON event (via `jq`), calls `claude -p` to summarize, then saves to `.claude/handovers/`.
 - Handover files live at `<project>/.claude/handovers/YYYY-MM-DD_HH-mm-ss.md`. Only the 3 most recent are kept.
 
 ## Key Conventions
 
 - Commands must not rely on `CLAUDE_PLUGIN_ROOT` — it is only available in `hooks.json` and hook scripts.
-- Hook scripts use `CLAUDE_PROJECT_DIR` (falls back to `os.getcwd()`).
-- `handover_core.py` is the single source of truth for handover logic (prompt template, save, prune). The command in `handover.md` duplicates the save/prune steps as Claude instructions because commands can't call Python directly.
-- Plugin requires Python 3 and `claude` CLI in PATH.
+- Hook script uses `$CLAUDE_PROJECT_DIR` (falls back to `pwd`).
+- `pre-compact-handover.sh` is the single source of truth for handover logic (prompt template, save, prune). The command in `handover.md` duplicates the save/prune steps as Claude instructions because commands can't call shell scripts directly.
+- Plugin requires `bash`, `jq`, and `claude` CLI in PATH.
 
 ## Development
 
@@ -44,10 +43,13 @@ Permanent install:
 claude plugin install /path/to/quiver-plugin
 ```
 
-No build step. No dependencies beyond Python 3 stdlib and the `claude` CLI.
+No build step. No dependencies beyond `bash`, `jq`, and the `claude` CLI.
 
 ## Testing Changes
 
 - **Commands**: Run the slash command (e.g. `/quiver:handover`) in a Claude Code session and verify output.
-- **Hook**: Trigger a compaction (or test `pre-compact-handover.py` directly by piping JSON with a `transcript_path` to stdin).
-- **Core logic**: `handover_core.py` functions can be tested with a Python REPL. Key functions: `save_handover(project_dir, content)`, `prune_old_files(handover_dir)`, `generate_from_transcript(transcript)`.
+- **Hook**: Trigger a compaction (or test `pre-compact-handover.sh` directly by piping JSON with a `transcript_path` to stdin):
+  ```bash
+  echo '{"transcript_path":"/path/to/transcript.json"}' | bash hooks/scripts/pre-compact-handover.sh
+  ```
+- **Syntax check**: `bash -n hooks/scripts/pre-compact-handover.sh`
