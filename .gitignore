@@ -45,6 +45,8 @@ marketing/
 .claude/settings.local.json
 .claude/handovers/
 .claude/todos/
+.claude/issues/
+.claude/reviews
 
 # Git worktrees
 .worktrees/
