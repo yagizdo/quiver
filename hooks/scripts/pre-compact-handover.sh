@@ -8,11 +8,8 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
-# Read stdin JSON event
-EVENT=$(cat)
-
-# Extract transcript_path (empty string if key is missing or null)
-TRANSCRIPT_PATH=$(printf '%s' "$EVENT" | jq -r '.transcript_path // empty')
+# Extract transcript_path from stdin JSON (empty string if key is missing or null)
+TRANSCRIPT_PATH=$(jq -r '.transcript_path // empty')
 
 # Guard: no transcript path in event
 if [[ -z "$TRANSCRIPT_PATH" ]]; then
@@ -68,6 +65,12 @@ printf '%s\n' "$CONTENT" > "$OUT_FILE"
 # Prune: keep only the 3 most recent .md files
 # ls -1r gives reverse alpha order; filenames are timestamps so newest sort last alphabetically,
 # meaning ls -1r gives newest first — identical to Python's sorted(..., reverse=True)
-ls -1r "${HANDOVER_DIR}"/*.md 2>/dev/null | tail -n +4 | xargs rm -f || true
+count=0
+while IFS= read -r f; do
+  count=$((count + 1))
+  if (( count > 3 )); then
+    rm -f "$f"
+  fi
+done < <(ls -1r "${HANDOVER_DIR}"/*.md 2>/dev/null)
 
 exit 0
