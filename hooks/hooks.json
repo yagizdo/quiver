@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact-handover.py",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact-handover.sh",
             "timeout": 600
           }
         ]

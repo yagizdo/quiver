@@ -44,6 +44,7 @@ marketing/
 # Claude Code local files
 .claude/settings.local.json
 .claude/handovers/
+.claude/todos/
 
 # Git worktrees
 .worktrees/
