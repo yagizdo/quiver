@@ -6,7 +6,7 @@ description: Show Quiver plugin status — version, handover count, latest hando
 
 ## Plugin Info
 - **Name:** quiver
-- **Version:** !`jq -r '.name + " v" + .version' .claude-plugin/plugin.json 2>/dev/null || echo "unknown"`
+- **Version:** !`name=$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .claude-plugin/plugin.json); version=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .claude-plugin/plugin.json); echo "${name:-quiver} v${version:-?}"`
 
 ## Handovers
 - **Directory:** `.claude/handovers/`
@@ -23,7 +23,6 @@ description: Show Quiver plugin status — version, handover count, latest hando
 | `/quiver:status` | `commands/status.md` |
 
 ## Hook Status
-- **PreCompact hook:** !`if jq -e '.hooks.PreCompact' hooks/hooks.json &>/dev/null; then echo "registered"; else echo "NOT registered"; fi`
+- **PreCompact hook:** !`if grep -q '"PreCompact"' hooks/hooks.json 2>/dev/null; then echo "registered"; else echo "NOT registered"; fi`
 - **Hook script:** !`if [ -x hooks/scripts/pre-compact-handover.sh ]; then echo "executable"; elif [ -f hooks/scripts/pre-compact-handover.sh ]; then echo "exists but NOT executable"; else echo "MISSING"; fi`
-- **jq available:** !`command -v jq &>/dev/null && echo "yes ($(jq --version 2>&1))" || echo "NO — hook will skip handover generation"`
 - **claude CLI available:** !`command -v claude &>/dev/null && echo "yes" || echo "NO — hook will fail"`

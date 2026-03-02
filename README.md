@@ -2,11 +2,6 @@
 
 Automatically save and restore session context across Claude Code conversations. Never lose track of where you left off.
 
-## Prerequisites
-
-- `jq` (for the auto-compact hook — `brew install jq` or `apt install jq`)
-- `claude` CLI (v1.0.0+, requires `-p` flag with stdin support) globally available in your shell PATH
-
 ## Installation
 
 ```bash

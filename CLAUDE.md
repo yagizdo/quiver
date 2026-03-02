@@ -15,13 +15,13 @@ quiver-plugin/
   hooks/
     hooks.json                 — Registers PreCompact hook
     scripts/
-      pre-compact-handover.sh  — PreCompact hook entry point (bash + jq); reads transcript from stdin JSON
+      pre-compact-handover.sh  — PreCompact hook entry point (bash); reads transcript from stdin JSON
 ```
 
 ## How It Works
 
 - **Commands** are Markdown files. Shell commands inside `` !`...` `` blocks run inline and inject output into the prompt.
-- **Hooks** run a bash script. The PreCompact hook reads `transcript_path` from the stdin JSON event (via `jq`), calls `claude -p` to summarize, then saves to `.claude/handovers/`.
+- **Hooks** run a bash script. The PreCompact hook reads `transcript_path` from the stdin JSON event (via `sed`), calls `claude -p` to summarize, then saves to `.claude/handovers/`.
 - Handover files live at `<project>/.claude/handovers/YYYY-MM-DD_HH-mm-ss.md`. Only the 3 most recent are kept.
 
 ## Key Conventions
@@ -29,7 +29,7 @@ quiver-plugin/
 - Commands must not rely on `CLAUDE_PLUGIN_ROOT` — it is only available in `hooks.json` and hook scripts.
 - Hook script uses `$CLAUDE_PROJECT_DIR` (falls back to `pwd`).
 - `pre-compact-handover.sh` is the single source of truth for handover logic (prompt template, save, prune). The command in `handover.md` duplicates the save/prune steps as Claude instructions because commands can't call shell scripts directly.
-- Plugin requires `bash`, `jq`, and `claude` CLI in PATH.
+- Plugin requires `bash` and `claude` CLI in PATH.
 
 ## Development
 
@@ -43,7 +43,7 @@ Permanent install:
 claude plugin install /path/to/quiver-plugin
 ```
 
-No build step. No dependencies beyond `bash`, `jq`, and the `claude` CLI.
+No build step. No dependencies beyond `bash` and the `claude` CLI.
 
 ## Testing Changes
 

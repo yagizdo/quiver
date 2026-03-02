@@ -2,14 +2,8 @@
 # PreCompact hook — auto-generates a handover from the session transcript before compaction.
 set -euo pipefail
 
-# Guard: jq must be available (don't block compaction if missing)
-if ! command -v jq &>/dev/null; then
-  echo "[quiver] WARNING: jq not found — skipping handover generation" >&2
-  exit 0
-fi
-
-# Extract transcript_path from stdin JSON (empty string if key is missing or null)
-TRANSCRIPT_PATH=$(jq -r '.transcript_path // empty')
+# Extract transcript_path from stdin JSON using sed (no jq dependency)
+TRANSCRIPT_PATH=$(sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
 # Guard: no transcript path in event
 if [[ -z "$TRANSCRIPT_PATH" ]]; then
