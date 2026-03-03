@@ -1,0 +1,39 @@
+{
+  "name": "quiver-plugin",
+  "owner": {
+    "name": "Yilmaz Yagiz Dokumaci",
+    "email": "dokumaciyago@gmail.com"
+  },
+  "metadata": {
+    "description": "Session handover and work state management for Claude Code. Automatically saves and restores conversation context across sessions."
+  },
+  "plugins": [
+    {
+      "name": "quiver",
+      "source": "./",
+      "description": "Session handover and work state management for Claude Code",
+      "author": {
+        "name": "yagizdo"
+      },
+      "homepage": "https://github.com/yagizdo/quiver-plugin",
+      "repository": "https://github.com/yagizdo/quiver-plugin",
+      "license": "MIT",
+      "keywords": [
+        "agents",
+        "skills",
+        "hooks",
+        "commands",
+        "context-management",
+        "token-management",
+        "session-management"
+      ],
+      "category": "workflow",
+      "tags": [
+        "session-management",
+        "handover",
+        "context",
+        "workflow"
+      ]
+    }
+  ]
+}
