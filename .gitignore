@@ -46,7 +46,8 @@ marketing/
 .claude/handovers/
 .claude/todos/
 .claude/issues/
-.claude/reviews
+.claude/reviews/
+.claude/plans/
 
 # Git worktrees
 .worktrees/
