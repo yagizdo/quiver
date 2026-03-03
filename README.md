@@ -67,6 +67,29 @@ add this to your project's `CLAUDE.md`:
 At session start, run /quiver:load-handover to restore context from the previous session.
 ```
 
+## Testing
+
+The project uses [bats-core](https://github.com/bats-core/bats-core) for automated testing. All dependencies are bundled as git submodules — no brew/npm install required.
+
+```bash
+make setup-tests   # One-time: fetch bats submodules
+make test          # Run all 34 tests
+```
+
+Individual suites:
+
+```bash
+make test-hook       # Hook script tests (12)
+make test-commands   # Command shell-block tests (19)
+make test-sync       # SYNC contract tests (3)
+```
+
+Run a single test file:
+
+```bash
+make test-one FILE=tests/commands/status.bats
+```
+
 ## Uninstall
 
 ```bash

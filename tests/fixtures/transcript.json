@@ -1,0 +1,6 @@
+[
+  {"role":"user","content":"Fix the login bug"},
+  {"role":"assistant","content":"I'll fix the login validation. The issue is in the auth middleware where the token check was skipped for empty strings."},
+  {"role":"user","content":"Great, also add tests for it"},
+  {"role":"assistant","content":"Done. I added unit tests covering empty token, expired token, and valid token cases."}
+]
