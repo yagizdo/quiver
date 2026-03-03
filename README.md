@@ -16,11 +16,11 @@ Quiver is a Claude Code plugin that saves and restores your session context — 
 ## Installation
 
 ```
-/plugin marketplace add yagizdo/quiver-plugin
+/plugin marketplace add yagizdo/quiver
 ```
 
 ```
-/plugin install quiver@yagizdo-quiver-plugin
+/plugin install quiver@yagizdo-quiver
 ```
 
 ## Quick Start

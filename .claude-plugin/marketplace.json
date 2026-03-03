@@ -1,5 +1,5 @@
 {
-  "name": "quiver-plugin",
+  "name": "quiver",
   "owner": {
     "name": "Yilmaz Yagiz Dokumaci",
     "email": "dokumaciyago@gmail.com"
@@ -15,8 +15,8 @@
       "author": {
         "name": "Yilmaz Yagiz Dokumaci"
       },
-      "homepage": "https://github.com/yagizdo/quiver-plugin",
-      "repository": "https://github.com/yagizdo/quiver-plugin",
+      "homepage": "https://github.com/yagizdo/quiver",
+      "repository": "https://github.com/yagizdo/quiver",
       "license": "MIT",
       "keywords": [
         "agents",

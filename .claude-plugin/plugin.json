@@ -5,8 +5,8 @@
   "author": {
     "name": "Yilmaz Yagiz Dokumaci"
   },
-  "homepage": "https://github.com/yagizdo/quiver-plugin",
-  "repository": "https://github.com/yagizdo/quiver-plugin",
+  "homepage": "https://github.com/yagizdo/quiver",
+  "repository": "https://github.com/yagizdo/quiver",
   "skills": [
     "./skills/",
     "./commands/"

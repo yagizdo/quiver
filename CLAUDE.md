@@ -1,4 +1,4 @@
-# Quiver Plugin
+# Quiver
 
 Session handover plugin for Claude Code. Saves and restores conversation context across sessions.
 Dependencies: `bash`, `claude` CLI.
