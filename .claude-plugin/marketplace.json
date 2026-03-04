@@ -19,20 +19,23 @@
       "repository": "https://github.com/yagizdo/quiver",
       "license": "MIT",
       "keywords": [
-        "agents",
-        "skills",
         "hooks",
         "commands",
         "context-management",
-        "token-management",
-        "session-management"
+        "session-management",
+        "workflow",
+        "handover",
+        "git-commit",
+        "productivity"
       ],
       "category": "development",
       "tags": [
         "session-management",
         "handover",
         "context",
-        "workflow"
+        "workflow",
+        "productivity",
+        "git"
       ]
     }
   ]
