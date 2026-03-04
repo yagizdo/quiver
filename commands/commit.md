@@ -66,17 +66,17 @@ Analyze `git diff --cached` and the recent log. Generate a Conventional Commits 
 
 # Output
 
-**Important:** Output ONLY the code block below — no metadata, no analysis, no narration, no reasoning before or after.
-
-```
-{type}({scope}): {subject}
-```
+**Important:** Do NOT output the commit message as separate text. Embed it directly inside the `AskUserQuestion` tool call so the user always sees the message alongside the options.
 
 Include a body or footers only for breaking changes or multi-type changes where the subject alone is genuinely ambiguous. Default to subject-only. Don't add `Co-authored-by` or attribution footers unless explicitly requested.
 
-Then use the `AskUserQuestion` tool to present selectable options:
+Use the `AskUserQuestion` tool with the commit message embedded in the question field:
 
-- **Question:** "How would you like to proceed?"
+- **Question:** Build the question string using this template (replace placeholders):\
+
+`"\x1b[2mCommit Message:\x1b[0m\n\n{type}({scope}): {subject}\n\nProceed?"`
+
+  If the message has a body, append body lines after the subject separated by newlines.
 - **Header:** "Action"
 - **Options:**
   1. **Commit** — "Commit with this message"
