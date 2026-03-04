@@ -16,9 +16,9 @@ description: Delete the most recent handover file to remove the last session's c
 Using the file listing above, determine which branch applies:
 
 ### Branch A — No Files
-If there are **no `.md` files** in the listing:
+If the listing shows an error (e.g., "No such file or directory"), is empty, or contains **no `.md` files**:
 > No handover files found — nothing to delete.
-> **Tip:** `/quiver:handover` to create one, `/quiver:load-handover` to check again.
+> **Tip:** `/quiver:handover` to create one.
 
 **Stop here.**
 
@@ -42,6 +42,14 @@ After deletion, output:
 > **Deleted:** `{filename}`
 > **Remaining:** {count} handover file(s)
 > **Tip:** `/quiver:delete-all-handovers` to wipe all, `/quiver:load-handover` to view next.
+
+---
+
+## Anti-Patterns
+
+- **Don't** delete without stating the target filename first — the user needs to see what will be removed.
+- **Don't** skip verification after deletion — always re-list to confirm the file is gone.
+- **Don't** proceed if the directory doesn't exist — report "nothing to delete" and stop.
 
 ---
 
