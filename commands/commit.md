@@ -37,7 +37,6 @@ Using the gathered context above, determine which branch applies:
 If `git rev-parse` output contains "not a git repository", or `git status` is empty (no staged, unstaged, or untracked files):
 
 > **Cannot commit** — This is not a git repository, or there are no changes to commit.
-> **Tip:** `/quiver:handover` to save session context before closing.
 
 **Stop here.**
 
@@ -172,7 +171,6 @@ Output the completion confirmation:
 
 > **Committed:** `{short hash}` {subject}
 > **Branch:** `{branch name}`
-> **Tip:** `/quiver:handover` to save session context before closing.
 
 When the user says **edit**:
 
@@ -183,7 +181,6 @@ When the user says **edit**:
 When the user says **cancel**:
 
 > **Commit cancelled.** Your staged changes are still intact.
-> **Tip:** `/quiver:handover` to save session context before closing.
 
 **Stop here.**
 
@@ -219,8 +216,3 @@ Before presenting the commit message, verify:
 
 After committing, run `git log -1 --format="%h %s"` to confirm the commit exists and the subject matches. If verification fails, inform the user immediately.
 
----
-
-## Cross-Command References
-
-> **Tip:** `/quiver:handover` to save session context after committing.
