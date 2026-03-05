@@ -2,16 +2,14 @@
 
 Never lose context between Claude Code sessions. Quiver saves and restores your session context — decisions, progress, and next steps — so you can pick up exactly where you left off.
 
-> Quiver is under active development. Commands and hooks are stable; skills and agents are coming soon.
-
 ## Components
 
 | Component | Count |
 |-----------|-------|
-| Commands | 5 |
+| Commands | 7 |
 | Hooks | 1 |
-| Skills | coming soon |
-| Agents | coming soon |
+| Skills | 1 |
+| Agents | 1 |
 
 ## Commands
 
@@ -35,11 +33,24 @@ Never lose context between Claude Code sessions. Quiver saves and restores your 
 |---------|-------------|
 | `/quiver:commit` | Generate a Conventional Commits message, commit, and optionally push |
 
+### Agent Development
+
+| Command | Description |
+|---------|-------------|
+| `/quiver:create-agent` | Scaffold a new Claude Code agent with smart defaults from a description or interactive Q&A |
+| `/quiver:agents-md` | Generate or rewrite an AGENTS.md operational checklist for AI coding agents |
+
 ## Hooks
 
 | Hook | Event | Description |
 |------|-------|-------------|
 | `pre-compact-handover` | PreCompact | Auto-saves a handover before Claude compacts the conversation |
+
+## Agents
+
+| Agent | Category | Description |
+|-------|----------|-------------|
+| `senior-pr-reviewer` | Review | Analyzes diffs for best practices, performance, readability, and extensibility |
 
 ## How It Works
 
