@@ -1,17 +1,51 @@
 # Quiver
 
-Never lose context between Claude Code sessions.
+Never lose context between Claude Code sessions. Quiver saves and restores your session context — decisions, progress, and next steps — so you can pick up exactly where you left off.
 
 > Quiver is under active development. Commands and hooks are stable; skills and agents are coming soon.
 
-## What is Quiver?
+## Components
 
-Quiver is a Claude Code plugin that saves and restores your session context — decisions, progress, and next steps — so you can pick up exactly where you left off. It works through slash commands and an event-driven hook that captures context before it's lost.
+| Component | Count |
+|-----------|-------|
+| Commands | 5 |
+| Hooks | 1 |
+| Skills | coming soon |
+| Agents | coming soon |
+
+## Commands
+
+### Session Handover
+
+| Command | Description |
+|---------|-------------|
+| `/quiver:handover` | Create and save a structured handover summary |
+| `/quiver:load-handover` | Load the most recent handover into context |
+
+### Cleanup
+
+| Command | Description |
+|---------|-------------|
+| `/quiver:delete-last-handover` | Delete the most recent handover file |
+| `/quiver:delete-all-handovers` | Delete all handover files |
+
+### Git
+
+| Command | Description |
+|---------|-------------|
+| `/quiver:commit` | Generate a Conventional Commits message, commit, and optionally push |
+
+## Hooks
+
+| Hook | Event | Description |
+|------|-------|-------------|
+| `pre-compact-handover` | PreCompact | Auto-saves a handover before Claude compacts the conversation |
+
+## How It Works
 
 - **Session handovers** — structured summaries of your work: git state, decisions made, current progress, and planned next steps
 - **Auto-save on compact** — PreCompact hook captures context automatically before Claude compacts the conversation
 - **Retention policy** — keeps the 3 most recent handovers, prunes older ones automatically
-- **Skills & Agents** — coming soon
 
 ## Installation
 
@@ -39,15 +73,6 @@ Restore context at the start of a new session:
 
 That's it. Your decisions, progress, and next steps carry over.
 
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `/quiver:handover` | Creates and saves a structured handover summary |
-| `/quiver:load-handover` | Loads the most recent handover into context |
-| `/quiver:delete-all-handovers` | Deletes all handover files |
-| `/quiver:delete-last-handover` | Deletes the most recent handover file |
-
 ## Setup
 
 Add the handover directory to your project's `.gitignore`:
@@ -65,4 +90,3 @@ Add the handover directory to your project's `.gitignore`:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
