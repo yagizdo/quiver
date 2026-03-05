@@ -26,6 +26,14 @@ Dependencies: `bash`, `claude` CLI.
 4. Do not reference `CLAUDE_PLUGIN_ROOT` — it is unavailable in commands.
 5. Follow the structural patterns defined in `.claude/templates/command-template-system.md` — role framing, decision trees, output templates, anti-patterns, quality gates, verification steps, and cross-command references.
 
+### Adding an Agent
+
+1. Run `/quiver:create-agent` to scaffold agents interactively -- it handles path, category, and frontmatter automatically.
+2. Agents are **persona prompts**, not commands. They define a specialist role that gets spawned as a subagent by commands or directly via the Agent tool.
+3. Agents live in `agents/<category>/<name>.md` with YAML front-matter fields: `name`, `description`, `model`.
+4. Category directories: `review/`, `research/`, `workflow/`, `design/`, `docs/`, or custom.
+5. The `agents/` directory is registered in `plugin.json`'s `skills` array.
+
 ### Adding or Modifying a Hook
 
 1. Register the event in `hooks/hooks.json` with `"type": "command"` (the only supported hook type).
