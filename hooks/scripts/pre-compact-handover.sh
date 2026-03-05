@@ -59,7 +59,7 @@ printf '%s\n' "$CONTENT" > "$OUT_FILE"
 
 # Prune: keep only the 3 most recent .md files
 # ls -1r gives reverse alpha order; filenames are timestamps so newest sort last alphabetically,
-# meaning ls -1r gives newest first — identical to Python's sorted(..., reverse=True)
+# meaning ls -1r gives newest first.
 count=0
 while IFS= read -r f; do
   count=$((count + 1))
