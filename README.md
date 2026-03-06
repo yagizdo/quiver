@@ -1,6 +1,6 @@
 # Quiver
 
-Never lose context between Claude Code sessions. Quiver saves and restores your session context — decisions, progress, and next steps — so you can pick up exactly where you left off.
+Session continuity, agent orchestration, and development workflows for Claude Code. Never lose context between sessions — carry your decisions, progress, and next steps forward automatically.
 
 ## Components
 
@@ -8,7 +8,7 @@ Never lose context between Claude Code sessions. Quiver saves and restores your 
 |-----------|-------|
 | Commands | 7 |
 | Hooks | 1 |
-| Skills | 1 |
+| Skills | 2 |
 | Agents | 1 |
 
 ## Commands
@@ -17,55 +17,69 @@ Never lose context between Claude Code sessions. Quiver saves and restores your 
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:handover` | Create and save a structured handover summary |
-| `/quiver:load-handover` | Load the most recent handover into context |
+| `/quiver:handover` | Build an 8-section handover note (summary, decisions, dead ends, next steps, etc.) with freshness checks and quality gates |
+| `/quiver:load-handover` | Load the most recent handover, highlight top priorities, and ask which next step to focus on |
 
 ### Cleanup
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:delete-last-handover` | Delete the most recent handover file |
-| `/quiver:delete-all-handovers` | Delete all handover files |
+| `/quiver:delete-last-handover` | Show and delete the most recent handover file with confirmation |
+| `/quiver:delete-all-handovers` | List all handover files, confirm, then delete everything and verify |
 
 ### Git
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:commit` | Generate a Conventional Commits message, commit, and optionally push |
+| `/quiver:commit` | Generate a Conventional Commits message from staged changes, review, commit, and optionally push with `--push` |
 
 ### Agent Development
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:create-agent` | Scaffold a new Claude Code agent with smart defaults from a description or interactive Q&A |
-| `/quiver:agents-md` | Generate or rewrite an AGENTS.md operational checklist for AI coding agents |
+| `/quiver:create-agent` | Scaffold a new agent interactively — parse a description or walk through Q&A, then generate the file under `agents/<category>/` |
+| `/quiver:agents-md` | Analyze project context (CI, linters, configs) and generate an AGENTS.md checklist with constraints, conventions, and gotchas |
 
 ## Hooks
 
 | Hook | Event | Description |
 |------|-------|-------------|
-| `pre-compact-handover` | PreCompact | Auto-saves a handover before Claude compacts the conversation |
+| `pre-compact-handover` | PreCompact | Automatically summarizes the conversation transcript and saves a handover before Claude compacts context |
+
+## Skills
+
+### Agent Orchestration
+
+| Skill | Description |
+|-------|-------------|
+| `orchestrate-agents` | Discover local and plugin agents, plan an optimal team, and coordinate parallel or sequential execution across 5 patterns (fan-out, progressive deepening, etc.) |
+
+### Agent Development
+
+| Skill | Description |
+|-------|-------------|
+| `create-agent` | Agent authoring reference — frontmatter spec, category definitions, body structure (persona, methodology, output format), quality gates, and anti-patterns |
 
 ## Agents
 
-| Agent | Category | Description |
-|-------|----------|-------------|
-| `senior-pr-reviewer` | Review | Analyzes diffs for best practices, performance, readability, and extensibility |
+### Review
+
+| Agent | Description |
+|-------|-------------|
+| `senior-pr-reviewer` | 5-phase PR review (best practices, performance, readability, extensibility, scope) with severity ratings and file:line references |
 
 ## How It Works
 
 - **Session handovers** — structured summaries of your work: git state, decisions made, current progress, and planned next steps
 - **Auto-save on compact** — PreCompact hook captures context automatically before Claude compacts the conversation
 - **Retention policy** — keeps the 3 most recent handovers, prunes older ones automatically
+- **Agent orchestration** — discover your local and plugin agents, assemble teams, and run subtasks in parallel
+- **Agent scaffolding** — create new agents interactively with smart defaults and best practices
 
 ## Installation
 
 ```
-/plugin marketplace add yagizdo/quiver
-```
-
-```
-/plugin install quiver@yagizdo-quiver
+/install yagizdo/quiver
 ```
 
 ## Quick Start
@@ -95,7 +109,7 @@ Add the handover directory to your project's `.gitignore`:
 ## Uninstall
 
 ```
-/plugin uninstall quiver
+/uninstall quiver
 ```
 
 ## License
