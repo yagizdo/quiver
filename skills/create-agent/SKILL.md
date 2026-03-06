@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Agent Authoring Reference
 
-This skill contains the specification and best practices for authoring Claude Code agent files. It is used by the `/quiver:create-agent` command.
+This skill contains the specification and best practices for authoring Claude Code agent files. It is used by the `/create-agent` command.
 
 ## Agent File Specification
 
