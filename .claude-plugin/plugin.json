@@ -1,6 +1,6 @@
 {
   "name": "quiver",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Session handover and work state management for Claude Code",
   "author": {
     "name": "Yilmaz Yagiz Dokumaci"
