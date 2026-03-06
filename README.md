@@ -6,10 +6,26 @@ Session continuity, agent orchestration, and development workflows for Claude Co
 
 | Component | Count |
 |-----------|-------|
-| Commands | 7 |
+| Commands | 8 |
 | Hooks | 1 |
-| Skills | 2 |
+| Skills | 3 |
 | Agents | 1 |
+
+## Quick Start
+
+Save a handover before ending your session:
+
+```
+/handover
+```
+
+Restore context at the start of a new session:
+
+```
+/load-handover
+```
+
+That's it. Your decisions, progress, and next steps carry over.
 
 ## Commands
 
@@ -17,34 +33,40 @@ Session continuity, agent orchestration, and development workflows for Claude Co
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:handover` | Build an 8-section handover note (summary, decisions, dead ends, next steps, etc.) with freshness checks and quality gates |
-| `/quiver:load-handover` | Load the most recent handover, highlight top priorities, and ask which next step to focus on |
+| `/handover` | Build an 8-section handover note with freshness checks and quality gates |
+| `/load-handover` | Load the most recent handover and highlight top priorities |
 
 ### Cleanup
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:delete-last-handover` | Show and delete the most recent handover file with confirmation |
-| `/quiver:delete-all-handovers` | List all handover files, confirm, then delete everything and verify |
+| `/delete-last-handover` | Show and delete the most recent handover file with confirmation |
+| `/delete-all-handovers` | List all handover files, confirm, then delete everything |
 
 ### Git
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:commit` | Generate a Conventional Commits message from staged changes, review, commit, and optionally push with `--push` |
+| `/commit` | Generate a Conventional Commits message from staged changes, commit, and optionally push |
 
 ### Agent Development
 
 | Command | Description |
 |---------|-------------|
-| `/quiver:create-agent` | Scaffold a new agent interactively — parse a description or walk through Q&A, then generate the file under `agents/<category>/` |
-| `/quiver:agents-md` | Analyze project context (CI, linters, configs) and generate an AGENTS.md checklist with constraints, conventions, and gotchas |
+| `/create-agent` | Scaffold a new agent interactively from a description or Q&A walkthrough |
+| `/create-agents-md` | Analyze project context and generate an AGENTS.md checklist for AI agents |
+
+### Maintenance
+
+| Command | Description |
+|---------|-------------|
+| `/repair-skill` | Diagnose and fix a broken skill by analyzing structure and verifying API references |
 
 ## Hooks
 
 | Hook | Event | Description |
 |------|-------|-------------|
-| `pre-compact-handover` | PreCompact | Automatically summarizes the conversation transcript and saves a handover before Claude compacts context |
+| `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before Claude compacts context |
 
 ## Skills
 
@@ -52,13 +74,19 @@ Session continuity, agent orchestration, and development workflows for Claude Co
 
 | Skill | Description |
 |-------|-------------|
-| `orchestrate-agents` | Discover local and plugin agents, plan an optimal team, and coordinate parallel or sequential execution across 5 patterns (fan-out, progressive deepening, etc.) |
+| `orchestrate-agents` | Discover agents, plan an optimal team, and coordinate parallel or sequential execution |
 
 ### Agent Development
 
 | Skill | Description |
 |-------|-------------|
-| `create-agent` | Agent authoring reference — frontmatter spec, category definitions, body structure (persona, methodology, output format), quality gates, and anti-patterns |
+| `create-agent` | Agent authoring reference — frontmatter spec, category definitions, body structure, and quality gates |
+
+### Maintenance
+
+| Skill | Description |
+|-------|-------------|
+| `repair-skill` | Diagnose broken skills, verify API references against current docs, and apply targeted repairs |
 
 ## Agents
 
@@ -66,7 +94,7 @@ Session continuity, agent orchestration, and development workflows for Claude Co
 
 | Agent | Description |
 |-------|-------------|
-| `senior-pr-reviewer` | 5-phase PR review (best practices, performance, readability, extensibility, scope) with severity ratings and file:line references |
+| `senior-pr-reviewer` | 5-phase PR review with severity ratings and file:line references |
 
 ## How It Works
 
@@ -81,24 +109,6 @@ Session continuity, agent orchestration, and development workflows for Claude Co
 ```
 /install yagizdo/quiver
 ```
-
-## Quick Start
-
-Save a handover before ending your session:
-
-```
-/quiver:handover
-```
-
-Restore context at the start of a new session:
-
-```
-/quiver:load-handover
-```
-
-That's it. Your decisions, progress, and next steps carry over.
-
-## Setup
 
 Add the handover directory to your project's `.gitignore`:
 
