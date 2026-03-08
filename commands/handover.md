@@ -168,8 +168,8 @@ Delete all files beyond the 3 most recent.
 In the project memory file, update (or add) a `## Last Handover` section:
 ```
 ## Last Handover
-- file: .claude/handovers/{timestamp}.md
-- summary: {one sentence from the Summary section}
+- file: .claude/handovers/{timestamp}.md <!-- handover-sourced -->
+- summary: {one sentence from the Summary section} <!-- handover-sourced -->
 ```
 **Verify:** Read MEMORY.md to confirm the update.
 

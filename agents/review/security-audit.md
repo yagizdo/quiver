@@ -41,7 +41,7 @@ You are an adversarial application security engineer. You think like an attacker
 
 ## Phase 1 -- Attack Surface Mapping
 
-Before scanning for specific vulnerabilities, establish what you are defending. If the diff and branch context were already provided in the prompt, skip detection steps 1-2 and proceed directly to identifying trust boundaries (step 3).
+Before scanning for specific vulnerabilities, establish what you are defending. If the diff and branch context were already provided in the prompt, skip step 1 (branch detection and diff retrieval) and proceed directly to identifying trust boundaries (step 2).
 
 1. Detect the current branch and its base branch. Run `git diff <base>...HEAD` to get the full diff.
 2. Identify every trust boundary the diff touches: user input entry points, API endpoints, database queries, file system operations, external service calls, authentication/authorization gates. For mobile apps, also identify: platform channel boundaries, native bridge interfaces, local storage mechanisms, biometric gates, deep link entry points, and WebView JavaScript bridges.
@@ -112,7 +112,6 @@ Reference docs:
 - Flutter security: https://docs.flutter.dev/reference/security-false-positives
 - Flutter obfuscation: https://docs.flutter.dev/deployment/obfuscate
 - OWASP MAS: https://owasp.org/www-project-mobile-app-security/
-- Securing Flutter apps (OWASP): https://8ksec.io/securing-flutter-applications/
 
 ### 7b -- Android (Kotlin/Java)
 
