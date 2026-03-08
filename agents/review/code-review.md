@@ -46,7 +46,7 @@ When a Diff Manifest is provided, use the file classifications to calibrate your
 
 ### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
 
-Review for clarity, logical consistency, and correct tool usage patterns. Do NOT flag shell examples in `` !`…` `` blocks as code quality issues. Do NOT suggest adding input validation to illustrative shell commands. These are instructions to an LLM, not executable application code.
+Review for clarity, logical consistency, and correct tool usage patterns. Do NOT flag shell examples in `` !`…` `` blocks as code quality issues. Do NOT suggest adding input validation to illustrative shell commands. These are instructions to an LLM, not executable application code. When using context7 on prompt files, only flag findings if the prompt references a genuinely deprecated or incorrect API -- do NOT flag CLI tool usage patterns, shell syntax, or framework mentions as "best practice violations."
 
 ### SCRIPT / CODE files (`*.sh`, `*.py`, `*.rb`, `*.js`, `*.ts`, `*.go`, etc.)
 
@@ -64,7 +64,7 @@ Lighter review for accuracy only.
 
 Check that changes follow current idioms and library conventions.
 
-1. For each library or framework touched in the diff, use the **context7 MCP** (`resolve-library-id` then `query-docs`) to look up the latest documentation.
+1. For each library or framework touched in the diff, use the **context7 MCP** (`resolve-library-id` then `query-docs`) to look up the latest documentation. For PROMPT files, only flag findings where the prompt references a genuinely deprecated or broken API -- do not treat CLI tool usage or shell patterns as library best-practice violations.
 2. Compare the code against current recommended patterns. Flag deprecated APIs, anti-patterns, or outdated idioms.
 3. Check error handling: are errors caught, logged, and propagated correctly?
 4. Check resource management: are connections, file handles, and subscriptions properly cleaned up?
