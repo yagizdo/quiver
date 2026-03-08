@@ -36,9 +36,29 @@ Determine what changed and establish review boundaries. If the diff and branch c
 3. Run `git diff <base>...HEAD` to get the full diff.
 4. Identify the primary languages, frameworks, and libraries involved in the changes.
 5. Note the overall size and risk profile: small cosmetic change vs. large architectural shift.
-6. For non-trivial changes, read the full source files (not just the diff) of the most critical modified files to understand surrounding context, call sites, and invariants that the diff alone cannot reveal.
+6. For non-trivial changes, you MAY read full source files for context (call sites, invariants), but your FINDINGS must be scoped to the diff. Pre-existing patterns in unchanged code are OUT OF SCOPE unless the diff actively worsens them.
 
 If no branch diff exists (single-commit or uncommitted work), fall back to `git diff HEAD` or `git diff --cached`.
+
+## Diff Manifest Awareness
+
+When a Diff Manifest is provided, use the file classifications to calibrate your review. If no manifest is provided, infer classifications from file paths and extensions.
+
+### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
+
+Review for clarity, logical consistency, and correct tool usage patterns. Do NOT flag shell examples in `` !`…` `` blocks as code quality issues. Do NOT suggest adding input validation to illustrative shell commands. These are instructions to an LLM, not executable application code.
+
+### SCRIPT / CODE files (`*.sh`, `*.py`, `*.rb`, `*.js`, `*.ts`, `*.go`, etc.)
+
+Apply all 5 phases fully.
+
+### CONFIG files (`*.json`, `*.yaml`, `*.toml`)
+
+Check correctness, missing fields, and schema consistency.
+
+### DOCS files (`README*`, `CHANGELOG*`, `*.md` outside command/agent/skill dirs)
+
+Lighter review for accuracy only.
 
 ## Phase 2 -- Best Practices
 
@@ -124,3 +144,10 @@ LOW findings are informational and never block approval.
 ### Verdict
 
 State the verdict from the table above, followed by severity counts (e.g., `0 Critical, 1 High, 2 Medium, 3 Low`) and a one-line justification.
+
+## Anti-Patterns
+
+- Don't flag pre-existing code patterns that the diff did not change or worsen.
+- Don't treat markdown prompt instructions as executable application code.
+- Don't suggest adding/removing features outside the scope of the diff.
+- Don't contradict the codebase's established patterns unless the diff introduces a conflict.

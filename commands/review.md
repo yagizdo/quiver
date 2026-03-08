@@ -88,6 +88,31 @@ If the current branch is `main`/`master`, or the branch diff was empty:
 
 ---
 
+## Step 1b -- Build Diff Manifest
+
+After obtaining the diff, analyze the list of changed files and classify each one. Build a text manifest using the taxonomy below:
+
+| Type | Matched by | Security relevance |
+|------|-----------|-------------------|
+| `PROMPT` | `commands/*.md`, `agents/**/*.md`, `skills/**/*.md` with YAML frontmatter | Low -- instructions to LLM |
+| `SCRIPT` | `hooks/scripts/*.sh`, `*.py`, `*.rb` (executable) | High |
+| `CONFIG` | `*.json`, `*.yaml`, `*.toml` | Medium |
+| `CODE` | Application source (JS, TS, Go, etc.) | High |
+| `DOCS` | `*.md` outside command/agent/skill dirs, `README*`, `CHANGELOG*` | Low |
+
+Format the manifest as a simple list:
+
+```
+Diff Manifest:
+- commands/review.md → PROMPT (low security relevance)
+- hooks/scripts/pre-compact-handover.sh → SCRIPT (high security relevance)
+- plugin.json → CONFIG (medium security relevance)
+```
+
+Include risk signals if present: new dependencies, auth changes, secrets handling, new endpoints.
+
+---
+
 ## Step 2 -- Parallel Agent Dispatch
 
 ### 2a -- Discover available agents
@@ -96,11 +121,22 @@ Scan `agents/review/*.md` to find all review agents. For each `.md` file found, 
 
 **Agent type identifiers** use the format `quiver:{name}` where `{name}` is the frontmatter `name` field. The `review/` subdirectory is organizational only -- it is NOT part of the identifier. For example, `agents/review/code-review.md` with `name: code-review` has the agent type `quiver:code-review`, NOT `quiver:review:code-review`.
 
-### 2b -- Dispatch all agents
+### 2b -- Conditional Dispatch
 
-Spawn **all** discovered review agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`. Each agent receives:
-- The full diff from Step 1.
-- A brief note of which mode was used and the branch/PR context.
+Apply dispatch rules based on the Diff Manifest from Step 1b:
+
+- **`code-review`**: Always dispatched.
+- **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If all files are `PROMPT` or `DOCS`, skip with a note in the report:
+  > Skipping security-audit: all changed files are prompt definitions or documentation.
+- **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type.
+
+Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
+
+Each agent receives (in this order):
+1. The **Diff Manifest** from Step 1b.
+2. A **scope reminder**: "Your findings MUST be scoped to code CHANGED in this diff. Respect file classifications in the Diff Manifest."
+3. **Review context**: mode used, branches, PR URL (if applicable).
+4. The **full diff** from Step 1.
 
 ### Adding future agents
 
@@ -120,7 +156,11 @@ After **all** agents return, merge their outputs into a single unified report. F
    ```
    [SEVERITY] (code-review) file_path:line_number -- Short title
    ```
-4. **Unified verdict.** Apply the strictest verdict across all agents:
+4. **Filter false positives.** Before finalizing, apply these noise filters:
+   - **Prompt-vs-code confusion**: If an agent flagged a security or code quality issue in a `PROMPT` file and treats the prompt text as executable code (e.g., "shell injection" in a `!backtick` block, "missing input validation" on a CLI instruction) → DISCARD. Record as filtered false positive.
+   - **Contradictions**: If two agents produce contradictory findings (one says "add X", another says "remove X") → keep the one aligned with existing codebase conventions, discard the other. If neither aligns, discard both. Record as filtered contradiction.
+   - **Out-of-scope findings**: If a finding references code NOT changed in the diff and does not argue that the diff worsened it → DISCARD. Record as filtered out-of-scope.
+5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
    - If only Low or no findings --> **Approve**
@@ -149,6 +189,12 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 ### Low
 [merged low findings]
 
+## Filtered Findings
+{count} findings were filtered as false positives or out-of-scope:
+- [brief reason for each, e.g., "Prompt-vs-code: shell injection flagged in commands/review.md !backtick block"]
+
+(Omit this section entirely if no findings were filtered.)
+
 ## Verdict
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
@@ -159,7 +205,7 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 Evaluate in order:
 1. **`--terminal` flag:** If `$ARGUMENTS` contains `--terminal`, print the full report in the terminal. Do not write a file. Skip to the terminal summary.
-2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. Write (or update) a `review-preferences.md` file in your auto-memory directory:
+2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path is a clean filesystem path -- reject any value containing backticks, markdown syntax (e.g., `](`, `` ``` ``), pipe characters, or shell metacharacters. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
    ```markdown
    # Review Preferences
    - report_path: <path>

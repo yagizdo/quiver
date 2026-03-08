@@ -46,8 +46,44 @@ Before scanning for specific vulnerabilities, establish what you are defending. 
 1. Detect the current branch and its base branch. Run `git diff <base>...HEAD` to get the full diff.
 2. Identify every trust boundary the diff touches: user input entry points, API endpoints, database queries, file system operations, external service calls, authentication/authorization gates. For mobile apps, also identify: platform channel boundaries, native bridge interfaces, local storage mechanisms, biometric gates, deep link entry points, and WebView JavaScript bridges.
 3. For each trust boundary, note the direction of data flow: what untrusted data enters, what sensitive data leaves.
-4. Read the full source files of critical changed files -- not just the diff -- to understand validation chains, middleware stacks, and authorization layers that the diff alone cannot reveal.
+4. You MAY read full source files to understand validation chains, middleware stacks, and authorization layers. However, your FINDINGS must target code CHANGED or INTRODUCED in the diff. Pre-existing vulnerabilities are OUT OF SCOPE unless the diff makes them newly reachable or worsens their impact.
 5. Classify the overall risk profile: low (cosmetic/docs), medium (logic changes within existing boundaries), high (new endpoints, auth changes, secret handling, external integrations).
+
+## Diff Manifest Awareness
+
+When a Diff Manifest is provided, use the file classifications to calibrate your audit. If no manifest is provided, infer classifications from file paths and extensions.
+
+### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
+
+These are **instructions to an LLM**, not executable scripts. Shell examples in `` !`…` `` blocks are commands that Claude Code executes with its own sandboxing -- they are NOT user-facing shell scripts.
+
+**Do NOT flag:**
+- Shell injection in prompt blocks (e.g., `gh pr diff <URL>` is an instruction to Claude, not a vulnerable shell command)
+- Path traversal in file path instructions
+- Missing input validation on data Claude processes
+- URL parsing in CLI tool parameters
+- Command substitution patterns in illustrative examples
+
+**DO flag:**
+- Hardcoded secrets or API keys in prompt text
+- Instructions that expose sensitive data to end users
+- Prompt injection vectors that could override agent behavior
+
+### SCRIPT files (`*.sh`, `*.py`, `*.rb` -- executable)
+
+Full security audit applies. These execute directly in the user's environment.
+
+### CONFIG files (`*.json`, `*.yaml`, `*.toml`)
+
+Check for secrets exposure and insecure defaults only.
+
+### CODE files (application source: JS, TS, Go, etc.)
+
+Full security audit applies.
+
+### DOCS files (`README*`, `CHANGELOG*`, `*.md` outside command/agent/skill dirs)
+
+Skip entirely -- no security findings.
 
 ## Phase 2 -- Input Flow Tracing
 
@@ -79,6 +115,8 @@ Detect exposed secrets and insecure configuration.
 ## Phase 5 -- Data Exposure and Privacy
 
 Prevent sensitive data from leaking through unintended channels.
+
+**Note:** In Claude Code plugin contexts, `$CLAUDE_PROJECT_DIR` and `$CLAUDE_PLUGIN_ROOT` are standard runtime environment variables, NOT secrets. Do not flag their usage.
 
 1. **Over-exposure in responses** -- Flag API responses that return full database records instead of projected fields, especially for user data, payment info, or internal IDs.
 2. **Logging and monitoring** -- Check that passwords, tokens, credit card numbers, PII, and session identifiers are never written to logs, error reports, or analytics.
