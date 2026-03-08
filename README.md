@@ -30,7 +30,7 @@ Then try your first command:
 | Commands | 9 |
 | Hooks | 1 |
 | Skills | 3 |
-| Agents | 2 |
+| Agents | 3 |
 
 ## Commands
 
@@ -71,7 +71,7 @@ Then try your first command:
 **Examples:**
 ```
 /review <PR-URL> --terminal          # Review a PR and print in terminal
-/review --base main --output /tmp/   # Review against main, save to /tmp/
+/review --base main --output ./tmp/   # Review against main, save to ./tmp/
 /review --set-output ./reports/      # Set default save path for future reviews
 ```
 
@@ -128,6 +128,12 @@ Then try your first command:
 |-------|-------------|
 | `code-review` (`quiver:code-review`) | 5-phase PR review with severity ratings and file:line references |
 | `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
+
+### Research
+
+| Agent | Description |
+|-------|-------------|
+| `best-practices-researcher` (`quiver:best-practices-researcher`) | Researches and synthesizes current best practices for any technology or framework by dynamically detecting the project's tech stack via context7 MCP |
 
 ## How It Works
 

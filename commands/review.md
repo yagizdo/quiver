@@ -117,9 +117,18 @@ Include risk signals if present: new dependencies, auth changes, secrets handlin
 
 ### 2a -- Discover available agents
 
-Scan `agents/review/*.md` to find all review agents. For each `.md` file found, read its YAML frontmatter to extract the `name` and `description` fields.
+Discover agents using a two-tier registry:
 
-**Agent type identifiers** use the format `quiver:{name}` where `{name}` is the frontmatter `name` field. The `review/` subdirectory is organizational only -- it is NOT part of the identifier. For example, `agents/review/code-review.md` with `name: code-review` has the agent type `quiver:code-review`, NOT `quiver:review:code-review`.
+**Tier 1 — Review agents (dynamic):** Scan `agents/review/*.md`. For each `.md` file, read its YAML frontmatter to extract `name` and `description`.
+
+**Tier 2 — External specialists (explicit):** Also include these agents from outside the review directory:
+- `agents/research/best-practices-researcher.md`
+
+For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missing or unreadable, skip it silently — do not fail the review.
+
+**Agent type identifiers** use the format `quiver:{name}` where `{name}` is the frontmatter `name` field. The category subdirectory is organizational only -- it is NOT part of the identifier. Examples:
+- `agents/review/code-review.md` → `quiver:code-review`
+- `agents/research/best-practices-researcher.md` → `quiver:best-practices-researcher`
 
 ### 2b -- Conditional Dispatch
 
@@ -128,6 +137,8 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
 - **`code-review`**: Always dispatched.
 - **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If all files are `PROMPT` or `DOCS`, skip with a note in the report:
   > Skipping security-audit: all changed files are prompt definitions or documentation.
+- **`best-practices-researcher`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If dispatched, its prompt must include the list of changed files with their detected languages/frameworks so it can target its context7 lookups. Skip with a note if all files are `PROMPT` or `DOCS`:
+  > Skipping best-practices-researcher: all changed files are prompt definitions or documentation.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -140,7 +151,8 @@ Each agent receives (in this order):
 
 ### Adding future agents
 
-To add a new review agent, create it under `agents/review/` and register it in `plugin.json`'s `agents` array. The orchestrator discovers and dispatches all agents in that directory automatically.
+- **Review-scoped agents:** Create under `agents/review/` and register in `plugin.json`'s `agents` array. The orchestrator discovers them automatically via Tier 1.
+- **Cross-category agents:** Create under `agents/<category>/`, register in `plugin.json`, and add the path to the Tier 2 list in Step 2a. Add a dispatch rule in Step 2b.
 
 ## Step 3 -- Synthesize Findings
 
@@ -209,13 +221,13 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 Evaluate in order:
 1. **`--terminal` flag:** If `$ARGUMENTS` contains `--terminal`, print the full report in the terminal. Do not write a file. Skip to the terminal summary.
-2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Additionally, reject any path containing `..` (double-dot) segments to prevent directory traversal outside the project root. Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
+2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Additionally, reject any path that starts with `/` (absolute paths) or contains `..` (double-dot) segments to prevent directory traversal outside the project root. Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
    ```markdown
    # Review Preferences
    - report_path: <path>
    ```
    Confirm: > Default report path set to `<path>`. Future reviews will save here automatically.
-3. **`--output` flag:** If `$ARGUMENTS` contains `--output <path>`, use that path as the save directory (one-time, not saved).
+3. **`--output` flag:** If `$ARGUMENTS` contains `--output <path>`, use that path as the save directory (one-time, not saved). Apply the same path validation as `--set-output` (allowlist pattern, reject absolute paths and `..` segments).
 4. **Saved preference:** Check auto-memory for a `review-preferences` file with a `report_path` field. If found, use that path.
 5. **Default:** Use `{project_root}/.claude/reports/`.
 

@@ -16,7 +16,8 @@
   ],
   "agents": [
     "./agents/review/code-review.md",
-    "./agents/review/security-audit.md"
+    "./agents/review/security-audit.md",
+    "./agents/research/best-practices-researcher.md"
   ],
   "mcpServers": {
     "context7": {
