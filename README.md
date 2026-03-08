@@ -27,7 +27,7 @@ Then try your first command:
 
 | Component | Count |
 |-----------|-------|
-| Commands | 8 |
+| Commands | 9 |
 | Hooks | 1 |
 | Skills | 3 |
 | Agents | 2 |
@@ -47,6 +47,33 @@ Then try your first command:
 |---------|-------------|
 | `/delete-last-handover` | Show and delete the most recent handover file with confirmation |
 | `/delete-all-handovers` | List all handover files, confirm, then delete everything |
+
+### Code Review
+
+| Command | Description |
+|---------|-------------|
+| `/review` | Multi-agent code review with synthesized findings |
+
+**Diff source** (pick one):
+```
+/review                              # Review current branch (prompts for base)
+/review --base main                  # Review against a specific base branch
+/review <PR-URL>                     # Review a pull/merge request by URL
+```
+
+**Output flags** (combine with any diff source above):
+```
+--terminal                           # Print full report in terminal instead of saving
+--output ./reports/                  # Save report to a custom path (one-time)
+--set-output ./reports/              # Save report to a custom path and remember it as default
+```
+
+**Examples:**
+```
+/review <PR-URL> --terminal          # Review a PR and print in terminal
+/review --base main --output /tmp/   # Review against main, save to /tmp/
+/review --set-output ./reports/      # Set default save path for future reviews
+```
 
 ### Git
 
@@ -112,7 +139,13 @@ Then try your first command:
 
 ## External Dependencies
 
-This plugin connects to [context7](https://mcp.context7.com) as an MCP server for library documentation lookups. The connection is configured in `plugin.json` under `mcpServers`. No authentication is required. Library/framework names from your codebase are sent to the service during best-practices checks.
+This plugin includes a [Context7](https://context7.com) MCP server for real-time library documentation lookups. It starts automatically when the plugin is enabled (configured in `plugin.json` under `mcpServers`). No authentication required.
+
+**Tools provided:**
+- `resolve-library-id` — Find library ID for a framework/package
+- `get-library-docs` — Get documentation for a specific library
+
+Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service during best-practices checks.
 
 ## Uninstall
 

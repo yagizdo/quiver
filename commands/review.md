@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-agent code review (code quality + security audit) with synthesized findings.
-argument-hint: "[PR/MR URL | --base <branch>]"
+argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal]"
 ---
 
 # Gather Context
@@ -32,9 +32,9 @@ Silently evaluate the conditions below in order. Use the **first** mode that mat
 
 If `$ARGUMENTS` contains a pull request or merge request URL from any Git platform (GitHub, GitLab, Bitbucket, Azure DevOps, etc.):
 
-1. Detect the platform from the URL pattern. Validate that extracted URL segments (owner, repo, number, group, project) contain only safe characters (`[a-zA-Z0-9._-]+`) before constructing commands:
-   - **GitHub:** `github.com/{owner}/{repo}/pull/{number}` -- use `gh pr diff {number} --repo {owner}/{repo}`
-   - **GitLab:** `gitlab.com/{group}/{project}/-/merge_requests/{number}` -- use `glab mr diff {number}`
+1. Detect the platform from the URL pattern. For GitHub, pass the full URL directly to `gh pr diff`. For GitLab, extract the merge request number and validate it is numeric.
+   - **GitHub:** `github.com/{owner}/{repo}/pull/{number}` -- use `gh pr diff <full-URL>`
+   - **GitLab:** `gitlab.com/{group}/{project}/-/merge_requests/{number}` -- extract `{number}` (must be numeric) and use `glab mr diff {number}`
    - **Bitbucket:** `bitbucket.org/{workspace}/{repo}/pull-requests/{number}` -- Bitbucket CLI lacks a direct diff command. Fall back to Mode 2 (branch diff).
    - **Other platforms:** Fall back to Mode 2 with a note:
      > Platform not recognized for direct diff fetching. Falling back to branch diff.
@@ -55,6 +55,9 @@ If no PR link was provided (or Mode 1 fell back), and the current branch is **no
    - **Interactive selection:** Otherwise, use `AskUserQuestion` to ask the user which base branch to compare against. Use the gathered branch list output to build action buttons for candidate branches. Include an **"Other (I'll type it)"** button as the last option. Phrasing:
      > You're on `{current_branch}`. Which branch should I compare against for the review?
    - If the user picks "Other (I'll type it)", ask them to type the branch name.
+1b. **Validate the base branch:** Run `git rev-parse --verify {base_branch}` to confirm the ref exists.
+    If it fails: > Branch `{base_branch}` not found. Please check the name and try again.
+    **Stop here.**
 2. Announce: `Reviewing branch {current_branch} against {base_branch}...`
 3. Get the diff:
    ```
@@ -87,21 +90,19 @@ If the current branch is `main`/`master`, or the branch diff was empty:
 
 ## Step 2 -- Parallel Agent Dispatch
 
-Spawn **all** review agents simultaneously using multiple Agent tool calls in a single response. Each agent receives the same inputs:
+### 2a -- Discover available agents
 
+Scan `agents/review/*.md` to find all review agents. For each `.md` file found, read its YAML frontmatter to extract the `name` and `description` fields.
+
+### 2b -- Dispatch all agents
+
+Spawn **all** discovered review agents simultaneously using multiple Agent tool calls in a single response. Each agent receives:
 - The full diff from Step 1.
 - A brief note of which mode was used and the branch/PR context.
 
-### Always-run agents
-
-| Agent             | Focus                                                                 |
-|-------------------|-----------------------------------------------------------------------|
-| `code-review`     | Best practices, performance, readability, extensibility               |
-| `security-audit`  | Attack surfaces, input flows, auth/authz, secrets, data exposure      |
-
 ### Adding future agents
 
-To add a new review agent, create it under `agents/review/`, register it in `plugin.json`'s `agents` array (required for the agent to be dispatchable), and add a row to the table above. The orchestrator dispatches every agent listed here.
+To add a new review agent, create it under `agents/review/` and register it in `plugin.json`'s `agents` array. The orchestrator discovers and dispatches all agents in that directory automatically.
 
 ## Step 3 -- Synthesize Findings
 
@@ -131,8 +132,7 @@ After **all** agents return, merge their outputs into a single unified report. F
 One paragraph: what the PR does, overall risk, top-line recommendation.
 
 ## Agents Dispatched
-- code-review: [verdict]
-- security-audit: [verdict]
+{list each discovered agent and its verdict}
 
 ## Findings
 ### Critical
@@ -151,64 +151,32 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-## Step 4 -- Write Review Report
+## Step 4 -- Save Review Report
 
-### 4a -- Check for saved preference
+### 4a -- Determine output destination
 
-Before prompting, check your auto-memory files for a saved review report preference. Look for a `review-preferences` section or file that contains a `report_path` and a `mode` field.
+Evaluate in order:
+1. **`--terminal` flag:** If `$ARGUMENTS` contains `--terminal`, print the full report in the terminal. Do not write a file. Skip to the terminal summary.
+2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. Write (or update) a `review-preferences.md` file in your auto-memory directory:
+   ```markdown
+   # Review Preferences
+   - report_path: <path>
+   ```
+   Confirm: > Default report path set to `<path>`. Future reviews will save here automatically.
+3. **`--output` flag:** If `$ARGUMENTS` contains `--output <path>`, use that path as the save directory (one-time, not saved).
+4. **Saved preference:** Check auto-memory for a `review-preferences` file with a `report_path` field. If found, use that path.
+5. **Default:** Use `{project_root}/.claude/reports/`.
 
-- If `mode` is `always` -- skip Q1 and Q2. Auto-save to the remembered `report_path`. Go directly to step 4c.
-- If `mode` is `default` -- show Q1 with the remembered path as the first action button, then show Q2.
-- If `mode` is `skip_remember_prompt` -- show Q1 but skip Q2 after the user picks.
-- If no preference exists -- show Q1 and Q2.
-
-### 4b -- Q1: Save location
-
-Ask the user where to save the report using `AskUserQuestion`:
-
-> Where should I save the review report?
-
-Offer these action buttons (if a remembered default exists, list it first with a `(default)` label):
-1. **`.claude/reports/`** -- Save to `{project_root}/.claude/reports/review-{timestamp}.md`
-2. **`reports/`** -- Save to `{project_root}/reports/review-{timestamp}.md`
-3. **Show in terminal** -- Print the full report directly in the terminal. Do not write a file.
-4. **Custom path** -- Ask the user to type a directory path, then save there as `review-{timestamp}.md`
-5. **Cancel** -- Do not save or print the report. Stop here.
-
-If the user chose "Cancel", stop here. If the user chose "Show in terminal", print the full report and skip Q2.
-
-### 4b.2 -- Q2: Remember preference
-
-If Q2 is not suppressed (see 4a), ask the user using `AskUserQuestion`:
-
-> Should I remember this save location for future reviews?
-
-Offer these action buttons:
-1. **Always use this path** -- Save the chosen path to memory with `mode: always`. Future reviews auto-save here without any prompts.
-2. **Remember as default** -- Save the chosen path to memory with `mode: default`. Future reviews show Q1 with this path pre-selected, and still show Q2.
-3. **No** -- Do not save anything. Ask both Q1 and Q2 again next time.
-4. **No, stop asking** -- Do not save a path, but set `mode: skip_remember_prompt` in memory. Future reviews show Q1 but skip Q2.
-
-When saving a preference, write it to your auto-memory directory as a `review-preferences.md` file (or update the existing one) with clear `report_path` and `mode` fields. Example:
-
-```markdown
-# Review Preferences
-- report_path: .claude/reports/
-- mode: always
-```
-
-### 4c -- Write and summarize
-
-After the user chooses (unless "Show in terminal" or "Cancel"):
+### 4b -- Write and summarize
 
 1. Create the chosen directory if it does not exist.
-2. Write the full synthesized report as `review-{timestamp}.md` (use `date '+%Y-%m-%d_%H-%M-%S'` for the timestamp).
+2. Write the full synthesized report as `review-{timestamp}.md` (use `date '+%Y-%m-%d_%H-%M-%S'`).
 3. Print a short terminal summary:
-   - One-line verdict (Approve / Approve with suggestions / Request changes)
-   - Counts per severity (e.g., `2 Critical, 1 High, 3 Medium, 5 Low`)
+   - One-line verdict
+   - Counts per severity
    - Which agents ran and their individual verdicts
    - Path to the saved report file
-4. Do **not** print the full review in the terminal unless the user chose "Show in terminal".
+4. Do **not** print the full review in the terminal unless `--terminal` was used.
 
 ---
 
@@ -223,5 +191,5 @@ After the user chooses (unless "Show in terminal" or "Cancel"):
 - **Don't** run agents sequentially -- always dispatch all agents in parallel (multiple Agent tool calls in one response).
 - **Don't** present raw agent outputs side-by-side -- always synthesize into a single merged report with deduplication.
 - **Don't** let duplicate findings from different agents inflate severity counts -- deduplicate before counting.
-- **Don't** ignore saved review preferences -- always check auto-memory for a `review-preferences` file before prompting in Step 4.
-- **Don't** show Q2 (remember prompt) when the user chose "Show in terminal" or when `mode` is `skip_remember_prompt` or `always`.
+- **Don't** ignore saved review preferences -- always check auto-memory for a `review-preferences` file before defaulting in Step 4.
+- **Don't** ignore the `--output` flag when provided.
