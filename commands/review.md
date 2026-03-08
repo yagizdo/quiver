@@ -48,7 +48,7 @@ If `$ARGUMENTS` contains a pull request or merge request URL from any Git platfo
 
 ### Mode 2 -- Branch Diff
 
-If no PR link was provided (or Mode 1 fell back), and the current branch is **not** `main` or `master`:
+If no PR link was provided (or Mode 1 fell back), and **any** of the following are true: (a) `$ARGUMENTS` contains `--base <branch>`, or (b) the current branch is **not** `main` or `master`:
 
 1. **Determine the base branch** using one of these methods (in order):
    - **`--base` flag:** If `$ARGUMENTS` contains `--base <branch>`, use that branch directly. Skip the prompt.
@@ -96,7 +96,8 @@ After obtaining the diff, analyze the list of changed files and classify each on
 |------|-----------|-------------------|
 | `PROMPT` | `commands/*.md`, `agents/**/*.md`, `skills/**/*.md` with YAML frontmatter | Low -- instructions to LLM |
 | `SCRIPT` | `hooks/scripts/*.sh`, `*.py`, `*.rb` (executable) | High |
-| `CONFIG` | `*.json`, `*.yaml`, `*.toml` | Medium |
+| `CONFIG-APP` | App configuration: auth, database, CI/CD, environment, secrets files (`*.json`, `*.yaml`, `*.toml` containing app settings, credentials, or infrastructure) | High |
+| `CONFIG-MANIFEST` | Package/plugin registries: `plugin.json`, `package.json`, lockfiles, `tsconfig.json`, `*.toml` build configs — structural metadata only | Low |
 | `CODE` | Application source (JS, TS, Go, etc.) | High |
 | `DOCS` | `*.md` outside command/agent/skill dirs, `README*`, `CHANGELOG*` | Low |
 
@@ -106,7 +107,8 @@ Format the manifest as a simple list:
 Diff Manifest:
 - commands/review.md → PROMPT (low security relevance)
 - hooks/scripts/pre-compact-handover.sh → SCRIPT (high security relevance)
-- plugin.json → CONFIG (medium security relevance)
+- plugin.json → CONFIG-MANIFEST (low security relevance)
+- .env.example → CONFIG-APP (high security relevance)
 ```
 
 Include risk signals if present: new dependencies, auth changes, secrets handling, new endpoints.
@@ -135,13 +137,13 @@ For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missin
 Apply dispatch rules based on the Diff Manifest from Step 1.5:
 
 - **`code-review`**: Always dispatched.
-- **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If all files are `PROMPT` or `DOCS`, skip with a note in the report:
-  > Skipping security-audit: all changed files are prompt definitions or documentation.
-- **`best-practices-researcher`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If dispatched, its prompt must include the list of changed files with their detected languages/frameworks so it can target its context7 lookups. Skip with a note if all files are `PROMPT` or `DOCS`:
-  > Skipping best-practices-researcher: all changed files are prompt definitions or documentation.
-- **`architecture-strategist`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If dispatched, its prompt must include the project's root file listing (`ls` of the project root) so it can map conventions in Phase 1. Skip with a note if all files are `PROMPT` or `DOCS`:
-  > Skipping architecture-strategist: all changed files are prompt definitions or documentation.
-- **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type.
+- **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
+  > Skipping security-audit: no application code, scripts, or security-relevant configuration changed.
+- **`best-practices-researcher`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Configuration files (both `CONFIG-APP` and `CONFIG-MANIFEST`) do not trigger this agent since they lack framework/library code to research. If dispatched, its prompt must include the list of changed files with their detected languages/frameworks so it can target its context7 lookups. Skip with a note otherwise:
+  > Skipping best-practices-researcher: no application code or scripts changed.
+- **`architecture-strategist`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. If dispatched, its prompt must include the project's root file listing (`ls` of the project root) so it can map conventions in Phase 1. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
+  > Skipping architecture-strategist: no application code, scripts, or structural configuration changed.
+- **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
 
@@ -226,13 +228,13 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 Evaluate in order:
 1. **`--terminal` flag:** If `$ARGUMENTS` contains `--terminal`, print the full report in the terminal. Do not write a file. Skip to the terminal summary.
-2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Additionally, reject any path that starts with `/` (absolute paths) or contains `..` (double-dot) segments to prevent directory traversal outside the project root. Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
+2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Additionally, reject any path that starts with `/` (absolute paths) or where any path segment (split by `/`) equals `..` to prevent directory traversal outside the project root. Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
    ```markdown
    # Review Preferences
    - report_path: <path>
    ```
    Confirm: > Default report path set to `<path>`. Future reviews will save here automatically.
-3. **`--output` flag:** If `$ARGUMENTS` contains `--output <path>`, use that path as the save directory (one-time, not saved). Apply the same path validation as `--set-output` (allowlist pattern, reject absolute paths and `..` segments).
+3. **`--output` flag:** If `$ARGUMENTS` contains `--output <path>`, use that path as the save directory (one-time, not saved). Apply the same path validation as `--set-output` (allowlist pattern, reject absolute paths and `..` path segments).
 4. **Saved preference:** Check auto-memory for a `review-preferences` file with a `report_path` field. If found, use that path.
 5. **Default:** Use `{project_root}/.claude/reports/`.
 
