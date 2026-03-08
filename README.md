@@ -121,19 +121,27 @@ Then try your first command:
 | `repair-skill` | Diagnose broken skills, verify API references against current docs, and apply targeted repairs |
 
 ## Agents
+<!-- agents-start -->
 
 ### Review
+<!-- agents:review-start -->
 
 | Agent | Description |
 |-------|-------------|
 | `code-review` (`quiver:code-review`) | 5-phase PR review with severity ratings and file:line references |
 | `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
 
+<!-- agents:review-end -->
+
 ### Research
+<!-- agents:research-start -->
 
 | Agent | Description |
 |-------|-------------|
 | `best-practices-researcher` (`quiver:best-practices-researcher`) | Researches and synthesizes current best practices for any technology or framework by dynamically detecting the project's tech stack via context7 MCP |
+
+<!-- agents:research-end -->
+<!-- agents-end -->
 
 ## How It Works
 
