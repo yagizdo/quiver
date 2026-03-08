@@ -161,6 +161,9 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Misapplied doc lookups on prompts**: If an agent used context7 doc lookups to flag CLI tool usage, shell syntax, or framework mentions in a `PROMPT` file as "best practice violations" (e.g., "deprecated CLI flag", "missing error handling in shell example") → DISCARD. Only keep doc-sourced findings on prompt files if they identify a genuinely broken or deprecated API reference.
    - **Contradictions**: If two agents produce contradictory findings (one says "add X", another says "remove X") → keep the one aligned with existing codebase conventions, discard the other. If neither aligns, discard both. Record as filtered contradiction.
    - **Out-of-scope findings**: If a finding references code NOT changed in the diff and does not argue that the diff worsened it → DISCARD. Record as filtered out-of-scope.
+   - **Severity inflation**: If a finding's severity relies on a hypothetical scenario ("an attacker could...", "in the future this might...") rather than a concrete, demonstrable consequence → DOWNGRADE to Low. If it was already Low, keep it.
+   - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
+   - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
 5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
@@ -206,7 +209,7 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 Evaluate in order:
 1. **`--terminal` flag:** If `$ARGUMENTS` contains `--terminal`, print the full report in the terminal. Do not write a file. Skip to the terminal summary.
-2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
+2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Additionally, reject any path containing `..` (double-dot) segments to prevent directory traversal outside the project root. Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
    ```markdown
    # Review Preferences
    - report_path: <path>
