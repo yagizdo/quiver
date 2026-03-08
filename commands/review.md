@@ -94,9 +94,11 @@ If the current branch is `main`/`master`, or the branch diff was empty:
 
 Scan `agents/review/*.md` to find all review agents. For each `.md` file found, read its YAML frontmatter to extract the `name` and `description` fields.
 
+**Agent type identifiers** use the format `quiver:{name}` where `{name}` is the frontmatter `name` field. The `review/` subdirectory is organizational only -- it is NOT part of the identifier. For example, `agents/review/code-review.md` with `name: code-review` has the agent type `quiver:code-review`, NOT `quiver:review:code-review`.
+
 ### 2b -- Dispatch all agents
 
-Spawn **all** discovered review agents simultaneously using multiple Agent tool calls in a single response. Each agent receives:
+Spawn **all** discovered review agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`. Each agent receives:
 - The full diff from Step 1.
 - A brief note of which mode was used and the branch/PR context.
 
