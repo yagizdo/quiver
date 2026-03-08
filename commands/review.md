@@ -1,6 +1,6 @@
 ---
 name: review
-description: Run a multi-agent code review (code quality + security audit) with synthesized findings.
+description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings.
 argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal]"
 ---
 
@@ -139,6 +139,8 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
   > Skipping security-audit: all changed files are prompt definitions or documentation.
 - **`best-practices-researcher`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If dispatched, its prompt must include the list of changed files with their detected languages/frameworks so it can target its context7 lookups. Skip with a note if all files are `PROMPT` or `DOCS`:
   > Skipping best-practices-researcher: all changed files are prompt definitions or documentation.
+- **`architecture-strategist`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If dispatched, its prompt must include the project's root file listing (`ls` of the project root) so it can map conventions in Phase 1. Skip with a note if all files are `PROMPT` or `DOCS`:
+  > Skipping architecture-strategist: all changed files are prompt definitions or documentation.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -158,7 +160,7 @@ Each agent receives (in this order):
 
 After **all** agents return, merge their outputs into a single unified report. Follow these rules:
 
-1. **Deduplicate.** If two agents flag the same issue (e.g., code-review's Performance phase and security-audit both flag a denial-of-service risk on the same line), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable.
+1. **Deduplicate.** If two agents flag the same issue (e.g., code-review's Performance phase and security-audit both flag a denial-of-service risk on the same line, or code-review and architecture-strategist both flag a coupling concern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable.
 2. **Unified severity.** Reclassify all findings into a single scale:
    - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass.
    - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns.
@@ -191,6 +193,9 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 ## Agents Dispatched
 {list each discovered agent and its verdict}
+
+## Architectural Assessment
+{If architecture-strategist ran: include its Architecture Context (3-5 bullets) and Structural Summary here. If it did not run or returned empty, omit this section entirely.}
 
 ## Findings
 ### Critical
@@ -251,7 +256,7 @@ Evaluate in order:
 - **Don't** dump the full review into the terminal -- write it to the report file and show only the summary (unless the user chose "Show in terminal").
 - **Don't** save review reports to system temp directories (`/tmp/`) -- always save inside the project or show in terminal, per the user's choice.
 - **Don't** skip the mode announcement -- the user must know which diff source is being reviewed.
-- **Don't** use `git diff` without the triple-dot (`...`) syntax for branch diffs -- two-dot diffs include unrelated upstream changes.
+- **Don't** use two-dot `git diff <base>..<head>` for branch diffs -- two-dot diffs include unrelated upstream changes. Bare `git diff` (no arguments) is correct for Mode 3 uncommitted changes.
 - **Don't** run agents sequentially -- always dispatch all agents in parallel (multiple Agent tool calls in one response).
 - **Don't** present raw agent outputs side-by-side -- always synthesize into a single merged report with deduplication.
 - **Don't** let duplicate findings from different agents inflate severity counts -- deduplicate before counting.

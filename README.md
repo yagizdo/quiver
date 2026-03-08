@@ -158,7 +158,7 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 
 **Tools provided:**
 - `resolve-library-id` — Find library ID for a framework/package
-- `get-library-docs` — Get documentation for a specific library
+- `query-docs` — Get documentation for a specific library
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
