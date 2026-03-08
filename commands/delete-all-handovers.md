@@ -37,6 +37,9 @@ If there are **one or more `.md` files**:
    ```
    rm -f .claude/handovers/*.md
    ```
+5. **Memory cleanup:** Read the auto-memory file (`MEMORY.md` in your memory directory). Remove only lines that contain the `<!-- handover-sourced -->` marker from MEMORY.md using the Edit tool. Leave all other entries untouched. Count removed lines as {N}. After cleanup, inform the user:
+   > Also removed {N} handover-sourced references from MEMORY.md.
+   If no matching entries were found, skip this message.
 
 ---
 

@@ -27,10 +27,10 @@ Then try your first command:
 
 | Component | Count |
 |-----------|-------|
-| Commands | 8 |
+| Commands | 9 |
 | Hooks | 1 |
 | Skills | 3 |
-| Agents | 1 |
+| Agents | 4 |
 
 ## Commands
 
@@ -47,6 +47,33 @@ Then try your first command:
 |---------|-------------|
 | `/delete-last-handover` | Show and delete the most recent handover file with confirmation |
 | `/delete-all-handovers` | List all handover files, confirm, then delete everything |
+
+### Code Review
+
+| Command | Description |
+|---------|-------------|
+| `/review` | Multi-agent code review with synthesized findings |
+
+**Diff source** (pick one):
+```
+/review                              # Review current branch (prompts for base)
+/review --base main                  # Review against a specific base branch
+/review <PR-URL>                     # Review a pull/merge request by URL
+```
+
+**Output flags** (combine with any diff source above):
+```
+--terminal                           # Print full report in terminal instead of saving
+--output ./reports/                  # Save report to a custom path (one-time)
+--set-output ./reports/              # Save report to a custom path and remember it as default
+```
+
+**Examples:**
+```
+/review <PR-URL> --terminal          # Review a PR and print in terminal
+/review --base main --output ./tmp/   # Review against main, save to ./tmp/
+/review --set-output ./reports/      # Set default save path for future reviews
+```
 
 ### Git
 
@@ -94,12 +121,28 @@ Then try your first command:
 | `repair-skill` | Diagnose broken skills, verify API references against current docs, and apply targeted repairs |
 
 ## Agents
+<!-- agents-start -->
 
 ### Review
+<!-- agents:review-start -->
 
 | Agent | Description |
 |-------|-------------|
-| `senior-pr-reviewer` | 5-phase PR review with severity ratings and file:line references |
+| `code-review` (`quiver:code-review`) | 5-phase PR review with severity ratings and file:line references |
+| `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
+| `architecture-strategist` (`quiver:architecture-strategist`) | Reviews code changes strictly from an architectural lens -- boundary violations, coupling, pattern drift, and scalability -- grounded in the project's actual conventions |
+
+<!-- agents:review-end -->
+
+### Research
+<!-- agents:research-start -->
+
+| Agent | Description |
+|-------|-------------|
+| `best-practices-researcher` (`quiver:best-practices-researcher`) | Researches and synthesizes current best practices for any technology or framework by dynamically detecting the project's tech stack via context7 MCP |
+
+<!-- agents:research-end -->
+<!-- agents-end -->
 
 ## How It Works
 
@@ -108,6 +151,16 @@ Then try your first command:
 - **Retention policy** — keeps the 3 most recent handovers, prunes older ones automatically
 - **Agent orchestration** — discover your local and plugin agents, assemble teams, and run subtasks in parallel
 - **Agent scaffolding** — create new agents interactively with smart defaults and best practices
+
+## External Dependencies
+
+This plugin includes a [Context7](https://context7.com) MCP server for real-time library documentation lookups. It starts automatically when the plugin is enabled (configured in `plugin.json` under `mcpServers`). No authentication required.
+
+**Tools provided:**
+- `resolve-library-id` — Find library ID for a framework/package
+- `query-docs` — Get documentation for a specific library
+
+Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
 ## Uninstall
 

@@ -126,10 +126,44 @@ Write the generated agent to: `agents/{category}/{name}.md`
 
 Silently detect the project context from Phase 1 data:
 
-- **Plugin project** (plugin.json exists): Check if `"./agents/"` is already in the `skills` array. If not, note that the user should add it.
+- **Plugin project** (plugin.json exists): Check if `"./agents/"` is already in the `skills` array. If not, note that the user should add it. Then, auto-register the new agent path in plugin.json's `agents` array using `./agents/{category}/{name}.md` format. If the `agents` field doesn't exist yet, create it. Skip if the exact path is already present.
 - **General project** (no plugin.json): Note that the user can reference the agent from their CLAUDE.md or project configuration.
 
-### 3. Output
+### 3. Update README.md
+
+After the agent file is saved and plugin.json is updated, automatically add the new agent to the project's README.md.
+
+**Procedure:**
+
+1. Read `README.md` from the project root. If it does not exist, log a warning and skip this step entirely.
+2. Look for HTML comment markers in the agents section:
+   - `<!-- agents:{category}-start -->` / `<!-- agents:{category}-end -->` for existing category sections
+   - `<!-- agents-start -->` / `<!-- agents-end -->` for the overall agents block
+3. **If category markers exist** (e.g., `<!-- agents:review-start -->`):
+   - Find the `<!-- agents:{category}-end -->` marker
+   - Insert a new table row immediately before that marker: `| \`{name}\` (\`quiver:{name}\`) | {description (without the "Use when" prefix -- use the user-facing summary)} |`
+4. **If category markers do NOT exist** but `<!-- agents-end -->` exists:
+   - Insert a new category subsection immediately before `<!-- agents-end -->`:
+     ```
+     ### {Category (title case)}
+     <!-- agents:{category}-start -->
+
+     | Agent | Description |
+     |-------|-------------|
+     | `{name}` (`quiver:{name}`) | {description} |
+
+     <!-- agents:{category}-end -->
+
+     ```
+5. **If no markers are found at all**: Log a warning ("README.md does not have agent injection markers -- skipping auto-update. Add `<!-- agents-start -->` / `<!-- agents-end -->` markers to enable this.") and skip.
+6. Update the Components table: find the `| Agents | {N} |` row and increment the count by 1.
+
+**Rules:**
+- Never delete or rewrite existing table rows -- only append.
+- Preserve exact spacing and formatting of surrounding content.
+- If any step fails (missing markers, malformed table), warn and skip rather than corrupting the file.
+
+### 4. Output
 
 > **Agent created:** `agents/{category}/{name}.md`
 >
@@ -144,8 +178,8 @@ Silently detect the project context from Phase 1 data:
 > {context-aware next steps -- only show the relevant one:}
 >
 > **Next steps (plugin project):**
-> Add `"./agents/"` to the `skills` array in `plugin.json` if not already present.
-> Then test by spawning the agent with the Agent tool.
+> Agent registered in `plugin.json` `agents` array automatically.
+> Test by spawning the agent with the Agent tool.
 >
 > **Next steps (general project):**
 > Reference the agent in your project's CLAUDE.md or load it via your plugin/skill configuration.
@@ -160,5 +194,5 @@ Silently detect the project context from Phase 1 data:
 - **Don't** generate placeholder sections like "TODO: add methodology" -- ask the user or infer from the description.
 - **Don't** create agents with generic personas like "You are a helpful assistant" -- every agent needs domain-specific expertise.
 - **Don't** skip the summary confirmation when fields were inferred -- the user should validate before file creation.
-- **Don't** modify plugin.json or any registry file -- only create the agent file and provide guidance.
+- **Don't** modify plugin.json beyond adding the new agent path to the `agents` array -- no other fields or files should be touched.
 - **Don't** generate agents longer than 200 lines -- focus on the highest-impact methodology steps.

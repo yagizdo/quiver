@@ -29,10 +29,17 @@ If there are **one or more `.md` files**:
 2. State the pre-deletion confirmation:
    > **Target:** `{filename}`
    > **Remaining after deletion:** {count - 1} handover file(s)
-3. Delete it using the Bash tool:
+3. Ask the user for confirmation using `AskUserQuestion`:
+   > Delete `{filename}`? This cannot be undone.
+   Actions: ["Yes, delete it", "Cancel"]
+4. If cancelled, stop: > **Cancelled** — no files were deleted.
+5. Delete it using the Bash tool:
    ```
    rm .claude/handovers/{filename}
    ```
+6. **Memory cleanup:** Read the auto-memory file (`MEMORY.md` in your memory directory). Remove only lines that contain the `<!-- handover-sourced -->` marker from MEMORY.md using the Edit tool. Leave all other entries untouched. Count removed lines as {N}. After cleanup, inform the user:
+   > Also removed {N} handover-sourced references from MEMORY.md.
+   If no matching entries were found, skip this message.
 
 ---
 
