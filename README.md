@@ -126,8 +126,8 @@ Then try your first command:
 
 | Agent | Description |
 |-------|-------------|
-| `code-review` (`quiver:review:code-review`) | 5-phase PR review with severity ratings and file:line references |
-| `security-audit` (`quiver:review:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
+| `code-review` (`quiver:code-review`) | 5-phase PR review with severity ratings and file:line references |
+| `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
 
 ## How It Works
 
@@ -145,7 +145,7 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 - `resolve-library-id` — Find library ID for a framework/package
 - `get-library-docs` — Get documentation for a specific library
 
-Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service during best-practices checks.
+Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
 ## Uninstall
 

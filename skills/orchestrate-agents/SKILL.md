@@ -201,6 +201,8 @@ Agent(
 | Deep security/architecture analysis | Custom agent or `general-purpose` | `opus` |
 | Quick lint or format check | `general-purpose` | `haiku` |
 
+> **Note:** The "Recommended Frontmatter Model" column applies only to custom agents you create. Built-in agents (`Explore`, `Plan`, `general-purpose`) use models controlled by Claude Code itself — their model cannot be set via frontmatter.
+
 ---
 
 ## Agent Namespacing

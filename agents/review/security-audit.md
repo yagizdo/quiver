@@ -1,6 +1,6 @@
 ---
 name: security-audit
-description: "Adversarial security auditor that maps attack surfaces, traces untrusted data flows, and produces severity-rated findings with concrete remediation. Covers web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) security. Use for pre-merge security review or when changes touch auth, input handling, secrets, platform channels, or external integrations."
+description: "Adversarial security auditor covering web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) attack surfaces."
 model: opus
 ---
 

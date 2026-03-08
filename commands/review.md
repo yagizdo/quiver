@@ -88,7 +88,7 @@ If the current branch is `main`/`master`, or the branch diff was empty:
 
 ---
 
-## Step 1b -- Build Diff Manifest
+## Step 1.5 -- Build Diff Manifest
 
 After obtaining the diff, analyze the list of changed files and classify each one. Build a text manifest using the taxonomy below:
 
@@ -123,7 +123,7 @@ Scan `agents/review/*.md` to find all review agents. For each `.md` file found, 
 
 ### 2b -- Conditional Dispatch
 
-Apply dispatch rules based on the Diff Manifest from Step 1b:
+Apply dispatch rules based on the Diff Manifest from Step 1.5:
 
 - **`code-review`**: Always dispatched.
 - **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG` file. If all files are `PROMPT` or `DOCS`, skip with a note in the report:
@@ -133,7 +133,7 @@ Apply dispatch rules based on the Diff Manifest from Step 1b:
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
 
 Each agent receives (in this order):
-1. The **Diff Manifest** from Step 1b.
+1. The **Diff Manifest** from Step 1.5.
 2. A **scope reminder**: "Your findings MUST be scoped to code CHANGED in this diff. Respect file classifications in the Diff Manifest."
 3. **Review context**: mode used, branches, PR URL (if applicable).
 4. The **full diff** from Step 1.
@@ -205,7 +205,7 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 Evaluate in order:
 1. **`--terminal` flag:** If `$ARGUMENTS` contains `--terminal`, print the full report in the terminal. Do not write a file. Skip to the terminal summary.
-2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path is a clean filesystem path -- reject any value containing backticks, markdown syntax (e.g., `](`, `` ``` ``), pipe characters, or shell metacharacters. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
+2. **`--set-output` flag:** If `$ARGUMENTS` contains `--set-output <path>`, use that path as the save directory **and** save it as the default for future reviews. **Path validation:** Before saving, verify the path matches the allowlist pattern `[a-zA-Z0-9_./ -]+` (letters, digits, dots, underscores, slashes, hyphens, spaces). Reject anything else. If invalid, warn the user and do not write the preference. Write (or update) a `review-preferences.md` file in your auto-memory directory:
    ```markdown
    # Review Preferences
    - report_path: <path>
