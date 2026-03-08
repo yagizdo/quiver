@@ -1,7 +1,7 @@
 ---
 name: security-audit
 description: "Adversarial security auditor covering web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) attack surfaces."
-model: opus
+model: sonnet
 ---
 
 <examples>

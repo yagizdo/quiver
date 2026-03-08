@@ -30,7 +30,7 @@ Then try your first command:
 | Commands | 9 |
 | Hooks | 1 |
 | Skills | 3 |
-| Agents | 3 |
+| Agents | 4 |
 
 ## Commands
 
@@ -130,6 +130,7 @@ Then try your first command:
 |-------|-------------|
 | `code-review` (`quiver:code-review`) | 5-phase PR review with severity ratings and file:line references |
 | `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
+| `architecture-strategist` (`quiver:architecture-strategist`) | Reviews code changes strictly from an architectural lens -- boundary violations, coupling, pattern drift, and scalability -- grounded in the project's actual conventions |
 
 <!-- agents:review-end -->
 

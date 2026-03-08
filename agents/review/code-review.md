@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: "Senior PR reviewer that runs a 5-phase code review (scope, best practices, performance, readability, extensibility) with severity-rated findings."
-model: opus
+model: sonnet
 ---
 
 <examples>

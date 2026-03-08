@@ -17,6 +17,7 @@
   "agents": [
     "./agents/review/code-review.md",
     "./agents/review/security-audit.md",
+    "./agents/review/architecture-strategist.md",
     "./agents/research/best-practices-researcher.md"
   ],
   "mcpServers": {
