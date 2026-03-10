@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings.
-argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal]"
+argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr]"
 ---
 
 # Gather Context
@@ -251,6 +251,42 @@ Evaluate in order:
 
 ---
 
+## Step 5 -- Post to PR (Optional)
+
+This step enables posting the review report as a PR comment. It is **strictly opt-in** and never runs automatically.
+
+### 5a -- Determine if PR commenting applies
+
+Evaluate in order:
+
+1. **`--comment-pr` flag:** If `$ARGUMENTS` contains `--comment-pr`, skip the prompt and proceed directly to 5b.
+2. **PR context available:** If Mode 1 was used (a PR/MR URL was provided), ask the user:
+   > Review saved. Would you like to post this report as a comment on the PR?
+   Use `AskUserQuestion` with action buttons: **"Yes, post to PR"** and **"No thanks"**.
+   - If the user selects "No thanks" or dismisses, **stop here**. Do not post.
+3. **No PR context:** If Mode 2 or Mode 3 was used and no PR URL was provided, attempt to detect an active PR for the current branch:
+   - **GitHub:** `gh pr view --json url,number --jq '.url' 2>/dev/null`
+   - **GitLab:** `glab mr view --output json 2>/dev/null`
+   - If detection succeeds and `--comment-pr` was passed, proceed to 5b using the detected PR.
+   - If detection succeeds but `--comment-pr` was NOT passed, do not prompt -- skip silently. The user must explicitly opt in via the flag when no PR URL was provided.
+   - If detection fails, skip silently. Do not warn or error.
+
+### 5b -- Post the comment
+
+1. **Read the saved report** from the path determined in Step 4b.
+2. **Post using the platform CLI:**
+   - **GitHub:** `gh pr comment {pr_number_or_url} --body-file {report_path}`
+   - **GitLab:** `glab mr comment {mr_number} --message "$(cat {report_path})"`
+   - For other platforms: print a note and skip:
+     > PR commenting is not supported for this platform. You can manually paste the report from: `{report_path}`
+3. **Confirm success:**
+   > Review posted as a comment on {pr_url}.
+4. **Handle failure gracefully:** If the CLI command fails (permissions, network, etc.):
+   > Could not post the review to the PR. The report is saved at: `{report_path}`
+   Do not retry. Do not error out.
+
+---
+
 ## Anti-Patterns
 
 - **Don't** prompt the user for input **between base branch confirmation and report save** -- the review itself runs end-to-end without interaction until the save-location prompt in Step 4.
@@ -264,3 +300,7 @@ Evaluate in order:
 - **Don't** let duplicate findings from different agents inflate severity counts -- deduplicate before counting.
 - **Don't** ignore saved review preferences -- always check auto-memory for a `review-preferences` file before defaulting in Step 4.
 - **Don't** ignore the `--output` flag when provided.
+- **Don't** post a PR comment without explicit user consent -- `--comment-pr` flag or interactive confirmation are the only valid triggers.
+- **Don't** prompt to post a PR comment when no PR context exists (Mode 2/3 without `--comment-pr`) -- skip silently.
+- **Don't** hardcode platform tokens, repository URLs, or API endpoints -- rely on `gh`/`glab` CLIs which manage their own authentication.
+- **Don't** retry or error out if PR comment posting fails -- warn and move on.
