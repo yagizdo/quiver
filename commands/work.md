@@ -23,7 +23,7 @@ argument-hint: "<plan file path or task description>"
 ```
 
 ```
-!`ls -1 .claude/plans/*.md`
+!`ls -1 .claude/plans/`
 ```
 
 ---
