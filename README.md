@@ -66,6 +66,7 @@ Then try your first command:
 --terminal                           # Print full report in terminal instead of saving
 --output ./reports/                  # Save report to a custom path (one-time)
 --set-output ./reports/              # Save report to a custom path and remember it as default
+--comment-pr                         # Post the review as a PR comment (opt-in)
 ```
 
 **Examples:**
@@ -73,7 +74,10 @@ Then try your first command:
 /review <PR-URL> --terminal          # Review a PR and print in terminal
 /review --base main --output ./tmp/   # Review against main, save to ./tmp/
 /review --set-output ./reports/      # Set default save path for future reviews
+/review <PR-URL> --comment-pr        # Review a PR and post the report as a comment
 ```
+
+> When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.
 
 ### Git
 
