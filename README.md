@@ -27,9 +27,9 @@ Then try your first command:
 
 | Component | Count |
 |-----------|-------|
-| Commands | 9 |
+| Commands | 11 |
 | Hooks | 1 |
-| Skills | 3 |
+| Skills | 5 |
 | Agents | 4 |
 
 ## Commands
@@ -88,6 +88,13 @@ Then try your first command:
 | `/create-agent` | Scaffold a new agent interactively from a description or Q&A walkthrough |
 | `/create-agents-md` | Analyze project context and generate an AGENTS.md checklist for AI agents |
 
+### Planning & Execution
+
+| Command | Description |
+|---------|-------------|
+| `/plan` | Create a structured implementation plan with parallel agent research before coding |
+| `/work` | Execute a work plan or specification systematically with continuous testing and incremental commits |
+
 ### Maintenance
 
 | Command | Description |
@@ -113,6 +120,13 @@ Then try your first command:
 | Skill | Description |
 |-------|-------------|
 | `create-agent` | Agent authoring reference — frontmatter spec, category definitions, body structure, and quality gates |
+
+### Planning & Execution
+
+| Skill | Description |
+|-------|-------------|
+| `plan` | Agent-orchestrated planning methodology that dispatches parallel research agents before designing implementation steps |
+| `work` | Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR |
 
 ### Maintenance
 
