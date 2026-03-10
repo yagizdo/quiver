@@ -15,7 +15,7 @@ argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <p
 ```
 
 ```
-!`git branch --sort=-committerdate | head -8`
+!`git branch --sort=-committerdate`
 ```
 
 ---

@@ -7,19 +7,19 @@ argument-hint: [--push] (auto commit & push without prompting)
 # Gather Git Context
 
 ```
-!`git rev-parse --is-inside-work-tree 2>&1; true`
+!`git rev-parse --is-inside-work-tree`
 ```
 
 ```
-!`git status --short 2>/dev/null; true`
+!`git status --short`
 ```
 
 ```
-!`git diff --cached 2>/dev/null; true`
+!`git diff --cached`
 ```
 
 ```
-!`git log --oneline -10 2>/dev/null; true`
+!`git log --oneline -10`
 ```
 
 ---

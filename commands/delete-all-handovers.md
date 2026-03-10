@@ -7,7 +7,7 @@ description: Delete all handover files for the current project to completely res
 
 ## Handover Files
 ```
-!`ls -1t .claude/handovers/ 2>/dev/null; true`
+!`ls -1t .claude/handovers/`
 ```
 
 ---

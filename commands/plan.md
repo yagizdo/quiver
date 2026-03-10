@@ -19,7 +19,7 @@ argument-hint: "<task description>"
 ```
 
 ```
-!`git branch --sort=-committerdate | head -8`
+!`git branch --sort=-committerdate`
 ```
 
 ---

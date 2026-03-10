@@ -7,7 +7,7 @@ description: Delete the most recent handover file to remove the last session's c
 
 ## Handover Files
 ```
-!`ls -1t .claude/handovers/ 2>/dev/null; true`
+!`ls -1t .claude/handovers/`
 ```
 
 ---

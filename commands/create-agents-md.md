@@ -7,39 +7,39 @@ argument-hint: Generates project-specific AGENTS.md with constraints, convention
 # Gather Project Context
 
 ```
-!`ls -1; true`
+!`ls -1`
 ```
 
 ```
-!`find . -maxdepth 2 -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.build/*' -not -path './vendor/*' -not -path './target/*' | head -120; true`
+!`find . -maxdepth 2 -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.build/*' -not -path './vendor/*' -not -path './target/*'`
 ```
 
 ```
-!`cat AGENTS.md 2>/dev/null; true`
+!`cat AGENTS.md`
 ```
 
 ```
-!`cat README.md 2>/dev/null; true`
+!`cat README.md`
 ```
 
 ```
-!`cat CLAUDE.md 2>/dev/null; true`
+!`cat CLAUDE.md`
 ```
 
 ```
-!`find . -maxdepth 3 -type f -name "*.yml" -path "*ci*" -o -name "*.yaml" -path "*ci*" -o -name "Jenkinsfile" -o -name ".travis.yml" -o -name "Makefile" | head -20; true`
+!`find . -maxdepth 3 -type f -name "*.yml" -path "*ci*" -o -name "*.yaml" -path "*ci*" -o -name "Jenkinsfile" -o -name ".travis.yml" -o -name "Makefile"`
 ```
 
 ```
-!`find . -maxdepth 1 -type f -name ".eslintrc*" -o -name ".prettierrc*" -o -name "biome.json" -o -name "rustfmt.toml" -o -name ".swiftlint.yml" -o -name ".rubocop.yml" -o -name ".editorconfig" -o -name ".clang-format" | head -20; true`
+!`find . -maxdepth 1 -type f -name ".eslintrc*" -o -name ".prettierrc*" -o -name "biome.json" -o -name "rustfmt.toml" -o -name ".swiftlint.yml" -o -name ".rubocop.yml" -o -name ".editorconfig" -o -name ".clang-format"`
 ```
 
 ```
-!`git remote -v 2>/dev/null; true`
+!`git remote -v`
 ```
 
 ```
-!`git log --oneline -5 2>/dev/null; true`
+!`git log --oneline -5`
 ```
 
 ---

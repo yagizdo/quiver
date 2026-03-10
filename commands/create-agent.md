@@ -7,19 +7,19 @@ argument-hint: [description] e.g. "a security reviewer that checks OWASP top 10"
 # Gather Project Context
 
 ```
-!`ls -1 agents/ 2>/dev/null; true`
+!`ls -1 agents/`
 ```
 
 ```
-!`find agents -mindepth 1 -maxdepth 1 -type d 2>/dev/null; true`
+!`find agents -mindepth 1 -maxdepth 1 -type d`
 ```
 
 ```
-!`cat .claude-plugin/plugin.json 2>/dev/null; true`
+!`cat .claude-plugin/plugin.json`
 ```
 
 ```
-!`head -30 CLAUDE.md 2>/dev/null; true`
+!`head -30 CLAUDE.md`
 ```
 
 ---
