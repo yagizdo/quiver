@@ -169,10 +169,21 @@ Create the `.claude/plans/` directory if it does not exist.
 
 **Verify:** Read the file back and confirm it was written correctly.
 
-After saving, present follow-up options:
-- Start implementation (execute the plan step by step)
-- Refine further (re-enter Phase 3)
-- Save and revisit later
+After saving, present follow-up options via `AskUserQuestion`:
+
+> Plan saved to `{plan_path}`. What would you like to do?
+
+Buttons: `["Start implementation", "Clear context and start working", "Refine further", "Save and revisit later"]`
+
+- **Start implementation** -- invoke the `work` skill and execute the plan step by step in the current context.
+- **Clear context and start working** -- instruct the user to clear context and start fresh. Output:
+  > Plan saved. To start with a clean context, run these two commands:
+  > 1. `/clear`
+  > 2. `/quiver:work {plan_path}`
+  >
+  > This frees up all tokens used during planning. The plan is safely stored on disk.
+- **Refine plan** -- re-enter Phase 3 to adjust steps, scope, or details.
+- **Save and revisit later** -- stop here.
 
 ---
 
