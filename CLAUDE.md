@@ -1,14 +1,22 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Quiver
 
-Session handover plugin for Claude Code. Saves and restores conversation context across sessions.
+Session continuity, agent orchestration, and development workflows plugin for Claude Code. Saves and restores conversation context across sessions.
 Dependencies: `bash`, `claude` CLI.
 
 ## Architecture
 
-- **`.claude-plugin/`** — Plugin manifest (`plugin.json`). Defines name, version, hook and command registration.
-- **`commands/`** — Markdown slash commands (currently 4). Each file has a YAML `description` and is a self-contained prompt.
-- **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds their implementations. Currently one hook: PreCompact (fires before context compaction).
+- **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/command/skill/agent registration, and MCP servers.
+- **`commands/`** — 11 markdown slash commands. Each file has YAML front-matter (`name`, `description`) and is a self-contained prompt.
+- **`skills/`** — 5 skill directories (each contains `SKILL.md`). Skills are prompt-based references that commands and agents can invoke.
+- **`agents/`** — 4 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
+- **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Currently one hook: PreCompact (fires before context compaction).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
+- **Templates** — `.claude/templates/` contains `command-template-system.md` (structural patterns for commands) and `readme-structure.md`.
+- **External MCP** — Context7 MCP server (`plugin.json` > `mcpServers`) provides real-time library documentation lookups for review agents.
 
 ## System Behavior
 
@@ -54,3 +62,11 @@ Dependencies: `bash`, `claude` CLI.
   ```
 - **Syntax check** — `bash -n hooks/scripts/pre-compact-handover.sh`
 - **All commands** — Run each `/quiver:*` slash command in a Claude Code session and verify expected output/side-effects.
+
+## Known Gotchas
+
+- The PreCompact hook pipes transcript + prompt to `claude -p` via stdin to avoid `ARG_MAX` limits -- do not refactor to use command-line arguments.
+- Hook timeout is 180s (`hooks.json`), but the inner `claude -p` call has `timeout 150` -- the 30s gap prevents zombie processes.
+- `ls -1r` in the prune loop relies on filenames being timestamps for correct sort order -- non-timestamp filenames break pruning.
+- The hook silently exits 0 on any failure (missing transcript, empty claude output) -- check handover directory contents to verify it ran.
+- Changing the timestamp format (`date '+%Y-%m-%d_%H-%M-%S'`) breaks lexicographic sort ordering of existing handover files.
