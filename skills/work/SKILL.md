@@ -19,7 +19,7 @@ Execute a work plan, specification, or task list systematically. The focus is on
 
 ## When NOT to Use
 
-- The task needs planning first -- use the `plan` skill instead
+- The task needs planning first -- use `/quiver:plan` instead
 - The task is a single-file edit that needs no coordination
 - The user wants a code review -- use `/quiver:review`
 

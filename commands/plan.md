@@ -173,7 +173,7 @@ After **all** agents return, merge findings into a unified research brief:
 
 ## Step 5 -- Design the Plan
 
-Using the synthesized research, draft the plan following the **plan** skill's document structure and detail level rules:
+Using the synthesized research, draft the plan following this document structure and detail level rules:
 
 | Level | Complexity | Sections |
 |-------|-----------|----------|
@@ -196,23 +196,52 @@ Using the synthesized research, draft the plan following the **plan** skill's do
 
 ## Step 6 -- Review Gate
 
-Present the full plan to the user. Then use `AskUserQuestion` to get explicit confirmation:
+Present the full plan to the user. Then call the `AskUserQuestion` tool with these parameters:
 
-> Plan ready with {N} steps ({detail_level}). How would you like to proceed?
-Buttons: `["Approve -- save the plan", "Modify -- I have changes", "Reject -- different approach"]`
+- **question:** "Plan has {N} steps ({detail_level}). How would you like to proceed?"
+- **header:** "Plan review"
+- **multiSelect:** false
+- **options:**
+  1. label: "Approve" / description: "Looks good. Save the plan and choose next action."
+  2. label: "Modify" / description: "I want to adjust some steps before saving."
+  3. label: "Reject" / description: "Abandon this plan and take a different approach."
 
-- **Approve** -- move to Step 7.
-- **Modify** -- ask which steps to change (the user will describe changes in free text), revise the plan, and re-present with `AskUserQuestion` again.
+If the plan exceeds 15 steps, append to the question: " Consider splitting into sub-plans or phasing the work."
+
+Handle each response:
+- **Approve** -- move to Step 7. Do NOT stop after approval.
+- **Modify** -- ask which steps to change, revise the plan, and re-present with `AskUserQuestion` again.
 - **Reject** -- abandon the plan. **Stop here.**
 
-If the plan exceeds 15 steps, add a note before the question:
-> This plan has {N} steps. Consider splitting into sub-plans or phasing the work.
+## Step 7 -- Save and Follow-up
 
-## Step 7 -- Save
+**This step has TWO mandatory parts. Do NOT stop after saving.**
+
+**Part A -- Save the plan:**
 
 1. Create `.claude/plans/` if it does not exist.
 2. Write the plan as `.claude/plans/YYYY-MM-DD-<descriptive-name>-plan.md` (use `date '+%Y-%m-%d'` for the date prefix).
 3. **Verify:** Read the file back and confirm it was written correctly.
+
+**Part B -- Present follow-up options:**
+
+Immediately after saving, call `AskUserQuestion` with these exact parameters:
+
+- **question:** "Plan saved to `.claude/plans/{filename}`. What would you like to do next?"
+- **header:** "Next step"
+- **multiSelect:** false
+- **options:**
+  1. label: "Start implementation" / description: "Invoke the work skill and execute the plan step by step in the current context."
+  2. label: "Refine plan" / description: "Re-enter Step 5 to adjust steps, scope, or details."
+  3. label: "Save and revisit later" / description: "Stop here. The plan is saved on disk for later."
+
+You MUST call the `AskUserQuestion` tool -- do not skip it, do not present follow-up options as plain text.
+
+Handle each response:
+
+- **Start implementation** -- invoke the `work` skill with the saved plan path.
+- **Refine plan** -- re-enter Step 5 to adjust.
+- **Save and revisit later** -- stop here.
 
 ---
 
@@ -230,14 +259,3 @@ If the plan exceeds 15 steps, add a note before the question:
 After saving the plan file:
 1. Read the file back to confirm contents.
 2. Confirm the plan directory exists and the file is listed.
-
-## Output Template
-
-> **Plan saved:** `.claude/plans/{filename}`
-> **Steps:** {step_count} | **Detail level:** {level} | **Complexity:** {complexity}
-> **Agents consulted:** {agent_list}
->
-> **Next steps:**
-> - Start implementing: "Let's execute the plan"
-> - Refine: "Modify step {N}..."
-> - Revisit later: Plan is saved for future sessions
