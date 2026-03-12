@@ -222,6 +222,8 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. -->
+
 ## Step 4 -- Save Review Report
 
 ### 4a -- Determine output destination
