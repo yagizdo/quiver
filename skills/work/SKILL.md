@@ -40,9 +40,15 @@ Execute a work plan, specification, or task list systematically. The focus is on
 
 2. **Review references.** If the plan links to files, patterns, or prior research -- read those now. Understanding context before coding prevents rework.
 
-3. **Flag ambiguities.** If anything is unclear or contradictory, ask clarifying questions now. Better to ask one question upfront than build the wrong thing. If the plan is clear, skip this step.
+3. **Detect review-fix plan.** Check if this is a plan created to address review findings:
+   - **Primary**: Check plan YAML frontmatter for a `review_source` field (e.g., `review_source: .claude/reports/review-2026-03-10_14-30-00.md`).
+   - **Fallback**: Scan plan content for paths matching `.claude/reports/review-*.md` or `review-*_*-*-*.md`.
+   - If detected, read the review report file. If the file exists, note this as a **review-fix plan** and carry the parsed findings forward to Phase 4. If the file does not exist, warn: "Review report not found at {path}. Proceeding without review-aware verification."
+   - If no review reference detected, proceed normally.
 
-4. **Get approval to proceed.** Summarize what you are about to build in 2-3 sentences and confirm the user wants to proceed.
+4. **Flag ambiguities.** If anything is unclear or contradictory, ask clarifying questions now. Better to ask one question upfront than build the wrong thing. If the plan is clear, skip this step.
+
+5. **Get approval to proceed.** Summarize what you are about to build in 2-3 sentences and confirm the user wants to proceed.
 
 ### Phase 2: Setup Environment
 
@@ -140,7 +146,48 @@ For non-trivial changes, pause and consider:
 
 **Skip this check for:** leaf-node changes with no callbacks, no state persistence, no parallel interfaces. Purely additive changes (new helper, new partial) need only a quick scan.
 
-#### 4c -- Optional: Agent-assisted review
+#### 4c -- Review finding verification (review-fix plans only)
+
+If Phase 1 identified this as a review-fix plan and the review report was successfully loaded:
+
+1. **Parse findings.** Extract all non-filtered findings from the review report, grouped by severity (Critical, High, Medium, Low). Skip the `## Filtered Findings` section entirely.
+
+2. **Map findings to plan steps.** For each finding, identify whether the plan had a corresponding task:
+   - Match by file path referenced in the finding against files mentioned in plan steps.
+   - Match by finding title/description against plan step descriptions.
+   - Findings with no matching plan step are marked "Not in scope."
+
+3. **Check addressed status.** For each in-scope finding:
+   - Verify the referenced file was modified (check `git diff` for changes to that file).
+   - Verify the corresponding TodoWrite task is marked `completed`.
+   - If both conditions met: mark as **Addressed**.
+   - If file not modified or task incomplete: mark as **Not addressed**.
+
+4. **Cross-reference check.** Flag when a file modified to fix finding A is also referenced by finding B (potential regression area). Present these as notes, not blockers.
+
+5. **Present verification summary:**
+
+   ```
+   ## Review Finding Verification
+   | # | Severity | Finding | Status | Notes |
+   |---|----------|---------|--------|-------|
+   | 1 | Critical | SQL injection in auth.py:42 | Addressed | File modified, task completed |
+   | 2 | High     | Missing input validation | Addressed | File modified, task completed |
+   | 3 | Medium   | Inconsistent error handling | Not in scope | No plan step for this finding |
+   | 4 | Low      | Naming convention | Not addressed | File not modified |
+   ```
+
+6. **Apply gates:**
+   - **BLOCKING**: Any Critical finding marked "Not addressed" (in-scope but not fixed). Use `AskUserQuestion`:
+     > Critical review finding not addressed: {finding title}
+     > Original finding: {finding text}
+     Buttons: `["I've verified this is fixed", "Fix it now", "Skip -- not applicable"]`
+   - **WARNING**: Any High/Medium/Low finding marked "Not addressed" (in-scope but not fixed). List in summary but do not block.
+   - **INFO**: Findings marked "Not in scope." Listed for awareness only.
+
+<!-- SYNC: This verification parses the report format defined in commands/review.md:188-223. If the report structure changes, update the parsing logic here. -->
+
+#### 4d -- Optional: Agent-assisted review
 
 For large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them using the `orchestrate-agents` skill patterns.
 

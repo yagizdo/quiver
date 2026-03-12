@@ -84,6 +84,26 @@ Check that changes follow current idioms and library conventions.
 3. Check error handling: are errors caught, logged, and propagated correctly?
 4. Check resource management: are connections, file handles, and subscriptions properly cleaned up?
 5. Verify that new dependencies (if any) are justified and actively maintained.
+6. **Version compatibility for build configs.** When the diff modifies build configuration files (`build.gradle`, `build.gradle.kts`, `settings.gradle`, `Podfile`, `package.json`, `Cargo.toml`, `CMakeLists.txt`, `Package.swift`, `*.csproj`, `go.mod`, `pyproject.toml`, `Makefile`, `pubspec.yaml`), locate the project's version lockfile or wrapper config nearest to the changed file in the directory hierarchy. Read the locked version and cross-reference APIs in the diff against that version's documentation via context7. Apply these resolution rules:
+   - **Lockfile in diff:** Validate against the **post-change** (new) version -- the review assesses the state after merge.
+   - **Version range:** Validate against the **minimum** version in the range (weakest supported).
+   - **No lockfile found:** Skip the version check silently. Do not produce a finding about the missing lockfile -- it is outside the diff's scope.
+   - **context7 lacks version-specific docs:** Report a Low-severity "version not verified" note rather than guessing compatibility.
+   - **Monorepo:** Use the lockfile nearest to the changed file (walk up the directory tree).
+
+   **Version lockfile/wrapper lookup table:**
+
+   | Build Config File | Version Source File |
+   |---|---|
+   | `build.gradle` / `build.gradle.kts` / `settings.gradle` | `gradle/wrapper/gradle-wrapper.properties` |
+   | `Podfile` | `Podfile.lock` (COCOAPODS version), `.ruby-version` |
+   | `package.json` | `.node-version`, `.nvmrc`, `package.json` engines field |
+   | `Cargo.toml` | `rust-toolchain.toml`, `rust-toolchain` |
+   | `go.mod` | `go.mod` go directive line |
+   | `pubspec.yaml` | `pubspec.yaml` environment.sdk constraint |
+   | `*.csproj` | `global.json` (sdk.version) |
+   | `Package.swift` | `.swift-version`, `Package.swift` swift-tools-version comment |
+   | `pyproject.toml` | `.python-version`, `pyproject.toml` requires-python |
 
 ## Phase 3 -- Performance
 
