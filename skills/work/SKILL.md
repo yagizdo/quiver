@@ -45,6 +45,7 @@ Execute a work plan, specification, or task list systematically. The focus is on
    - **Fallback**: Scan plan content for paths matching `.claude/reports/review-*.md` or `review-*_*-*-*.md`.
    - If detected, read the review report file. If the file exists, note this as a **review-fix plan** and carry the parsed findings forward to Phase 4. If the file does not exist, warn: "Review report not found at {path}. Proceeding without review-aware verification."
    - If no review reference detected, proceed normally.
+   - **Iteration tracking**: Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the **final iteration** -- Phase 4c verification is the only quality gate, and Phase 4d agent review is skipped unconditionally.
 
 4. **Flag ambiguities.** If anything is unclear or contradictory, ask clarifying questions now. Better to ask one question upfront than build the wrong thing. If the plan is clear, skip this step.
 
@@ -185,14 +186,35 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
    - **WARNING**: Any High/Medium/Low finding marked "Not addressed" (in-scope but not fixed). List in summary but do not block.
    - **INFO**: Findings marked "Not in scope." Listed for awareness only.
 
-<!-- SYNC: This verification parses the report format defined in commands/review.md:188-223. If the report structure changes, update the parsing logic here. -->
+7. **Acceptance criteria check.** If the plan has an `Acceptance Criteria` section, verify each criterion:
+   - For each criterion, check whether the implementation satisfies it (file exists, test passes, pattern applied, etc.).
+   - Mark each as **Met** or **Not met** in the verification summary.
+   - All criteria must be **Met** to proceed to Phase 5. If any are **Not met**, use `AskUserQuestion`:
+     > Acceptance criterion not met: {criterion text}
+     Buttons: `["Fix it now", "Skip -- criterion is outdated", "Mark as met (I've verified manually)"]`
+
+8. **Convergence verdict.** After gates and acceptance criteria:
+   - If all in-scope findings are **Addressed** AND all acceptance criteria are **Met**: the review-fix cycle is **COMPLETE**. Proceed to Phase 5. Do NOT trigger another review.
+   - If `review_iteration >= 2`: the cycle is **COMPLETE** regardless of remaining Low/Medium warnings. Only unaddressed Critical findings can block. Proceed to Phase 5.
+   - Present the convergence status:
+     ```
+     ## Review-Fix Cycle Status
+     Iteration: {review_iteration} of 2 (max)
+     Findings addressed: {addressed}/{total_in_scope}
+     Acceptance criteria met: {met}/{total_criteria}
+     Status: COMPLETE -- ready to ship
+     ```
+
+<!-- SYNC: This verification parses the report format defined in commands/review.md:208-249. If the report structure changes, update the parsing logic here. -->
 
 #### 4d -- Optional: Agent-assisted review
 
-For large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them using the `orchestrate-agents` skill patterns.
+**SKIP this phase entirely if this is a review-fix plan.** The Phase 4c verification is the quality gate for review-fix work. Dispatching review agents on review-fix changes creates infinite loops -- the agents will always find new issues that weren't in the original scope.
+
+For **non-review-fix plans** with large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them using the `orchestrate-agents` skill patterns.
 
 **Do not use review agents by default.** Tests + linting + pattern-following is sufficient for most work. Reserve agent reviews for:
-- Large refactors (10+ files)
+- Large refactors (10+ files) that are NOT review-fix plans
 - Security-sensitive changes (auth, permissions, data access)
 - Complex business logic or algorithms
 
@@ -307,6 +329,7 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 - **Don't** commit directly to the default branch without explicit user permission.
 - **Don't** commit, push, or create a PR without asking the user first via `AskUserQuestion` -- every git action in Phase 5 requires explicit confirmation.
 - **Don't** add AI attribution to commits or PRs (`Co-Authored-By`, `Generated with Claude`, etc.) unless the user explicitly asks for it.
+- **Don't** trigger another review cycle after completing a review-fix plan -- Phase 4c verification is the terminal quality gate. Dispatching review agents on review-fix work creates infinite loops.
 
 ---
 
@@ -321,4 +344,4 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 **WARNING** (review but do not block):
 - Linting warnings present
 - No integration tests for changes that touch callbacks or middleware
-- Plan had acceptance criteria that were not explicitly verified
+- Plan had acceptance criteria that were not explicitly verified (NOTE: for review-fix plans, acceptance criteria are BLOCKING per Phase 4c step 7)

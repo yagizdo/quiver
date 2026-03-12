@@ -66,6 +66,16 @@ Otherwise:
 If the task is trivial (single file, obvious change), use `AskUserQuestion`:
 > This task is straightforward enough to implement directly.
 Buttons: `["Skip plan -- implement directly", "Create a plan anyway"]`
+
+5. **Detect review-fix context.** Check if the task references a review report:
+   - If `$ARGUMENTS` contains a path matching `.claude/reports/review-*.md` or `review-*_*-*-*.md`, this is a **review-fix plan**.
+   - If a review report path is detected, read it and extract the findings.
+   - Check `.claude/plans/` for existing plans with the same `review_source` frontmatter. Count them to determine the `review_iteration` number (first fix plan = 1, second = 2).
+   - If `review_iteration` would be 3 or higher, warn the user:
+     > This would be iteration {N} of the review-fix cycle. The maximum is 2 iterations. Consider addressing remaining findings manually or accepting them as-is.
+     Buttons: `["Create the plan anyway", "Stop -- I'll handle it manually"]`
+   - Carry the review report path and iteration number forward to Step 5 for frontmatter generation.
+
 If the user picks "Skip plan", **stop here** and implement. Otherwise continue.
 
 ## Step 2 -- Agent Discovery
@@ -83,6 +93,8 @@ Agent identifiers use `quiver:{name}` for plugin agents, bare `{name}` for proje
 ## Step 3 -- Parallel Agent Dispatch
 
 Spawn all qualifying agents simultaneously using multiple Agent tool calls in a single response. Every agent prompt must be **self-contained** -- agents have zero memory of this conversation.
+
+**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the Explore agent to verify file paths and current patterns are still accurate.
 
 ### Explore Agent (always dispatched)
 
@@ -193,6 +205,19 @@ Using the synthesized research, draft the plan following this document structure
 - If architecture-strategist identified boundary constraints, steps must respect them
 - If Explore found existing test patterns, new test steps must follow them
 - Attribute findings in Context section: "(from best-practices-researcher)", "(from architecture-strategist)"
+
+**Review-fix plan frontmatter (when review-fix context detected in Step 1):**
+
+Include these fields in the plan's YAML frontmatter:
+```yaml
+review_source: .claude/reports/review-YYYY-MM-DD_HH-MM-SS.md
+review_iteration: 1  # increments for each fix plan targeting the same review
+```
+
+**Acceptance Criteria are mandatory for review-fix plans.** Derive them directly from the review findings:
+- One criterion per in-scope finding (e.g., "ProductBackButton root widget is Material, not Positioned")
+- Add a verification criterion (e.g., "flutter analyze passes clean")
+- These criteria become the Definition of Done -- the work skill uses them to determine when the review-fix cycle is COMPLETE and to prevent infinite re-review loops
 
 ## Step 6 -- Review Gate
 

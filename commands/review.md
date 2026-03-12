@@ -86,6 +86,22 @@ If the current branch is `main`/`master`, or the branch diff was empty:
 4. Announce: `Reviewing local uncommitted changes...`
 5. Pass the diff to the agent in Step 2.
 
+### Re-review detection (all modes)
+
+After obtaining the diff, check if a previous review report exists for this branch:
+
+1. Scan the report directory (`.claude/reports/` or saved preference path) for `review-*.md` files.
+2. **Filter by branch.** For each report found, read its `## Review Context` section and check the `Branch` field. Only consider reports that match the current branch. Discard reports for other branches.
+3. If one or more matching reports exist, read the most recent one and extract its findings and metadata.
+4. **Calculate iteration number**: Read the previous report's `## Review Context` section. Extract the `Iteration` value and increment by 1. If the previous report has no `Iteration` field, this is iteration 2.
+5. **Extract previous HEAD commit**: Read the `HEAD at review` field from the previous report's `## Review Context`. Use this SHA to compute the delta diff: `git diff {previous_head_sha}...HEAD`. If the field is missing, fall back to using the report's filename timestamp to estimate the commit range via `git log --after="{timestamp}" --format=%H`.
+6. This is a **re-review**. Apply these constraints:
+   - **Scope lock**: Only flag findings that are (a) NEW issues introduced by commits made AFTER the previous review's timestamp, or (b) regressions where a previously-addressed finding has reappeared.
+   - **No scope expansion**: Do NOT flag pre-existing patterns, stylistic preferences, or aspirational improvements that were not in the original review. The original review had the chance to flag these -- if it didn't, they are accepted.
+   - **Idempotency check**: If the diff between the previous review and now contains NO functional code changes (only whitespace, comments, or formatting), the verdict MUST be "Approve" with zero findings.
+   - When populating the report template's `## Review Context` section, set `Iteration` to {N}, `Previous report` to the path of the matched report, `Scope` to "Delta-only (changes since previous review)", and add a `Delta` line with `{commit_count} commits, {files_changed} files`.
+7. Pass the re-review context and scope constraints to all agents in Step 2.
+
 ---
 
 ## Step 1.5 -- Build Diff Manifest
@@ -151,7 +167,8 @@ Each agent receives (in this order):
 1. The **Diff Manifest** from Step 1.5.
 2. A **scope reminder**: "Your findings MUST be scoped to code CHANGED in this diff. Respect file classifications in the Diff Manifest."
 3. **Review context**: mode used, branches, PR URL (if applicable).
-4. The **full diff** from Step 1.
+4. **Re-review context** (if applicable): "This is re-review iteration {N}. ONLY flag issues that are NEW in the delta since the previous review or regressions of previously-fixed findings. Do NOT flag pre-existing patterns, stylistic preferences, or aspirational improvements. If the delta contains no functional changes, return zero findings."
+5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
 
 ### Adding future agents
 
@@ -189,6 +206,15 @@ After **all** agents return, merge their outputs into a single unified report. F
 
 ```markdown
 # Code Review Report
+
+## Review Context
+- **Branch**: {current branch name}
+- **Mode**: {branch diff | PR | uncommitted}
+- **Iteration**: {1 if first review, N if re-review}
+- **Previous report**: {path or "N/A"}
+- **Scope**: {Full diff | Delta-only (changes since previous review)}
+- **Delta**: {commit_count} commits, {files_changed} files since previous review (omit for first review)
+- **HEAD at review**: {output of `git rev-parse --short HEAD`}
 
 ## Summary
 One paragraph: what the PR does, overall risk, top-line recommendation.

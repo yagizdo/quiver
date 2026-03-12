@@ -52,6 +52,7 @@ After loading the plan, check if it references a review report:
 - Check YAML frontmatter for `review_source` field.
 - Fall back to scanning content for `.claude/reports/review-*.md` paths.
 - If found, load the review report and note this as a review-fix plan for Step 5.
+- Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the final iteration -- only Phase 4c verification applies, no additional review agents.
 
 ## Step 2 -- Review and Confirm
 
@@ -106,7 +107,7 @@ Before shipping:
 2. Run linting if configured.
 3. Verify all TodoWrite tasks are completed.
 4. For non-trivial changes, check system-wide impact (callbacks, middleware, parallel interfaces).
-5. If this is a review-fix plan (detected in Step 1), run review finding verification per the work skill's Phase 4c methodology. Present the verification summary table. Block on unaddressed Critical findings.
+5. If this is a review-fix plan (detected in Step 1), run review finding verification per the work skill's Phase 4c methodology. Present the verification summary table. Block on unaddressed Critical findings. Verify acceptance criteria. Present the convergence verdict. If the cycle is COMPLETE, proceed to Step 6 without dispatching additional review agents.
 
 ## Step 6 -- Ship
 
