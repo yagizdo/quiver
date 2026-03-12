@@ -39,6 +39,7 @@ Map the project's technology landscape before researching anything. Scan these f
 
 - **Package manifests**: `package.json`, `Gemfile`, `requirements.txt`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pubspec.yaml`, `composer.json`, `build.gradle`, `pom.xml`, `*.csproj`
 - **Lock files**: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Gemfile.lock`, `poetry.lock`, `Cargo.lock`
+- **Version pinning files**: `gradle/wrapper/gradle-wrapper.properties`, `Podfile.lock`, `.node-version`, `.nvmrc`, `.ruby-version`, `.python-version`, `.java-version`, `.tool-versions`, `rust-toolchain.toml`, `Package.resolved`, `global.json`, `.swift-version`
 - **Config files**: `tsconfig.json`, `.babelrc`, `webpack.config.*`, `vite.config.*`, `next.config.*`, `tailwind.config.*`, `eslint.config.*`, `.rubocop.yml`, `docker-compose.yml`
 - **Entry points**: Scan 2-3 main source files to identify frameworks in use (e.g., imports of React, Rails, Django, Flask, Express)
 
@@ -73,6 +74,7 @@ If context7 returns insufficient results for a technology, note the gap and supp
 1. Search for: `"[technology] deprecated 2025 2026 sunset"` and `"[technology] breaking changes migration"`
 2. Check context7 docs for deprecation notices, sunset banners, or migration guides.
 3. Cross-reference version numbers: if the project uses v2.x but docs reference v3.x with breaking changes, flag this explicitly.
+4. **Build tool version resolution.** For build tool and configuration changes, always read the wrapper/lockfile to determine the actual version in use. Cross-reference API changes against **that version's** documentation, not the latest version. When the lockfile is part of the diff, validate against the post-change version. When a version range is specified, validate against the minimum version. If the version file is absent, note the gap but do not block on it.
 
 **Report deprecated items immediately** -- do not bury them in recommendations. A 5-minute deprecation check prevents hours of debugging dead APIs.
 
