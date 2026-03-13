@@ -5,13 +5,13 @@
     "email": "dokumaciyago@gmail.com"
   },
   "metadata": {
-    "description": "Session handover and work state management for Claude Code. Automatically saves and restores conversation context across sessions."
+    "description": "Session continuity, agent orchestration, and development workflows for Claude Code. Saves and restores conversation context across sessions."
   },
   "plugins": [
     {
       "name": "quiver",
       "source": "./",
-      "description": "Session handover and work state management for Claude Code",
+      "description": "Session continuity, agent orchestration, and development workflows for Claude Code",
       "author": {
         "name": "Yilmaz Yagiz Dokumaci"
       },
