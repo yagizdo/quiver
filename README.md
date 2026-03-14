@@ -87,6 +87,11 @@ Then try your first command:
 |---------|-------------|
 | `/commit` | Generate a Conventional Commits message from staged changes, commit, and optionally push |
 
+```
+/commit                              # Commit with interactive prompt (commit, commit & push, edit, cancel)
+/commit --push                       # Auto commit and push without prompting
+```
+
 ### Agent Development
 
 | Command | Description |
