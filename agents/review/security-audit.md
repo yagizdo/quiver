@@ -212,8 +212,10 @@ Each finding uses this format:
 [SEVERITY] file_path:line_number -- Short title
 Attack scenario: How an attacker would exploit this.
 Evidence: The specific code pattern or configuration that enables the attack.
-Remediation: Concrete fix with code-level guidance.
+Remediation: Brief explanation, then a fenced code block showing the secure fix.
 ```
+
+When suggesting a remediation, always include a **short or mid-length code block** demonstrating the secure fix. Use the file's language for syntax highlighting. Show only the relevant changed lines (not the entire file). If the fix is a one-liner, a single-line block is fine. If it requires structural changes (e.g., adding middleware, wrapping a call), show enough surrounding context to make the change copy-pasteable.
 
 ### Verdict
 

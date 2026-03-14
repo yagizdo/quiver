@@ -141,8 +141,10 @@ Each finding uses this format:
 [SEVERITY] file_path:line_number -- Short title
 Structural impact: What this does to the system's architecture.
 Evidence: The specific structural violation or deviation, referencing the project convention it conflicts with.
-Recommendation: Concrete structural change to resolve the issue.
+Recommendation: Brief explanation, then a fenced code block showing the corrected structure.
 ```
+
+When suggesting a recommendation, include a **short or mid-length code block** demonstrating the corrected structure where applicable (e.g., import changes, module reorganization, dependency direction fixes). Use the file's language for syntax highlighting. Show only the relevant changed lines. If the recommendation is purely organizational (e.g., "move this file to X directory"), a text description without a code block is acceptable.
 
 ### Verdict
 

@@ -160,8 +160,10 @@ Each finding uses this format:
 ```
 [SEVERITY] file_path:line_number -- Short title
 Description of the issue and why it matters.
-Suggested fix or alternative approach.
+Suggested fix: Brief explanation, then a fenced code block showing the corrected code.
 ```
+
+When suggesting a fix, always include a **short or mid-length code block** demonstrating the corrected code. Use the file's language for syntax highlighting. Show only the relevant changed lines (not the entire file). If the fix is a one-liner, a single-line block is fine. If it requires structural changes (e.g., converting a widget type, adding a method), show enough surrounding context to make the change copy-pasteable.
 
 ### Approval Eligibility
 
