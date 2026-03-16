@@ -17,14 +17,6 @@ Then try your first command:
 /handover
 ```
 
-## Installation
-
-### Plugin Install (recommended)
-
-```bash
-/plugin install quiver@yagizdo/quiver
-```
-
 ## Why Quiver?
 
 - **Session handovers** -- never re-explain context when starting a new session
