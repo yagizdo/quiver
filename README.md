@@ -25,6 +25,14 @@ Then try your first command:
 /plugin install quiver@yagizdo/quiver
 ```
 
+## Why Quiver?
+
+- **Session handovers** -- never re-explain context when starting a new session
+- **Auto-save on compact** -- context is captured automatically before Claude compacts
+- **Multi-agent code review** -- security, architecture, and code quality analysis in parallel
+- **Planning & execution** -- structured plans with parallel agent research, then systematic implementation
+- **Agent scaffolding** -- create custom agents with smart defaults from a description
+
 ## Components
 
 | Component | Count |
