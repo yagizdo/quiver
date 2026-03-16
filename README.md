@@ -81,6 +81,8 @@ Then try your first command:
 
 > When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.
 
+**Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review -- no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
+
 ### Git
 
 | Command | Description |
