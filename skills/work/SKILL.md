@@ -49,7 +49,7 @@ Execute a work plan, specification, or task list systematically. The focus is on
 
 4. **Flag ambiguities.** If anything is unclear or contradictory, ask clarifying questions now. Better to ask one question upfront than build the wrong thing. If the plan is clear, skip this step.
 
-5. **Get approval to proceed.** Summarize what you are about to build in 2-3 sentences and confirm the user wants to proceed.
+5. **Clarify if needed.** If no plan was found, ask the user what to work on before proceeding. If the plan has ambiguities or contradictions that step 4 flagged, resolve them now. Otherwise, move directly to Phase 2 -- the user invoked `/work`, that is the approval.
 
 ### Phase 2: Setup Environment
 
