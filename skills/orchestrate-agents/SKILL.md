@@ -551,14 +551,14 @@ After all steps complete, output a summary:
 Status: completed | partial | failed
 
 Results:
-  - Step 1: quiver:security-audit -- Found 3 critical, 5 warning issues (success)
+  - Step 1: quiver:waste-detector -- Found 3 critical, 5 warning issues (success)
   - Step 2: Explore -- Identified 12 untested files (success)
   - Step 3: general-purpose -- Implemented fixes for 3 critical issues (success)
   - Step 4: general-purpose -- All 47 tests passing, 0 lint errors (success)
 
-Summary: Reviewed the PR, found 8 issues across security and performance categories.
-Fixed 3 critical issues (SQL injection in user_controller, XSS in comment renderer,
-hardcoded API key in config). All tests pass after fixes.
+Summary: Reviewed the PR, found 8 issues across waste and redundancy categories.
+Fixed 3 critical issues (unused dependency in package.json, dead code path in router,
+duplicated utility reimplementing existing helper). All tests pass after fixes.
 ```
 
 For resumable workflows, track and return `agentId` values so tasks can be continued later via the `resume` parameter.
