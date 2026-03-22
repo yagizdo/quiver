@@ -153,7 +153,7 @@ For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missin
 
 Apply dispatch rules based on the Diff Manifest from Step 1.5:
 
-- **`waste-detector`**: Always dispatched. Replaces the former `code-review` agent. Evaluates every changed file for unnecessary additions, redundancy with existing codebase, dead paths, and over-engineering.
+- **`waste-detector`**: Always dispatched. Evaluates every changed file for unnecessary additions, redundancy with existing codebase, dead paths, and over-engineering.
 - **`project-context-analyst`**: Always dispatched. Searches git history, project memory, and docs for institutional knowledge relevant to the changed files. Provides context that informs other agents' findings.
 - **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping security-audit: no application code, scripts, or security-relevant configuration changed.
