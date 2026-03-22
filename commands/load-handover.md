@@ -20,8 +20,6 @@ Using the file listing above, determine which branch applies:
 If the listing shows an error (e.g., "No such file or directory"), is empty, or contains **no `.md` files**:
 > No handover files found for this project.
 > This is a fresh session — no previous context to load.
-> **Tip:** `/quiver:handover` at end of session to start tracking.
-
 **Stop here.**
 
 ### Branch B — Files Exist
@@ -47,8 +45,6 @@ Then:
 1. Confirm you understand the current state of the project.
 2. List all Next Steps with their priority order and a short explanation of each.
 3. Ask the user which one they'd like to work on.
-
-> **Tip:** `/quiver:handover` at end of session to save your progress.
 
 ---
 

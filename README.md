@@ -154,9 +154,10 @@ Then try your first command:
 
 | Agent | Description |
 |-------|-------------|
-| `code-review` (`quiver:code-review`) | 5-phase PR review with severity ratings and file:line references |
-| `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile attack surfaces |
-| `architecture-strategist` (`quiver:architecture-strategist`) | Reviews code changes strictly from an architectural lens -- boundary violations, coupling, pattern drift, and scalability -- grounded in the project's actual conventions |
+| `waste-detector` (`quiver:waste-detector`) | Detects wasted effort in diffs: unnecessary files, dead code paths, redundancy with existing codebase utilities, over-engineered abstractions, and ceremony the framework already handles |
+| `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) attack surfaces with prompt-vs-code awareness |
+| `architecture-strategist` (`quiver:architecture-strategist`) | Evaluates structural integrity via context7-driven convention discovery, diff manifest-aware boundary analysis, and pattern compliance grounded in the project's actual codebase |
+| `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Evaluates code changes for developer experience quality across discoverability, error messages, debugging experience, and automation-readiness for both human developers and AI agents |
 
 <!-- agents:review-end -->
 
@@ -165,7 +166,8 @@ Then try your first command:
 
 | Agent | Description |
 |-------|-------------|
-| `best-practices-researcher` (`quiver:best-practices-researcher`) | Researches and synthesizes current best practices for any technology or framework by dynamically detecting the project's tech stack via context7 MCP |
+| `best-practices-researcher` (`quiver:best-practices-researcher`) | 5-phase research pipeline that dynamically detects the project's tech stack, validates against current docs via context7 MCP, and flags deprecations before they become bugs |
+| `project-context-analyst` (`quiver:project-context-analyst`) | Cross-references the diff against project memory, git history, and past decisions to surface institutional knowledge, churn patterns, and recurring issues |
 
 <!-- agents:research-end -->
 <!-- agents-end -->

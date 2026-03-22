@@ -57,8 +57,6 @@ If the meaningful actions list is empty:
 > - After making code changes, investigating bugs, or making decisions
 > - At the end of a productive work session
 > - Before closing a session you would like to resume later
->
-> **Tip:** `/quiver:load-handover` to check if a previous handover exists.
 
 **Stop here.** Do not create the handover directory, do not write any files, and do not proceed to the Handover Instructions below.
 

@@ -19,7 +19,6 @@ Using the file listing above, determine which branch applies:
 ### Branch A — No Files
 If the listing shows an error (e.g., "No such file or directory"), is empty, or contains **no `.md` files**:
 > No handover files found — nothing to purge.
-> **Tip:** `/quiver:handover` to create one.
 
 **Stop here.**
 
@@ -58,7 +57,6 @@ After deletion, output:
 > **Purged:** {count} handover file(s)
 > **Files deleted:** {comma-separated filenames}
 > **Status:** Clean slate.
-> **Tip:** `/quiver:handover` to start fresh tracking, `/quiver:load-handover` to verify.
 
 ---
 

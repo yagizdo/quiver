@@ -70,8 +70,6 @@ If ambiguous, list all discovered skills and ask the user to pick one using `Ask
 If no skill directories were found in the data-gathering output:
 
 > No skills found in this project. Skills live in `skills/{name}/SKILL.md` or `.claude/skills/{name}/SKILL.md`.
->
-> **Tip:** `/quiver:create-agent` to scaffold a new agent, or create a `skills/{name}/SKILL.md` manually.
 
 **Stop here.**
 
@@ -180,8 +178,6 @@ If the user chooses **Cancel**:
 > **Issues fixed:** {count} ({critical} critical, {warning} warning)
 > **Docs consulted:** {libraries looked up via context7, or "None"}
 > **Committed:** `{hash}` {subject} *(only if committed)*
->
-> **Tip:** Test the repaired skill by invoking it in a conversation.
 
 ---
 

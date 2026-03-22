@@ -111,10 +111,10 @@ After obtaining the diff, analyze the list of changed files and classify each on
 | Type | Matched by | Security relevance |
 |------|-----------|-------------------|
 | `PROMPT` | `commands/*.md`, `agents/**/*.md`, `skills/**/*.md` with YAML frontmatter | Low -- instructions to LLM |
-| `SCRIPT` | `hooks/scripts/*.sh`, `*.py`, `*.rb` (executable) | High |
-| `CONFIG-APP` | App configuration: auth, database, CI/CD, environment, secrets files (`*.json`, `*.yaml`, `*.toml` containing app settings, credentials, or infrastructure) | High |
-| `CONFIG-MANIFEST` | Package/plugin registries: `plugin.json`, `package.json`, lockfiles, `tsconfig.json`, `*.toml` build configs — structural metadata only | Low |
-| `CODE` | Application source (JS, TS, Go, etc.) | High |
+| `SCRIPT` | `*.sh` (anywhere, not just hooks/), `Makefile`, `Dockerfile`, `*.py`/`*.rb` (executable), CI workflow files (`.github/workflows/*.yml`, `.gitlab-ci.yml`) | High |
+| `CONFIG-APP` | App configuration: auth, database, CI/CD environment, secrets files (`*.json`, `*.yaml`, `*.toml` containing app settings, credentials, or infrastructure) | High |
+| `CONFIG-MANIFEST` | Package/plugin registries: `plugin.json`, `package.json`, lockfiles, `tsconfig.json`, `*.toml` build configs, `.gitignore`, `.editorconfig`, `.dockerignore` -- structural metadata only | Low |
+| `CODE` | Application source (JS, TS, Go, Dart, etc.) | High |
 | `DOCS` | `*.md` outside command/agent/skill dirs, `README*`, `CHANGELOG*` | Low |
 
 Format the manifest as a simple list:
@@ -141,24 +141,28 @@ Discover agents using a two-tier registry:
 
 **Tier 2 — External specialists (explicit):** Also include these agents from outside the review directory:
 - `agents/research/best-practices-researcher.md`
+- `agents/research/project-context-analyst.md`
 
 For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missing or unreadable, skip it silently — do not fail the review.
 
 **Agent type identifiers** use the format `quiver:{name}` where `{name}` is the frontmatter `name` field. The category subdirectory is organizational only -- it is NOT part of the identifier. Examples:
-- `agents/review/code-review.md` → `quiver:code-review`
+- `agents/review/waste-detector.md` → `quiver:waste-detector`
 - `agents/research/best-practices-researcher.md` → `quiver:best-practices-researcher`
 
 ### 2b -- Conditional Dispatch
 
 Apply dispatch rules based on the Diff Manifest from Step 1.5:
 
-- **`code-review`**: Always dispatched.
+- **`waste-detector`**: Always dispatched. Evaluates every changed file for unnecessary additions, redundancy with existing codebase, dead paths, and over-engineering.
+- **`project-context-analyst`**: Always dispatched. Searches git history, project memory, and docs for institutional knowledge relevant to the changed files. Provides context that informs other agents' findings.
 - **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping security-audit: no application code, scripts, or security-relevant configuration changed.
 - **`best-practices-researcher`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Configuration files (both `CONFIG-APP` and `CONFIG-MANIFEST`) do not trigger this agent since they lack framework/library code to research. If dispatched, its prompt must include the list of changed files with their detected languages/frameworks so it can target its context7 lookups. Skip with a note otherwise:
   > Skipping best-practices-researcher: no application code or scripts changed.
 - **`architecture-strategist`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. If dispatched, its prompt must include the project's root file listing (`ls` of the project root) so it can map conventions in Phase 1. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping architecture-strategist: no application code, scripts, or structural configuration changed.
+- **`developer-experience-auditor`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Evaluates discoverability, error message quality, debugging experience, and automation-readiness. Skip when no code/scripts changed:
+  > Skipping developer-experience-auditor: no application code or scripts changed.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -169,6 +173,8 @@ Each agent receives (in this order):
 3. **Review context**: mode used, branches, PR URL (if applicable).
 4. **Re-review context** (if applicable): "This is re-review iteration {N}. ONLY flag issues that are NEW in the delta since the previous review or regressions of previously-fixed findings. Do NOT flag pre-existing patterns, stylistic preferences, or aspirational improvements. If the delta contains no functional changes, return zero findings."
 5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
+6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
+7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
 
 ### Adding future agents
 
@@ -179,16 +185,20 @@ Each agent receives (in this order):
 
 After **all** agents return, merge their outputs into a single unified report. Follow these rules:
 
-1. **Deduplicate.** If two agents flag the same issue (e.g., code-review's Performance phase and security-audit both flag a denial-of-service risk on the same line, or code-review and architecture-strategist both flag a coupling concern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable.
+1. **Deduplicate with consensus tracking.** If two or more agents flag the same issue (e.g., waste-detector's Redundancy Scan and architecture-strategist both flag unnecessary duplication, or security-audit and best-practices-researcher both flag an unsafe dependency pattern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable. **Record which agents flagged it** -- when 2+ agents independently flag the same issue, add a `Flagged by:` annotation listing all agents. Multi-agent consensus increases confidence; when 3+ agents flag the same issue, consider upgrading its severity by one tier (e.g., Medium -> High) unless it is already Critical.
 2. **Unified severity.** Reclassify all findings into a single scale:
-   - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass.
-   - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns.
-   - **Medium** -- Should fix. Best-practice violations, maintainability concerns, defensive gaps.
+   - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass. CI secret exposure (logs, artifacts) qualifies.
+   - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns. CI issues that silently produce wrong results or deploy wrong artifacts qualify.
+   - **Medium** -- Should fix. Best-practice violations, maintainability concerns, defensive gaps. CI configuration failures that cause visible build errors (missing dependencies, wrong paths) are capped here -- a failing CI pipeline is a guardrail working as intended.
    - **Low** -- Optional. Style nits, hardening opportunities, future considerations.
-3. **Tag the source.** Prefix each finding with the agent that produced it for traceability:
+
+   **CI severity cap:** Configuration issues that cause CI to fail visibly (build errors, missing tools, wrong paths) are capped at Medium. Reserve High for CI issues that silently produce wrong results or expose secrets. Rationale: a failing CI pipeline blocks bad code from merging -- it is self-evident on first run and easily fixed.
+3. **Tag the source.** Prefix each finding with the agent that produced it for traceability. When 2+ agents flagged the same issue, include the `Flagged by:` annotation:
    ```
-   [SEVERITY] (code-review) file_path:line_number -- Short title
+   [SEVERITY] (waste-detector) file_path:line_number -- Short title
+   Flagged by: waste-detector, architecture-strategist
    ```
+   The `Flagged by:` line only appears when 2+ agents independently flagged the same issue.
 4. **Filter false positives.** Before finalizing, apply these noise filters:
    - **Prompt-vs-code confusion**: If an agent flagged a security or code quality issue in a `PROMPT` file and treats the prompt text as executable code (e.g., "shell injection" in a `!backtick` block, "missing input validation" on a CLI instruction) → DISCARD. Record as filtered false positive.
    - **Misapplied doc lookups on prompts**: If an agent used context7 doc lookups to flag CLI tool usage, shell syntax, or framework mentions in a `PROMPT` file as "best practice violations" (e.g., "deprecated CLI flag", "missing error handling in shell example") → DISCARD. Only keep doc-sourced findings on prompt files if they identify a genuinely broken or deprecated API reference.
@@ -197,10 +207,23 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Severity inflation**: If a finding's severity relies on a hypothetical scenario ("an attacker could...", "in the future this might...") rather than a concrete, demonstrable consequence → DOWNGRADE to Low. If it was already Low, keep it.
    - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
    - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
+   - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation is real: (a) `file_path` must exist in the repository, (b) `line_number` must fall within the file's actual line count, (c) if the finding quotes a code snippet or describes specific content at that line, the file's actual content at that line must match. If any check fails → DISCARD. Record as filtered phantom citation. This filter catches agent hallucinations where findings cite non-existent code, fabricated template sections, or incorrect line numbers.
 5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
    - If only Low or no findings --> **Approve**
+6. **Identify strengths.** From agent outputs and diff analysis, identify 2-5 positive aspects of the changes. Look for:
+   - Net negative LOC (code removal is good)
+   - Correct use of established project patterns
+   - Good test coverage additions
+   - Proper error handling
+   - Clean abstractions or well-chosen framework conventions
+   If the diff has no notable strengths, omit the "What's Working Well" section rather than fabricating praise.
+7. **Compute fix order.** Rank non-filtered findings of Medium severity or above into a prioritized action plan:
+   1. Severity (Critical first)
+   2. Dependency (if fix A must happen before fix B, A goes first)
+   3. Effort (quick wins before large refactors within same severity)
+   If there are 0-2 findings of Medium+, omit the "Recommended Fix Order" section -- a table with 1-2 rows adds no value.
 
 ### Synthesized report structure
 
@@ -222,6 +245,9 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 ## Agents Dispatched
 {list each discovered agent and its verdict}
 
+## What's Working Well
+{2-5 bullet points highlighting positive aspects of the changes. Each item is one sentence, no severity ratings. Omit this section entirely if the diff has no notable strengths -- do not fabricate praise.}
+
 ## Architectural Assessment
 {If architecture-strategist ran: include its Architecture Context (3-5 bullets) and Structural Summary here. If it did not run or returned empty, omit this section entirely.}
 
@@ -238,9 +264,22 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 ### Low
 [merged low findings]
 
+{For findings flagged by 2+ agents, include the annotation: "Flagged by: agent1, agent2"}
+
+## Recommended Fix Order
+{Prioritized action plan for findings of Medium severity or above. Omit this section if 0-2 findings qualify.}
+
+| Priority | Finding | Severity | Effort |
+|----------|---------|----------|--------|
+| 1 | [Short title with file:line] | Critical | ~X min |
+| 2 | [Short title with file:line] | High | ~X min |
+| ... | ... | ... | ... |
+
 ## Filtered Findings
-{count} findings were filtered as false positives or out-of-scope:
-- [brief reason for each, e.g., "Prompt-vs-code: shell injection flagged in commands/review.md !backtick block"]
+
+**{N} findings reported, {M} filtered** ({classification breakdown, e.g., "3 out-of-scope, 2 aspirational, 1 subjective style"})
+
+- [brief reason for each, e.g., "~~[Medium] (waste-detector) config/routes.rb:15 -- Consider extracting nested routes~~ -- Aspirational: working code, no concrete problem"]
 
 (Omit this section entirely if no findings were filtered.)
 
@@ -248,7 +287,7 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-<!-- SYNC: This report format is parsed by skills/work/SKILL.md Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. -->
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. -->
 
 ## Step 4 -- Save Review Report
 

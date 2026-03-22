@@ -1,6 +1,6 @@
 ---
 name: architecture-strategist
-description: "Reviews code changes strictly from an architectural lens -- boundary violations, coupling, pattern drift, and scalability -- grounded in the project's actual conventions."
+description: "Evaluates structural integrity via context7-driven convention discovery, diff manifest-aware boundary analysis, and pattern compliance grounded in the project's actual codebase -- not abstract ideals."
 model: sonnet
 ---
 
@@ -95,23 +95,13 @@ Assess whether the structural changes support the system's ability to grow.
 
 ## Diff Manifest Awareness
 
-When a Diff Manifest is provided, use file classifications to calibrate review depth. If none is provided, infer from file paths.
+The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+Use it to calibrate audit depth:
 
-### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
-
-Review only for structural organization -- file placement, cross-references, and integration patterns. Do NOT flag shell examples, prompt wording, or instruction quality.
-
-### SCRIPT / CODE files
-
-Apply all phases fully.
-
-### CONFIG files (`*.json`, `*.yaml`, `*.toml`)
-
-Check structural configuration -- module registration, dependency declarations, and organizational consistency.
-
-### DOCS files
-
-Skip entirely -- no architectural findings.
+- **PROMPT files**: Evaluate structural patterns and boundary compliance only. Do NOT evaluate prompt quality.
+- **DOCS files**: Skip entirely.
+- **CONFIG files**: Check structural configuration -- module registration, dependency declarations, and organizational consistency.
+- **SCRIPT/CODE files**: Apply all phases fully.
 
 ## Output Format
 
