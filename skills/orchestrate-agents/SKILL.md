@@ -301,7 +301,7 @@ When creating custom agents (via frontmatter `model` field), choose the right mo
 
 ```
 Plan:
-  Step 1: quiver:waste-detector -- Review current branch diff (parallel: yes)
+  Step 1: quiver:security-audit -- Audit current branch diff (parallel: yes)
   Step 2: Explore -- Find untested code paths (parallel: yes)
   Step 3: general-purpose -- Implement fixes from review findings (depends on: step 1, 2)
   Step 4: general-purpose -- Run test suite to verify fixes (depends on: step 3)
@@ -329,7 +329,7 @@ flowchart LR
 ```
 # All three launch at the same time in a single response
 Agent(
-  subagent_type="quiver:waste-detector",
+  subagent_type="quiver:architecture-strategist",
   description="Review PR for quality",
   prompt="Review the current branch diff against master. Focus on best practices, performance, readability, and extensibility. The project uses TypeScript with React and Express. Check the diff with: git diff master...HEAD",
   run_in_background=true
@@ -446,7 +446,7 @@ Agent(
 
 # Phase 3: Review the changes
 Agent(
-  subagent_type="quiver:waste-detector",
+  subagent_type="quiver:security-audit",
   description="Review payment fixes",
   prompt="Review the payment error handling changes just made. Verify: 1) All error paths are now handled, 2) Error messages don't leak internal details, 3) Logging includes enough context for debugging, 4) No existing functionality was broken."
 )
@@ -551,7 +551,7 @@ After all steps complete, output a summary:
 Status: completed | partial | failed
 
 Results:
-  - Step 1: quiver:waste-detector -- Found 3 critical, 5 warning issues (success)
+  - Step 1: quiver:security-audit -- Found 3 critical, 5 warning issues (success)
   - Step 2: Explore -- Identified 12 untested files (success)
   - Step 3: general-purpose -- Implemented fixes for 3 critical issues (success)
   - Step 4: general-purpose -- All 47 tests passing, 0 lint errors (success)
@@ -702,7 +702,7 @@ Agent(subagent_type="general-purpose", description="Implement feature", prompt="
 
 ### Use a Plugin Agent
 ```
-Agent(subagent_type="quiver:waste-detector", description="Review PR", prompt="...")
+Agent(subagent_type="quiver:architecture-strategist", description="Review PR", prompt="...")
 ```
 
 ### Resume a Previous Agent

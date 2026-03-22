@@ -113,8 +113,6 @@ Check structural configuration -- module registration, dependency declarations, 
 
 Skip entirely -- no architectural findings.
 
-**Review ALL file types.** Your review scope includes every file in the diff, regardless of language or type. Shell scripts (.sh), config files (.gitignore, .editorconfig, .dockerignore), CI configs (.yml), and build scripts deserve the same scrutiny as application source code. Do not skip a file because it is not in the project's primary language.
-
 ## Output Format
 
 ### Architecture Context
