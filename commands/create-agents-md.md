@@ -138,5 +138,3 @@ Before saving, verify:
 > **Sections:** {count of sections included}
 > **Lines:** {line count}
 > **Signal check:** {pass | warnings}
->
-> **Tip:** Re-run `/quiver:agents-md` any time to rewrite with updated project context.

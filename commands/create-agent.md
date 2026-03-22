@@ -184,8 +184,6 @@ After the agent file is saved and plugin.json is updated, automatically add the 
 > **Next steps (general project):**
 > Reference the agent in your project's CLAUDE.md or load it via your plugin/skill configuration.
 > Then test by spawning the agent with the Agent tool.
->
-> **Tip:** Review the generated persona and methodology before first use. `/quiver:agents-md` to generate an AGENTS.md for this project.
 
 ---
 
