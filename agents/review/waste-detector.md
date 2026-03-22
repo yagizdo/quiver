@@ -53,6 +53,8 @@ These rules override all phase-specific guidance. Violating them produces noise,
 
 7. **Not your scope.** Do not flag: bugs, security issues, architectural concerns, naming style, formatting, test coverage, or performance. Those belong to other agents. You only flag waste.
 
+8. **Cite what exists, not what you expect.** Before including a `file:line` reference in a finding, use the Read tool to verify the content at that line. If the file does not contain what you describe, do not include the finding. Never cite line numbers from memory or inference.
+
 ## Phase 1 -- Existence Audit
 
 For each file added or significantly modified in the diff, evaluate whether it earns its place.
@@ -148,3 +150,4 @@ Follow with severity counts and a one-line justification.
 - Don't suggest refactoring beyond the scope of waste removal.
 - Don't flag documentation, comments, or test files as waste.
 - Don't produce Critical findings -- waste is never deployment-blocking.
+- Don't cite line numbers from memory or inference -- read the file first to confirm what is actually there.

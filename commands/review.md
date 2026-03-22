@@ -174,6 +174,7 @@ Each agent receives (in this order):
 4. **Re-review context** (if applicable): "This is re-review iteration {N}. ONLY flag issues that are NEW in the delta since the previous review or regressions of previously-fixed findings. Do NOT flag pre-existing patterns, stylistic preferences, or aspirational improvements. If the delta contains no functional changes, return zero findings."
 5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
+7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
 
 ### Adding future agents
 
@@ -206,6 +207,7 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Severity inflation**: If a finding's severity relies on a hypothetical scenario ("an attacker could...", "in the future this might...") rather than a concrete, demonstrable consequence → DOWNGRADE to Low. If it was already Low, keep it.
    - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
    - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
+   - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation is real: (a) `file_path` must exist in the repository, (b) `line_number` must fall within the file's actual line count, (c) if the finding quotes a code snippet or describes specific content at that line, the file's actual content at that line must match. If any check fails → DISCARD. Record as filtered phantom citation. This filter catches agent hallucinations where findings cite non-existent code, fabricated template sections, or incorrect line numbers.
 5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
