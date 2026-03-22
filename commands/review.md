@@ -185,10 +185,12 @@ After **all** agents return, merge their outputs into a single unified report. F
 
 1. **Deduplicate with consensus tracking.** If two or more agents flag the same issue (e.g., waste-detector's Redundancy Scan and architecture-strategist both flag unnecessary duplication, or security-audit and best-practices-researcher both flag an unsafe dependency pattern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable. **Record which agents flagged it** -- when 2+ agents independently flag the same issue, add a `Flagged by:` annotation listing all agents. Multi-agent consensus increases confidence; when 3+ agents flag the same issue, consider upgrading its severity by one tier (e.g., Medium -> High) unless it is already Critical.
 2. **Unified severity.** Reclassify all findings into a single scale:
-   - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass.
-   - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns.
-   - **Medium** -- Should fix. Best-practice violations, maintainability concerns, defensive gaps.
+   - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass. CI secret exposure (logs, artifacts) qualifies.
+   - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns. CI issues that silently produce wrong results or deploy wrong artifacts qualify.
+   - **Medium** -- Should fix. Best-practice violations, maintainability concerns, defensive gaps. CI configuration failures that cause visible build errors (missing dependencies, wrong paths) are capped here -- a failing CI pipeline is a guardrail working as intended.
    - **Low** -- Optional. Style nits, hardening opportunities, future considerations.
+
+   **CI severity cap:** Configuration issues that cause CI to fail visibly (build errors, missing tools, wrong paths) are capped at Medium. Reserve High for CI issues that silently produce wrong results or expose secrets. Rationale: a failing CI pipeline blocks bad code from merging -- it is self-evident on first run and easily fixed.
 3. **Tag the source.** Prefix each finding with the agent that produced it for traceability. When 2+ agents flagged the same issue, include the `Flagged by:` annotation:
    ```
    [SEVERITY] (waste-detector) file_path:line_number -- Short title
