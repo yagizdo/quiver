@@ -111,7 +111,7 @@ Every agent invocation uses the Agent tool with these parameters:
 
 | Parameter | Required | Type | Description |
 |-----------|----------|------|-------------|
-| `subagent_type` | Yes | string | Agent identifier. Built-in type (`Explore`, `Plan`, `general-purpose`) or plugin agent name (`quiver:code-review`). |
+| `subagent_type` | Yes | string | Agent identifier. Built-in type (`Explore`, `Plan`, `general-purpose`) or plugin agent name (`quiver:waste-detector`). |
 | `description` | Yes | string | Brief summary shown in status output. Keep under one sentence. |
 | `prompt` | Yes | string | Full instructions with all context the agent needs. This is the ONLY information the agent receives. |
 | `run_in_background` | No | boolean | `true` for non-blocking execution. Required for true parallelism -- without it, Agent blocks until complete. |
@@ -211,7 +211,7 @@ Agents from different sources use different naming conventions:
 
 | Source | Format | Example | Priority |
 |--------|--------|---------|----------|
-| Plugin | `quiver:<name>` | `quiver:code-review` | Normal |
+| Plugin | `quiver:<name>` | `quiver:waste-detector` | Normal |
 | Project | `<name>` (no prefix) | `my-custom-reviewer` | Highest (overrides same name) |
 | User | `<name>` (no prefix) | `my-global-agent` | Lowest |
 | Built-in | Capitalized or hyphenated | `Explore`, `general-purpose` | Always available |
@@ -233,7 +233,7 @@ For each `.md` file, parse the YAML frontmatter to extract: `name`, `description
 Output:
 ```
 [Discovery] Found N agents:
-  - quiver:code-review (source: plugin, model: opus) -- Senior PR reviewer for best practices, performance, readability
+  - quiver:waste-detector (source: plugin, model: sonnet) -- Detects unnecessary files, dead code paths, redundancy, and over-engineering
   - my-custom-agent (source: project, model: sonnet) -- Custom agent description
   - my-global-helper (source: user, model: inherit) -- User-level agent description
 
@@ -301,7 +301,7 @@ When creating custom agents (via frontmatter `model` field), choose the right mo
 
 ```
 Plan:
-  Step 1: quiver:code-review -- Review current branch diff (parallel: yes)
+  Step 1: quiver:waste-detector -- Review current branch diff (parallel: yes)
   Step 2: Explore -- Find untested code paths (parallel: yes)
   Step 3: general-purpose -- Implement fixes from review findings (depends on: step 1, 2)
   Step 4: general-purpose -- Run test suite to verify fixes (depends on: step 3)
@@ -329,7 +329,7 @@ flowchart LR
 ```
 # All three launch at the same time in a single response
 Agent(
-  subagent_type="quiver:code-review",
+  subagent_type="quiver:waste-detector",
   description="Review PR for quality",
   prompt="Review the current branch diff against master. Focus on best practices, performance, readability, and extensibility. The project uses TypeScript with React and Express. Check the diff with: git diff master...HEAD",
   run_in_background=true
@@ -405,7 +405,7 @@ flowchart TB
 
     subgraph SEQUENTIAL[Phase 2: Act - sequential]
         S4[Implement<br/>general-purpose]
-        S5[Review<br/>code-review]
+        S5[Review<br/>waste-detector]
     end
 
     S1 --> S4
@@ -446,7 +446,7 @@ Agent(
 
 # Phase 3: Review the changes
 Agent(
-  subagent_type="quiver:code-review",
+  subagent_type="quiver:waste-detector",
   description="Review payment fixes",
   prompt="Review the payment error handling changes just made. Verify: 1) All error paths are now handled, 2) Error messages don't leak internal details, 3) Logging includes enough context for debugging, 4) No existing functionality was broken."
 )
@@ -551,7 +551,7 @@ After all steps complete, output a summary:
 Status: completed | partial | failed
 
 Results:
-  - Step 1: quiver:code-review -- Found 3 critical, 5 warning issues (success)
+  - Step 1: quiver:waste-detector -- Found 3 critical, 5 warning issues (success)
   - Step 2: Explore -- Identified 12 untested files (success)
   - Step 3: general-purpose -- Implemented fixes for 3 critical issues (success)
   - Step 4: general-purpose -- All 47 tests passing, 0 lint errors (success)
@@ -702,7 +702,7 @@ Agent(subagent_type="general-purpose", description="Implement feature", prompt="
 
 ### Use a Plugin Agent
 ```
-Agent(subagent_type="quiver:code-review", description="Review PR", prompt="...")
+Agent(subagent_type="quiver:waste-detector", description="Review PR", prompt="...")
 ```
 
 ### Resume a Previous Agent

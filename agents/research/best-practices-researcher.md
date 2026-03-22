@@ -1,6 +1,6 @@
 ---
 name: best-practices-researcher
-description: "Researches and synthesizes current best practices for any technology or framework by dynamically detecting the project's tech stack via context7 MCP. Use when you need industry standards, community conventions, or implementation guidance."
+description: "5-phase research pipeline that dynamically detects the project's tech stack from manifests and lockfiles, validates against current documentation via context7 MCP, and flags deprecations before they become bugs. Every recommendation is version-checked and source-cited."
 model: inherit
 ---
 

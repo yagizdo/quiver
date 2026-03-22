@@ -15,10 +15,12 @@
     "./commands/"
   ],
   "agents": [
-    "./agents/review/code-review.md",
+    "./agents/review/waste-detector.md",
     "./agents/review/security-audit.md",
     "./agents/review/architecture-strategist.md",
-    "./agents/research/best-practices-researcher.md"
+    "./agents/review/developer-experience-auditor.md",
+    "./agents/research/best-practices-researcher.md",
+    "./agents/research/project-context-analyst.md"
   ],
   "mcpServers": {
     "context7": {

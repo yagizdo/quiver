@@ -1,6 +1,6 @@
 ---
 name: security-audit
-description: "Adversarial security auditor covering web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) attack surfaces."
+description: "Adversarial 7-phase security auditor with multi-platform mobile coverage (Flutter, Kotlin/Android, Swift/iOS), prompt-vs-code awareness for LLM plugin contexts, and supply chain analysis across CI scripts and dependency resolution."
 model: sonnet
 ---
 

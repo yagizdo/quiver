@@ -141,24 +141,28 @@ Discover agents using a two-tier registry:
 
 **Tier 2 — External specialists (explicit):** Also include these agents from outside the review directory:
 - `agents/research/best-practices-researcher.md`
+- `agents/research/project-context-analyst.md`
 
 For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missing or unreadable, skip it silently — do not fail the review.
 
 **Agent type identifiers** use the format `quiver:{name}` where `{name}` is the frontmatter `name` field. The category subdirectory is organizational only -- it is NOT part of the identifier. Examples:
-- `agents/review/code-review.md` → `quiver:code-review`
+- `agents/review/waste-detector.md` → `quiver:waste-detector`
 - `agents/research/best-practices-researcher.md` → `quiver:best-practices-researcher`
 
 ### 2b -- Conditional Dispatch
 
 Apply dispatch rules based on the Diff Manifest from Step 1.5:
 
-- **`code-review`**: Always dispatched.
+- **`waste-detector`**: Always dispatched. Replaces the former `code-review` agent. Evaluates every changed file for unnecessary additions, redundancy with existing codebase, dead paths, and over-engineering.
+- **`project-context-analyst`**: Always dispatched. Searches git history, project memory, and docs for institutional knowledge relevant to the changed files. Provides context that informs other agents' findings.
 - **`security-audit`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping security-audit: no application code, scripts, or security-relevant configuration changed.
 - **`best-practices-researcher`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Configuration files (both `CONFIG-APP` and `CONFIG-MANIFEST`) do not trigger this agent since they lack framework/library code to research. If dispatched, its prompt must include the list of changed files with their detected languages/frameworks so it can target its context7 lookups. Skip with a note otherwise:
   > Skipping best-practices-researcher: no application code or scripts changed.
 - **`architecture-strategist`**: Only dispatched when the diff contains at least one `SCRIPT`, `CODE`, or `CONFIG-APP` file. If dispatched, its prompt must include the project's root file listing (`ls` of the project root) so it can map conventions in Phase 1. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping architecture-strategist: no application code, scripts, or structural configuration changed.
+- **`developer-experience-auditor`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Evaluates discoverability, error message quality, debugging experience, and automation-readiness. Skip when no code/scripts changed:
+  > Skipping developer-experience-auditor: no application code or scripts changed.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -179,7 +183,7 @@ Each agent receives (in this order):
 
 After **all** agents return, merge their outputs into a single unified report. Follow these rules:
 
-1. **Deduplicate.** If two agents flag the same issue (e.g., code-review's Performance phase and security-audit both flag a denial-of-service risk on the same line, or code-review and architecture-strategist both flag a coupling concern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable.
+1. **Deduplicate.** If two agents flag the same issue (e.g., waste-detector's Redundancy Scan and architecture-strategist both flag unnecessary duplication, or security-audit and best-practices-researcher both flag an unsafe dependency pattern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable.
 2. **Unified severity.** Reclassify all findings into a single scale:
    - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass.
    - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns.
@@ -187,7 +191,7 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Low** -- Optional. Style nits, hardening opportunities, future considerations.
 3. **Tag the source.** Prefix each finding with the agent that produced it for traceability:
    ```
-   [SEVERITY] (code-review) file_path:line_number -- Short title
+   [SEVERITY] (waste-detector) file_path:line_number -- Short title
    ```
 4. **Filter false positives.** Before finalizing, apply these noise filters:
    - **Prompt-vs-code confusion**: If an agent flagged a security or code quality issue in a `PROMPT` file and treats the prompt text as executable code (e.g., "shell injection" in a `!backtick` block, "missing input validation" on a CLI instruction) → DISCARD. Record as filtered false positive.
