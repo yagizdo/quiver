@@ -125,12 +125,37 @@ Prevent sensitive data from leaking through unintended channels.
 
 ## Phase 6 -- Dependency and Supply Chain
 
-Assess third-party code risk.
+Assess third-party code risk. This phase covers both dependency management and CI/build pipeline security.
+
+### 6a -- Dependency Analysis
 
 1. **New dependencies** -- For each newly added package, check for known CVEs using the relevant ecosystem tool (`npm audit`, `pip audit`, `bundler-audit`, etc.). Flag packages with no recent maintenance, very low download counts, or unusually broad install scripts.
 2. **Version pinning** -- Verify that dependencies use exact versions or lock files, not floating ranges that could pull malicious updates.
 3. **Third-party integration patterns** -- When integrating external APIs or SDKs, verify that webhook signatures are validated, callback URLs are verified, and API responses are treated as untrusted input.
 4. **Mobile dependencies** -- For mobile apps, run `flutter pub outdated` (Dart) to detect outdated packages with potential vulnerabilities and review advisories on pub.dev; check Gradle dependencies for known CVEs; and verify CocoaPods/SPM dependency integrity.
+
+### 6b -- CI/Build Pipeline Supply Chain
+
+When the diff includes CI configuration (`.yml`, `.yaml`, `.github/workflows/`), build scripts (`.sh`, `Makefile`), or dependency management files, apply these checks:
+
+1. **Unsafe dependency resolution in CI** -- Flag commands that resolve unpinned dependencies at build time instead of using locked versions:
+   - `flutter pub upgrade` or `dart pub upgrade` (should be `flutter pub get` or `dart pub get`)
+   - `npm install` without a lockfile present (should be `npm ci`)
+   - `pip install` without `-r requirements.txt` and `--require-hashes` (should use pinned requirements)
+   - `bundle install` without `--frozen` (should be `bundle install --frozen`)
+   - `go get` without version pinning (should use `go mod download`)
+   These commands allow CI to pull different dependency versions between runs -- a supply chain attack vector.
+2. **Lockfile integrity** -- Verify that lockfiles (`pubspec.lock`, `package-lock.json`, `yarn.lock`, `Gemfile.lock`, `poetry.lock`, `Cargo.lock`) are committed to the repository. If CI modifies or regenerates lockfiles during build, flag it.
+3. **CI permissions hardening** -- For GitHub Actions: flag YAML workflows missing a top-level `permissions:` block. Default permissions are overly broad (`contents: write`, `packages: write`). Recommend explicit least-privilege permissions.
+4. **Registry authentication** -- Flag pulls from public registries (npm, PyPI, pub.dev, crates.io) in CI without integrity verification (checksums, signatures, or hash pinning).
+
+### 6c -- CI Script Tracing
+
+When reviewing CI configuration files, trace any referenced shell scripts and audit them with the same rigor as the CI config itself:
+
+- If a workflow step runs `bash build.sh`, `./scripts/ci.sh`, `make deploy`, or similar, read and audit that script.
+- Shell scripts invoked by CI inherit the CI trust boundary -- they execute with CI credentials and can exfiltrate secrets, install malicious packages, or modify build artifacts.
+- Apply all Phase 6a and 6b checks to CI-invoked scripts, not just the CI YAML.
 
 ## Phase 7 -- Mobile Application Security
 
