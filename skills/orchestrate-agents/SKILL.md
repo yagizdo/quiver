@@ -329,9 +329,9 @@ flowchart LR
 ```
 # All three launch at the same time in a single response
 Agent(
-  subagent_type="quiver:architecture-strategist",
-  description="Review PR for quality",
-  prompt="Review the current branch diff against master. Focus on best practices, performance, readability, and extensibility. The project uses TypeScript with React and Express. Check the diff with: git diff master...HEAD",
+  subagent_type="quiver:waste-detector",
+  description="Audit branch diff for waste",
+  prompt="Audit the current branch diff against master for unnecessary files, dead code paths, redundancy with existing utilities, and over-engineering. The project uses TypeScript with React and Express. Check the diff with: git diff master...HEAD",
   run_in_background=true
 )
 
@@ -702,7 +702,7 @@ Agent(subagent_type="general-purpose", description="Implement feature", prompt="
 
 ### Use a Plugin Agent
 ```
-Agent(subagent_type="quiver:architecture-strategist", description="Review PR", prompt="...")
+Agent(subagent_type="quiver:waste-detector", description="Audit PR for waste", prompt="...")
 ```
 
 ### Resume a Previous Agent
