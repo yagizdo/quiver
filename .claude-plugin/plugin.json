@@ -1,6 +1,6 @@
 {
   "name": "quiver",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Session continuity, agent orchestration, and development workflows for Claude Code",
   "author": {
     "name": "Yilmaz Yagiz Dokumaci"

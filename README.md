@@ -1,6 +1,6 @@
 # Quiver
 
-[![Version](https://img.shields.io/badge/version-1.4.1-blue)](https://github.com/yagizdo/quiver/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/yagizdo/quiver/releases)
 
 Session continuity, agent orchestration, and development workflows for Claude Code. Never lose context between sessions — carry your decisions, progress, and next steps forward automatically.
 
@@ -32,7 +32,7 @@ Then try your first command:
 | Commands | 11 |
 | Hooks | 1 |
 | Skills | 4 |
-| Agents | 4 |
+| Agents | 6 |
 
 ## Commands
 
