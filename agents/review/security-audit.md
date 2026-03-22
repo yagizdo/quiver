@@ -85,6 +85,8 @@ Full security audit applies.
 
 Skip entirely -- no security findings.
 
+**Review ALL file types.** Your audit scope includes every file in the diff, regardless of language or type. Shell scripts (.sh), config files (.gitignore, .editorconfig, .dockerignore), CI configs (.yml), and build scripts deserve the same scrutiny as application source code. Do not skip a file because it is not in the project's primary language.
+
 ## Phase 2 -- Input Flow Tracing
 
 Trace every path untrusted data takes from entry to use.

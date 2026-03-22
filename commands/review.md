@@ -111,10 +111,10 @@ After obtaining the diff, analyze the list of changed files and classify each on
 | Type | Matched by | Security relevance |
 |------|-----------|-------------------|
 | `PROMPT` | `commands/*.md`, `agents/**/*.md`, `skills/**/*.md` with YAML frontmatter | Low -- instructions to LLM |
-| `SCRIPT` | `hooks/scripts/*.sh`, `*.py`, `*.rb` (executable) | High |
-| `CONFIG-APP` | App configuration: auth, database, CI/CD, environment, secrets files (`*.json`, `*.yaml`, `*.toml` containing app settings, credentials, or infrastructure) | High |
-| `CONFIG-MANIFEST` | Package/plugin registries: `plugin.json`, `package.json`, lockfiles, `tsconfig.json`, `*.toml` build configs — structural metadata only | Low |
-| `CODE` | Application source (JS, TS, Go, etc.) | High |
+| `SCRIPT` | `*.sh` (anywhere, not just hooks/), `Makefile`, `Dockerfile`, `*.py`/`*.rb` (executable), CI workflow files (`.github/workflows/*.yml`, `.gitlab-ci.yml`) | High |
+| `CONFIG-APP` | App configuration: auth, database, CI/CD environment, secrets files (`*.json`, `*.yaml`, `*.toml` containing app settings, credentials, or infrastructure) | High |
+| `CONFIG-MANIFEST` | Package/plugin registries: `plugin.json`, `package.json`, lockfiles, `tsconfig.json`, `*.toml` build configs, `.gitignore`, `.editorconfig`, `.dockerignore` -- structural metadata only | Low |
+| `CODE` | Application source (JS, TS, Go, Dart, etc.) | High |
 | `DOCS` | `*.md` outside command/agent/skill dirs, `README*`, `CHANGELOG*` | Low |
 
 Format the manifest as a simple list:

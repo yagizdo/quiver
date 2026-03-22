@@ -102,9 +102,15 @@ Evaluate for structural waste only: unnecessary sections, duplicated instruction
 
 Apply all 4 phases fully.
 
-### CONFIG files (`*.json`, `*.yaml`, `*.toml`)
+### CONFIG files (`*.json`, `*.yaml`, `*.toml`, `.gitignore`, `.editorconfig`, `.dockerignore`)
 
 Apply Phase 1 (does this config file need to exist?) and Phase 3 (are all config entries read by something?). Check for config files that duplicate framework defaults or contain only default values.
+
+Also apply these **config correctness checks** (concrete, verifiable issues):
+- `.gitignore`: Validate path prefixes -- `./` prefix breaks gitignore pattern matching (should be `doc/` not `./doc/`)
+- `.editorconfig`: Validate section glob patterns are syntactically correct
+- `Dockerfile`: Validate multi-stage build references (FROM ... AS name) match COPY --from= references
+- Shell scripts (`.sh`): Check `$0` vs `BASH_SOURCE[0]` -- scripts that may be sourced should use `BASH_SOURCE[0]` for correct path resolution
 
 ### DOCS files
 
