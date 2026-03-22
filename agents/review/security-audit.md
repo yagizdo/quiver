@@ -51,39 +51,13 @@ Before scanning for specific vulnerabilities, establish what you are defending. 
 
 ## Diff Manifest Awareness
 
-When a Diff Manifest is provided, use the file classifications to calibrate your audit. If no manifest is provided, infer classifications from file paths and extensions.
+The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+Use it to calibrate audit depth:
 
-### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
-
-These are **instructions to an LLM**, not executable scripts. Shell examples in `` !`…` `` blocks are commands that Claude Code executes with its own sandboxing -- they are NOT user-facing shell scripts.
-
-**Do NOT flag:**
-- Shell injection in prompt blocks (e.g., `gh pr diff <URL>` is an instruction to Claude, not a vulnerable shell command)
-- Path traversal in file path instructions
-- Missing input validation on data Claude processes
-- URL parsing in CLI tool parameters
-- Command substitution patterns in illustrative examples
-
-**DO flag:**
-- Hardcoded secrets or API keys in prompt text
-- Instructions that expose sensitive data to end users
-- Prompt injection vectors that could override agent behavior
-
-### SCRIPT files (`*.sh`, `*.py`, `*.rb` -- executable)
-
-Full security audit applies. These execute directly in the user's environment.
-
-### CONFIG files (`*.json`, `*.yaml`, `*.toml`)
-
-Check for secrets exposure and insecure defaults only.
-
-### CODE files (application source: JS, TS, Go, etc.)
-
-Full security audit applies.
-
-### DOCS files (`README*`, `CHANGELOG*`, `*.md` outside command/agent/skill dirs)
-
-Skip entirely -- no security findings.
+- **PROMPT files**: These are LLM instructions, not executable scripts. Do NOT flag shell injection, path traversal, or input validation in prompt blocks. DO flag hardcoded secrets, instructions that expose sensitive data, and prompt injection vectors.
+- **DOCS files**: Skip entirely.
+- **CONFIG files**: Check for secrets exposure and insecure defaults only.
+- **SCRIPT/CODE files**: Full security audit applies.
 
 ## Phase 2 -- Input Flow Tracing
 

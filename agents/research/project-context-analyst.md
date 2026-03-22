@@ -119,15 +119,12 @@ Action: {informational | verify | change}
 
 ### Risk Signals
 
-Bulleted list of aggregate risk signals:
+Bulleted list of aggregate risk signals, ordered by importance. Each signal should reference the specific context that motivates it:
 - High-churn files: {list or "none"}
 - Constraint violations: {list or "none"}
 - Repeat patterns: {list or "none"}
 - Files lacking context: {list or "none"}
-
-### Recommendations
-
-Actionable recommendations for the review synthesizer, ordered by importance. Each recommendation should reference the specific context that motivates it.
+- Actionable recommendations: {list or "none"}
 
 ## Anti-Patterns
 

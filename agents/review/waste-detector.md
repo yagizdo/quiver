@@ -92,29 +92,13 @@ Evaluate whether the diff introduces unnecessary complexity.
 
 ## Diff Manifest Awareness
 
-When a Diff Manifest is provided, use the file classifications to calibrate your audit. If no manifest is provided, infer classifications from file paths and extensions.
+The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+Use it to calibrate audit depth:
 
-### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
-
-Evaluate for structural waste only: unnecessary sections, duplicated instructions across files, prompt text that will never be reached. Do NOT evaluate prompt quality, correctness, or shell example patterns.
-
-### SCRIPT / CODE files
-
-Apply all 4 phases fully.
-
-### CONFIG files (`*.json`, `*.yaml`, `*.toml`, `.gitignore`, `.editorconfig`, `.dockerignore`)
-
-Apply Phase 1 (does this config file need to exist?) and Phase 3 (are all config entries read by something?). Check for config files that duplicate framework defaults or contain only default values.
-
-Also apply these **config correctness checks** (concrete, verifiable issues):
-- `.gitignore`: Validate path prefixes -- `./` prefix breaks gitignore pattern matching (should be `doc/` not `./doc/`)
-- `.editorconfig`: Validate section glob patterns are syntactically correct
-- `Dockerfile`: Validate multi-stage build references (FROM ... AS name) match COPY --from= references
-- Shell scripts (`.sh`): Check `$0` vs `BASH_SOURCE[0]` -- scripts that may be sourced should use `BASH_SOURCE[0]` for correct path resolution
-
-### DOCS files
-
-Skip entirely -- documentation is never waste in the context of this review.
+- **PROMPT files**: Structural waste only -- unnecessary sections, duplicated instructions, unreachable prompt text. Do NOT evaluate prompt quality.
+- **DOCS files**: Skip entirely.
+- **CONFIG files**: Apply Phase 1 (does this config file need to exist?) and Phase 3 (are all config entries read by something?). Also validate config correctness: `.gitignore` path prefixes, `.editorconfig` glob syntax, `Dockerfile` multi-stage references, `.sh` `$0` vs `BASH_SOURCE[0]`.
+- **SCRIPT/CODE files**: Apply all 4 phases fully.
 
 ## Output Format
 

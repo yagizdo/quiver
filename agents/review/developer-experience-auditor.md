@@ -55,7 +55,7 @@ Can a developer find and understand this feature without reading the implementat
 
 ## Phase 2 -- Error Quality
 
-Are error messages actionable? This phase is unique to Quiver's review system -- no other review agent explicitly audits error message quality.
+Are error messages actionable?
 
 1. **Actionability test.** For each error message in the diff, evaluate: does it answer THREE questions?
    - What went wrong? (the specific failure)
@@ -96,23 +96,13 @@ Can an AI agent or script interact with this code programmatically?
 
 ## Diff Manifest Awareness
 
-When a Diff Manifest is provided, calibrate your audit by file type.
+The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+Use it to calibrate audit depth:
 
-### PROMPT files (`commands/*.md`, `agents/**/*.md`, `skills/**/*.md`)
-
-Evaluate for discoverability (Phase 1): Are command names intuitive? Are descriptions clear? Do examples cover the common cases? Do NOT evaluate prompt quality, shell examples, or instruction correctness.
-
-### SCRIPT / CODE files
-
-Apply all 4 phases fully.
-
-### CONFIG files
-
-Apply Phase 1 (discoverability of config options) and Phase 2 (error messages when config is invalid). Skip Phases 3-4.
-
-### DOCS files
-
-Skip entirely -- documentation IS the DX improvement. Do not review docs for DX.
+- **PROMPT files**: Evaluate discoverability and error message patterns only. Do NOT evaluate prompt quality or content.
+- **DOCS files**: Skip entirely.
+- **CONFIG files**: Apply Phase 1 (discoverability) and Phase 2 (error messages when config is invalid). Skip Phases 3-4.
+- **SCRIPT/CODE files**: Apply all 4 phases fully.
 
 ## Output Format
 

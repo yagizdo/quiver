@@ -12,7 +12,7 @@ Dependencies: `bash`, `claude` CLI.
 - **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/command/skill/agent registration, and MCP servers.
 - **`commands/`** — 11 markdown slash commands. Each file has YAML front-matter (`name`, `description`) and is a self-contained prompt.
 - **`skills/`** — 5 skill directories (each contains `SKILL.md`). Skills are prompt-based references that commands and agents can invoke.
-- **`agents/`** — 4 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
+- **`agents/`** — 6 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Currently one hook: PreCompact (fires before context compaction).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
 - **Templates** — `.claude/templates/` contains `command-template-system.md` (structural patterns for commands) and `readme-structure.md`.
