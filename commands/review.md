@@ -183,16 +183,18 @@ Each agent receives (in this order):
 
 After **all** agents return, merge their outputs into a single unified report. Follow these rules:
 
-1. **Deduplicate.** If two agents flag the same issue (e.g., waste-detector's Redundancy Scan and architecture-strategist both flag unnecessary duplication, or security-audit and best-practices-researcher both flag an unsafe dependency pattern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable.
+1. **Deduplicate with consensus tracking.** If two or more agents flag the same issue (e.g., waste-detector's Redundancy Scan and architecture-strategist both flag unnecessary duplication, or security-audit and best-practices-researcher both flag an unsafe dependency pattern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable. **Record which agents flagged it** -- when 2+ agents independently flag the same issue, add a `Flagged by:` annotation listing all agents. Multi-agent consensus increases confidence; when 3+ agents flag the same issue, consider upgrading its severity by one tier (e.g., Medium -> High) unless it is already Critical.
 2. **Unified severity.** Reclassify all findings into a single scale:
    - **Critical** -- Must fix before merge. Actively exploitable vulnerabilities, data-loss bugs, auth bypass.
    - **High** -- Strongly recommended. Performance regressions, authorization gaps, unsafe patterns.
    - **Medium** -- Should fix. Best-practice violations, maintainability concerns, defensive gaps.
    - **Low** -- Optional. Style nits, hardening opportunities, future considerations.
-3. **Tag the source.** Prefix each finding with the agent that produced it for traceability:
+3. **Tag the source.** Prefix each finding with the agent that produced it for traceability. When 2+ agents flagged the same issue, include the `Flagged by:` annotation:
    ```
    [SEVERITY] (waste-detector) file_path:line_number -- Short title
+   Flagged by: waste-detector, architecture-strategist
    ```
+   The `Flagged by:` line only appears when 2+ agents independently flagged the same issue.
 4. **Filter false positives.** Before finalizing, apply these noise filters:
    - **Prompt-vs-code confusion**: If an agent flagged a security or code quality issue in a `PROMPT` file and treats the prompt text as executable code (e.g., "shell injection" in a `!backtick` block, "missing input validation" on a CLI instruction) → DISCARD. Record as filtered false positive.
    - **Misapplied doc lookups on prompts**: If an agent used context7 doc lookups to flag CLI tool usage, shell syntax, or framework mentions in a `PROMPT` file as "best practice violations" (e.g., "deprecated CLI flag", "missing error handling in shell example") → DISCARD. Only keep doc-sourced findings on prompt files if they identify a genuinely broken or deprecated API reference.
@@ -205,6 +207,18 @@ After **all** agents return, merge their outputs into a single unified report. F
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
    - If only Low or no findings --> **Approve**
+6. **Identify strengths.** From agent outputs and diff analysis, identify 2-5 positive aspects of the changes. Look for:
+   - Net negative LOC (code removal is good)
+   - Correct use of established project patterns
+   - Good test coverage additions
+   - Proper error handling
+   - Clean abstractions or well-chosen framework conventions
+   If the diff has no notable strengths, omit the "What's Working Well" section rather than fabricating praise.
+7. **Compute fix order.** Rank non-filtered findings of Medium severity or above into a prioritized action plan:
+   1. Severity (Critical first)
+   2. Dependency (if fix A must happen before fix B, A goes first)
+   3. Effort (quick wins before large refactors within same severity)
+   If there are 0-2 findings of Medium+, omit the "Recommended Fix Order" section -- a table with 1-2 rows adds no value.
 
 ### Synthesized report structure
 
@@ -226,6 +240,9 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 ## Agents Dispatched
 {list each discovered agent and its verdict}
 
+## What's Working Well
+{2-5 bullet points highlighting positive aspects of the changes. Each item is one sentence, no severity ratings. Omit this section entirely if the diff has no notable strengths -- do not fabricate praise.}
+
 ## Architectural Assessment
 {If architecture-strategist ran: include its Architecture Context (3-5 bullets) and Structural Summary here. If it did not run or returned empty, omit this section entirely.}
 
@@ -242,9 +259,22 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 ### Low
 [merged low findings]
 
+{For findings flagged by 2+ agents, include the annotation: "Flagged by: agent1, agent2"}
+
+## Recommended Fix Order
+{Prioritized action plan for findings of Medium severity or above. Omit this section if 0-2 findings qualify.}
+
+| Priority | Finding | Severity | Effort |
+|----------|---------|----------|--------|
+| 1 | [Short title with file:line] | Critical | ~X min |
+| 2 | [Short title with file:line] | High | ~X min |
+| ... | ... | ... | ... |
+
 ## Filtered Findings
-{count} findings were filtered as false positives or out-of-scope:
-- [brief reason for each, e.g., "Prompt-vs-code: shell injection flagged in commands/review.md !backtick block"]
+
+**{N} findings reported, {M} filtered** ({classification breakdown, e.g., "3 out-of-scope, 2 aspirational, 1 subjective style"})
+
+- [brief reason for each, e.g., "~~[Medium] (waste-detector) config/routes.rb:15 -- Consider extracting nested routes~~ -- Aspirational: working code, no concrete problem"]
 
 (Omit this section entirely if no findings were filtered.)
 
@@ -252,7 +282,7 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-<!-- SYNC: This report format is parsed by skills/work/SKILL.md Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. -->
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. -->
 
 ## Step 4 -- Save Review Report
 

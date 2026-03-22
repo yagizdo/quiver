@@ -205,7 +205,7 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
      Status: COMPLETE -- ready to ship
      ```
 
-<!-- SYNC: This verification parses the report format defined in commands/review.md:208-249. If the report structure changes, update the parsing logic here. -->
+<!-- SYNC: This verification parses the report format defined in commands/review.md (Synthesized report structure section). If the report structure changes, update the parsing logic here. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect this parsing. -->
 
 #### 4d -- Optional: Agent-assisted review
 
