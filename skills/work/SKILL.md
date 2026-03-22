@@ -47,9 +47,12 @@ Execute a work plan, specification, or task list systematically. The focus is on
    - If no review reference detected, proceed normally.
    - **Iteration tracking**: Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the **final iteration** -- Phase 4c verification is the only quality gate, and Phase 4d agent review is skipped unconditionally.
 
-4. **Flag ambiguities.** If anything is unclear or contradictory, ask clarifying questions now. Better to ask one question upfront than build the wrong thing. If the plan is clear, skip this step.
+4. **Flag ambiguities.** If the plan contains genuine contradictions (e.g., two steps that conflict, a referenced file that does not exist), note them. If the plan is clear, skip this step entirely -- do not invent ambiguities.
 
-5. **Clarify if needed.** If no plan was found, ask the user what to work on before proceeding. If the plan has ambiguities or contradictions that step 4 flagged, resolve them now. Otherwise, move directly to Phase 2 -- the user invoked `/work`, that is the approval.
+5. **Proceed or clarify.**
+   - **No plan found:** Ask the user what to work on.
+   - **Plan has contradictions** flagged in step 4: Ask about those specific contradictions only.
+   - **Plan is clear:** Move directly to Phase 2. Do NOT ask "should I proceed?", "are you sure?", "shall I start?", or any variation of confirmation. The user invoked `/work` with a plan -- that IS the approval. Summarizing the plan back and asking to continue is wasted time.
 
 ### Phase 2: Setup Environment
 
