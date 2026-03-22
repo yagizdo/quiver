@@ -301,7 +301,7 @@ When creating custom agents (via frontmatter `model` field), choose the right mo
 
 ```
 Plan:
-  Step 1: quiver:security-audit -- Audit current branch diff (parallel: yes)
+  Step 1: quiver:waste-detector -- Audit current branch diff (parallel: yes)
   Step 2: Explore -- Find untested code paths (parallel: yes)
   Step 3: general-purpose -- Implement fixes from review findings (depends on: step 1, 2)
   Step 4: general-purpose -- Run test suite to verify fixes (depends on: step 3)
