@@ -224,6 +224,7 @@ After **all** agents return, merge their outputs into a single unified report. F
    2. Dependency (if fix A must happen before fix B, A goes first)
    3. Effort (quick wins before large refactors within same severity)
    If there are 0-2 findings of Medium+, omit the "Recommended Fix Order" section -- a table with 1-2 rows adds no value.
+8. **Populate findings overview.** After all filtering, deduplication, and severity assignment, count findings per severity tier. Write the totals into the `Findings overview` line in `## Review Context`. Use the format: `X Critical, Y High, Z Medium, W Low (N filtered)`. Omit tiers with zero findings (e.g., `2 High, 1 Medium (3 filtered)` instead of `0 Critical, 2 High, 1 Medium, 0 Low`).
 
 ### Synthesized report structure
 
@@ -238,6 +239,7 @@ After **all** agents return, merge their outputs into a single unified report. F
 - **Scope**: {Full diff | Delta-only (changes since previous review)}
 - **Delta**: {commit_count} commits, {files_changed} files since previous review (omit for first review)
 - **HEAD at review**: {output of `git rev-parse --short HEAD`}
+- **Findings overview**: {X Critical, Y High, Z Medium, W Low} ({N filtered})
 
 ## Summary
 One paragraph: what the PR does, overall risk, top-line recommendation.
