@@ -5,11 +5,21 @@ description: Summarize the current work state and prepare a handover note for th
 
 # Step 0 — Gather Git Context
 
-Run these two commands using your Bash tool:
-1. `git status --short`
-2. `git diff --stat`
+```
+!`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NO_GIT"`
+```
 
-If either command fails (e.g. "not a git repository"), note **"Git not available"** and continue — git context is optional. Do not stop or report an error to the user.
+```
+!`git status --short 2>/dev/null || echo "NO_GIT"`
+```
+
+```
+!`git diff --stat 2>/dev/null || echo "NO_GIT"`
+```
+
+If any block above returned `NO_GIT`, this directory is not a git repository.
+Print: `> No git repository detected -- skipping branch/commit context.`
+Continue — git context is optional. Treat all git-sourced fields as empty.
 
 ---
 

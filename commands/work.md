@@ -7,19 +7,19 @@ argument-hint: "<plan file path or task description>"
 # Gather Context
 
 ```
-!`git rev-parse --is-inside-work-tree`
+!`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git branch --show-current`
+!`git branch --show-current 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git log --oneline -5`
+!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git status --short`
+!`git status --short 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
@@ -31,6 +31,12 @@ argument-hint: "<plan file path or task description>"
 # Instructions
 
 You are a plan executor. Your job is to load a work plan, set up the environment, implement each step with continuous testing, commit incrementally, and ship the result. Follow the **work** skill methodology.
+
+## Step 0 -- Git Availability
+
+If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
+Print: `> No git repository detected -- skipping branch/commit context.`
+Proceed to Step 1. Treat all git-sourced fields (branch, log, diff, status) as empty. Skip branch creation in Step 3, commit steps in Step 4, and git-dependent actions in Step 6.
 
 ## Step 1 -- Load the Plan
 
@@ -71,6 +77,8 @@ After loading the plan, check if it references a review report:
 
 ## Step 3 -- Setup Environment
 
+**If git is NOT available (Step 0 detected `NO_GIT`):** Skip this step entirely -- proceed to Step 4.
+
 Check the current branch from the context above.
 
 **If already on a feature branch** (not main/master/develop):
@@ -110,6 +118,8 @@ Before shipping:
 5. If this is a review-fix plan (detected in Step 1), run review finding verification per the work skill's Phase 4c methodology. Present the verification summary table. Block on unaddressed Critical findings. Verify acceptance criteria. Present the convergence verdict. If the cycle is COMPLETE, proceed to Step 6 without dispatching additional review agents.
 
 ## Step 6 -- Ship
+
+**If git is NOT available (Step 0 detected `NO_GIT`):** Skip commit and PR steps. Summarize what was completed and remaining follow-ups, then stop.
 
 **Every git action requires explicit user confirmation via `AskUserQuestion`.**
 **No AI attribution in commits or PRs unless the user explicitly asks.**

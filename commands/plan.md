@@ -7,19 +7,19 @@ argument-hint: "<task description>"
 # Gather Context
 
 ```
-!`git rev-parse --is-inside-work-tree`
+!`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git branch --show-current`
+!`git branch --show-current 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git log --oneline -5`
+!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git branch --sort=-committerdate`
+!`git branch --sort=-committerdate 2>/dev/null || echo "NO_GIT"`
 ```
 
 ---
@@ -27,6 +27,12 @@ argument-hint: "<task description>"
 # Instructions
 
 You are a planning orchestrator. Your job is to clarify the task, dispatch research agents in parallel, synthesize their findings, and draft a step-by-step implementation plan. You do NOT write code -- you research, design, and document.
+
+## Step 0 -- Git Availability
+
+If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
+Print: `> No git repository detected -- skipping branch/commit context.`
+Proceed to Step 1. Treat all git-sourced fields (branch, log, diff, status) as empty.
 
 ## Step 1 -- Scope the Task
 

@@ -35,11 +35,11 @@ argument-hint: Generates project-specific AGENTS.md with constraints, convention
 ```
 
 ```
-!`git remote -v`
+!`git remote -v 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git log --oneline -5`
+!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
 ```
 
 ---

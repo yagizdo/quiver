@@ -7,15 +7,15 @@ argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <p
 # Gather Context
 
 ```
-!`git rev-parse --is-inside-work-tree`
+!`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git branch --show-current`
+!`git branch --show-current 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git branch --sort=-committerdate`
+!`git branch --sort=-committerdate 2>/dev/null || echo "NO_GIT"`
 ```
 
 ---
@@ -23,6 +23,12 @@ argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <p
 # Instructions
 
 You are a review orchestrator. Your job is to determine the correct diff source, announce the review mode, dispatch multiple review agents in parallel, then synthesize their findings into a single unified report.
+
+## Step 0 -- Git Availability
+
+If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
+Print: `> No git repository detected. /review requires a git repo.`
+**Stop here.**
 
 ## Step 1 -- Determine Review Mode
 

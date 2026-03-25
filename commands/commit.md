@@ -7,28 +7,36 @@ argument-hint: [--push] (auto commit & push without prompting)
 # Gather Git Context
 
 ```
-!`git rev-parse --is-inside-work-tree`
+!`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git status --short`
+!`git status --short 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git diff --cached`
+!`git diff --cached 2>/dev/null || echo "NO_GIT"`
 ```
 
 ```
-!`git log --oneline -10`
+!`git log --oneline -10 2>/dev/null || echo "NO_GIT"`
 ```
 
 ---
 
 # Instructions
 
+## Step 0 -- Git Availability
+
+If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
+Print: `> No git repository detected. /commit requires a git repo.`
+**Stop here.**
+
+---
+
 Silently determine which case applies — do not show the case label or decision logic to the user:
 
-- **No repo / no changes:** If `git rev-parse` shows "not a git repository", or `git status` is empty → tell the user and stop.
+- **No changes:** If `git status` is empty → tell the user and stop.
 - **Nothing staged:** If `git diff --cached` is empty but `git status` shows changes → tell the user to stage files and run `/quiver:commit` again, then stop.
 - **Staged changes exist:** Proceed silently to Commit Message Generation.
 
