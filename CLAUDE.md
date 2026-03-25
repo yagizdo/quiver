@@ -11,7 +11,7 @@ Dependencies: `bash`, `claude` CLI.
 
 - **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/command/skill/agent registration, and MCP servers.
 - **`commands/`** — 11 markdown slash commands. Each file has YAML front-matter (`name`, `description`) and is a self-contained prompt.
-- **`skills/`** — 5 skill directories (each contains `SKILL.md`). Skills are prompt-based references that commands and agents can invoke.
+- **`skills/`** — 6 skill directories (each contains `SKILL.md`). Skills are prompt-based references that commands and agents can invoke.
 - **`agents/`** — 6 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Currently one hook: PreCompact (fires before context compaction).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
@@ -41,6 +41,7 @@ Dependencies: `bash`, `claude` CLI.
 3. Agents live in `agents/<category>/<name>.md` with YAML front-matter fields: `name`, `description`, `model`.
 4. Category directories: `review/`, `research/`, `workflow/`, `design/`, `docs/`, or custom.
 5. The `agents/` directory is registered in `plugin.json`'s `skills` array.
+6. If the agent searches the broader codebase (beyond files it already knows about), reference the `code-navigation` skill and include the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`. The dispatching command must pass `lsp_available` context.
 
 ### Adding or Modifying a Hook
 

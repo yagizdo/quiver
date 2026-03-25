@@ -43,6 +43,22 @@ These rules override all phase-specific guidance. Violating them produces noise,
    - **Low**: Advisory observations about structural tradeoffs. This is the only tier for "you might want to consider" suggestions.
 7. **Diff-scoped.** Pre-existing architectural issues are OUT OF SCOPE unless the diff actively worsens them or makes them newly reachable. Do not audit the entire codebase.
 
+## Code Navigation Strategy
+
+You may receive an `lsp_available` flag in your context from the review orchestrator.
+
+**When `lsp_available: true`:**
+- For finding where a function/class/type is defined: use LSP goToDefinition first.
+- For finding all callers or consumers of a symbol: use LSP findReferences first.
+- For getting a structural overview of a file: use LSP documentSymbol first.
+- If LSP returns empty or unhelpful results for any operation, inform the user:
+  "LSP returned no results for {operation} on `{symbol}` -- falling back to grep-based search."
+  Then use Grep as fallback.
+- For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
+
+**When `lsp_available: false` (or not provided):**
+- Use Grep, Glob, and Read for all code navigation.
+
 ## Phase 1 -- Architectural Discovery
 
 Before evaluating any changes, map the project's existing architecture. This phase is mandatory and cannot be skipped.

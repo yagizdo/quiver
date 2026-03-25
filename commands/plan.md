@@ -96,6 +96,21 @@ Discover available agents before dispatch:
 
 Agent identifiers use `quiver:{name}` for plugin agents, bare `{name}` for project/user agents.
 
+## Step 2.5 -- LSP Detection
+
+Before dispatching agents, detect LSP availability once. Follow the detection flow from the `code-navigation` skill:
+
+1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_declined` or `lsp_confirmed` is found, use the cached value and skip to step 4.
+2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
+3. If LSP is not available, detect the project language from manifest files and use `AskUserQuestion` to suggest installation:
+   > LSP is not available for this project. Installing a language server (e.g., {recommended_server} for {language}) would enable better code navigation -- go-to-definition, find-references, and symbol search. Would you like to set it up? (You can always use /plan without it -- grep-based navigation works fine.)
+
+   Buttons: `["Yes, help me set it up", "No, continue with grep"]`
+
+   - If user accepts: provide installation instructions, re-probe, cache `lsp_confirmed` in project memory.
+   - If user declines: cache `lsp_declined` in project memory.
+4. Set `lsp_available` to `true` or `false`. Pass this flag to all agents dispatched in Step 3.
+
 ## Step 3 -- Parallel Agent Dispatch
 
 Spawn all qualifying agents simultaneously using multiple Agent tool calls in a single response. Every agent prompt must be **self-contained** -- agents have zero memory of this conversation.
@@ -109,6 +124,26 @@ Agent(
   subagent_type="Explore",
   description="Map codebase for planning: {short task summary}",
   prompt="Task: {full task description from Step 1}
+
+  lsp_available: {true|false from Step 2.5}
+
+  ## Code Navigation Strategy
+
+  You have been provided an `lsp_available` flag above.
+
+  **When `lsp_available: true`:**
+  - For finding where a function/class/type is defined: use LSP goToDefinition first.
+  - For finding all callers or consumers of a symbol: use LSP findReferences first.
+  - For getting a structural overview of a file: use LSP documentSymbol first.
+  - If LSP returns empty or unhelpful results for any operation, inform the user:
+    'LSP returned no results for {operation} on `{symbol}` -- falling back to grep-based search.'
+    Then use Grep as fallback.
+  - For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
+
+  **When `lsp_available: false`:**
+  - Use Grep, Glob, and Read for all code navigation.
+
+  ---
 
   Search this codebase for all files related to this task. For each file found, report:
   1. File path

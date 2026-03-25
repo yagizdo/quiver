@@ -137,6 +137,23 @@ Include risk signals if present: new dependencies, auth changes, secrets handlin
 
 ---
 
+## Step 1.75 -- LSP Detection
+
+Before dispatching agents, detect LSP availability once. Follow the detection flow from the `code-navigation` skill:
+
+1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_declined` or `lsp_confirmed` is found, use the cached value and skip to step 4.
+2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
+3. If LSP is not available, detect the project language from manifest files and use `AskUserQuestion` to suggest installation:
+   > LSP is not available for this project. Installing a language server (e.g., {recommended_server} for {language}) would enable better code navigation -- go-to-definition, find-references, and symbol search. Would you like to set it up? (You can always use /review without it -- grep-based navigation works fine.)
+
+   Buttons: `["Yes, help me set it up", "No, continue with grep"]`
+
+   - If user accepts: provide installation instructions, re-probe, cache `lsp_confirmed` in project memory.
+   - If user declines: cache `lsp_declined` in project memory.
+4. Set `lsp_available` to `true` or `false`. Pass this flag to agents that search the broader codebase (waste-detector, architecture-strategist) in Step 2.
+
+---
+
 ## Step 2 -- Parallel Agent Dispatch
 
 ### 2a -- Discover available agents
@@ -181,6 +198,7 @@ Each agent receives (in this order):
 5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
+8. **LSP availability** (for waste-detector and architecture-strategist only): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
 
 ### Adding future agents
 

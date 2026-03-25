@@ -107,6 +107,12 @@ Using the resolved fields and the `create-agent` skill reference, generate the f
 - Methodology sections should contain actionable, domain-specific checks ordered by impact.
 - Output format should match the agent's purpose (e.g., severity-based for reviewers, structured findings for auditors).
 - Run quality gates from the skill before proceeding to save.
+- **Code navigation hint:** If the agent's purpose involves searching or exploring the broader codebase (not just reading files it already knows about), include the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`. Add a comment near the top of the generated agent file:
+  ```
+  <!-- This agent searches the codebase. The Code Navigation Strategy block
+       (from skills/code-navigation/SKILL.md) is included below. The dispatching
+       command must pass lsp_available context. -->
+  ```
 
 ---
 

@@ -65,11 +65,27 @@ For each file added or significantly modified in the diff, evaluate whether it e
 2. **Feature flag waste.** Flag feature flags or environment-based toggles introduced for a one-time migration or rollout that should be cleaned up after merge.
 3. **Backwards-compat shims.** Flag compatibility layers for internal-only interfaces where the caller can just be updated directly.
 
+## Code Navigation Strategy
+
+You may receive an `lsp_available` flag in your context from the review orchestrator.
+
+**When `lsp_available: true`:**
+- For finding where a function/class/type is defined: use LSP goToDefinition first.
+- For finding all callers or consumers of a symbol: use LSP findReferences first.
+- For getting a structural overview of a file: use LSP documentSymbol first.
+- If LSP returns empty or unhelpful results for any operation, inform the user:
+  "LSP returned no results for {operation} on `{symbol}` -- falling back to grep-based search."
+  Then use Grep as fallback.
+- For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
+
+**When `lsp_available: false` (or not provided):**
+- Use Grep, Glob, and Read for all code navigation.
+
 ## Phase 2 -- Redundancy Scan
 
 For each new function, class, utility, or pattern introduced in the diff, search the existing codebase for duplicates.
 
-1. **Search for existing implementations.** Use Grep and Glob to search for functions with similar names, similar signatures, or similar logic. Check utility directories, helper files, and shared modules.
+1. **Search for existing implementations.** Use LSP findReferences/goToDefinition when available (see Code Navigation Strategy above), otherwise use Grep and Glob to search for functions with similar names, similar signatures, or similar logic. Check utility directories, helper files, and shared modules.
 2. **Near-duplicate detection.** If a new function does 80%+ of what an existing function does, flag it with both file paths. The finding must include the path to the existing code.
 3. **Pattern redundancy.** If the diff introduces a pattern (error handling, logging, API call wrapping) that the project already has a convention for, flag it with the existing convention location.
 4. **Framework-provided alternatives.** If the diff implements something the project's framework already provides (e.g., a custom date formatter when the framework has one, a hand-rolled HTTP retry when the library supports it), flag it with the framework feature name.
