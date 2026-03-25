@@ -1,6 +1,6 @@
 # Quiver
 
-[![Version](https://img.shields.io/badge/version-1.5.1-blue)](https://github.com/yagizdo/quiver/releases)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/yagizdo/quiver/releases)
 
 Session continuity, agent orchestration, and development workflows for Claude Code. Never lose context between sessions — carry your decisions, progress, and next steps forward automatically.
 
@@ -31,7 +31,7 @@ Then try your first command:
 |-----------|-------|
 | Commands | 11 |
 | Hooks | 1 |
-| Skills | 4 |
+| Skills | 5 |
 | Agents | 6 |
 
 ## Commands
@@ -139,6 +139,12 @@ Then try your first command:
 | Skill | Description |
 |-------|-------------|
 | `work` | Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR |
+
+### Code Navigation
+
+| Skill | Description |
+|-------|-------------|
+| `code-navigation` | LSP-first code navigation with grep fallback -- guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
 
 ### Maintenance
 
