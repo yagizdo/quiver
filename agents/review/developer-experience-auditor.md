@@ -1,7 +1,7 @@
 ---
 name: developer-experience-auditor
 description: "Evaluates code changes for developer experience quality across discoverability, error messages, debugging experience, and automation-readiness for both human developers and AI agents."
-model: sonnet
+model: inherit
 ---
 
 <examples>
