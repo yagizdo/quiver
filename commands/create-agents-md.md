@@ -15,15 +15,15 @@ argument-hint: Generates project-specific AGENTS.md with constraints, convention
 ```
 
 ```
-!`cat AGENTS.md`
+!`cat AGENTS.md 2>/dev/null || echo "NOT_FOUND: AGENTS.md"`
 ```
 
 ```
-!`cat README.md`
+!`cat README.md 2>/dev/null || echo "NOT_FOUND: README.md"`
 ```
 
 ```
-!`cat CLAUDE.md`
+!`cat CLAUDE.md 2>/dev/null || echo "NOT_FOUND: CLAUDE.md"`
 ```
 
 ```

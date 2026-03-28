@@ -7,19 +7,19 @@ argument-hint: "[optional: skill name or description of what broke]"
 # Gather Project Context
 
 ```
-!`ls -1 skills/`
+!`ls -1 skills/ 2>/dev/null || echo "NOT_FOUND: skills/"`
 ```
 
 ```
-!`find skills -mindepth 1 -maxdepth 1 -type d`
+!`find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "NOT_FOUND: skills/"`
 ```
 
 ```
-!`find .claude/skills -mindepth 1 -maxdepth 1 -type d`
+!`find .claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "NOT_FOUND: .claude/skills/"`
 ```
 
 ```
-!`cat .claude-plugin/plugin.json`
+!`cat .claude-plugin/plugin.json 2>/dev/null || echo "NOT_FOUND: .claude-plugin/plugin.json"`
 ```
 
 ---

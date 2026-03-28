@@ -7,19 +7,19 @@ argument-hint: [description] e.g. "a security reviewer that checks OWASP top 10"
 # Gather Project Context
 
 ```
-!`ls -1 agents/`
+!`ls -1 agents/ 2>/dev/null || echo "NOT_FOUND: agents/"`
 ```
 
 ```
-!`find agents -mindepth 1 -maxdepth 1 -type d`
+!`find agents -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "NOT_FOUND: agents/"`
 ```
 
 ```
-!`cat .claude-plugin/plugin.json`
+!`cat .claude-plugin/plugin.json 2>/dev/null || echo "NOT_FOUND: .claude-plugin/plugin.json"`
 ```
 
 ```
-!`head -30 CLAUDE.md`
+!`head -30 CLAUDE.md 2>/dev/null || echo "NOT_FOUND: CLAUDE.md"`
 ```
 
 ---

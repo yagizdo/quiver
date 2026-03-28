@@ -23,11 +23,11 @@ argument-hint: "<plan file path or task description>"
 ```
 
 ```
-!`ls -1 .claude/plans/ 2>/dev/null`
+!`ls -1 .claude/plans/ 2>/dev/null || echo "NOT_FOUND: .claude/plans/"`
 ```
 
 ```
-!`ls -1 plans/ 2>/dev/null`
+!`ls -1 plans/ 2>/dev/null || echo "NOT_FOUND: plans/"`
 ```
 
 ---

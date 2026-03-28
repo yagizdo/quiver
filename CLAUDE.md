@@ -33,6 +33,7 @@ Dependencies: `bash`, `claude` CLI.
 3. Do not use `$()` command substitution, variable assignment, `if/else`, or logic-bearing pipes in `` !`…` `` blocks — Claude Code blocks these in marketplace plugins.
 4. Do not reference `CLAUDE_PLUGIN_ROOT` — it is unavailable in commands.
 5. Follow the structural patterns defined in `.claude/templates/command-template-system.md` — role framing, decision trees, output templates, anti-patterns, quality gates, verification steps, and cross-command references.
+6. Every `` !`…` `` block must exit 0 even when the target file or directory does not exist. Use the `|| echo "NOT_FOUND: <path>"` pattern (like the existing `|| echo "NO_GIT"` pattern for git commands) so the prompt receives actionable context instead of a silent failure. Reserve `|| true` only when no downstream logic needs to know the path was missing.
 
 ### Adding an Agent
 
