@@ -23,7 +23,11 @@ argument-hint: "<plan file path or task description>"
 ```
 
 ```
-!`ls -1 .claude/plans/`
+!`ls -1 .claude/plans/ 2>/dev/null`
+```
+
+```
+!`ls -1 plans/ 2>/dev/null`
 ```
 
 ---
@@ -36,48 +40,54 @@ You are a plan executor. Your job is to load a work plan, set up the environment
 
 If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
 Print: `> No git repository detected -- skipping branch/commit context.`
-Proceed to Step 1. Treat all git-sourced fields (branch, log, diff, status) as empty. Skip branch creation in Step 3, commit steps in Step 4, and git-dependent actions in Step 6.
+Proceed to Step 1. Treat all git-sourced fields (branch, log, diff, status) as empty. Skip branch creation in Step 2, commit steps in Step 3, and git-dependent actions in Step 5.
 
 ## Step 1 -- Load the Plan
 
-**If `$ARGUMENTS` is a file path** (ends in `.md` or contains `/`):
+### Case A: Path provided
+
+If `$ARGUMENTS` is a file path (ends in `.md` or contains `/`):
 - Read that file as the work plan.
+- Print: `> Executing plan: {plan filename} ({step count} steps) on branch {branch}`
+- **Proceed directly to Step 2.** The user chose this plan explicitly -- no confirmation needed.
 
-**If `$ARGUMENTS` is a description** (not a file path):
-- Check `.claude/plans/` for plans whose goal matches the description. If one matches, use it. If multiple match, present options via `AskUserQuestion`. If none match, treat the description as an inline task spec.
+### Case B: No arguments
 
-**If `$ARGUMENTS` is empty:**
-- Look at the available plans listed above. If exactly one exists, ask the user if they want to execute it. If multiple exist, present them via `AskUserQuestion` with the plan filenames as buttons (most recent first), plus an "Other -- I'll describe the task" option. If none exist:
-  > No plans found. Usage:
-  > - `/work <path-to-plan.md>` -- execute a specific plan
-  > - `/work <task description>` -- work on a task directly
-  > - `/plan <task>` -- create a plan first
-  **Stop here.**
+If `$ARGUMENTS` is empty, scan for existing plans from the gather-context output above (`.claude/plans/` and `plans/` directories).
 
-After loading the plan, check if it references a review report:
-- Check YAML frontmatter for `review_source` field.
-- Fall back to scanning content for `.claude/reports/review-*.md` paths.
-- If found, load the review report and note this as a review-fix plan for Step 5.
-- Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the final iteration -- only Phase 4c verification applies, no additional review agents.
+**Plans found:**
+- If exactly one plan exists, read it and use `AskUserQuestion`:
+  > Found one plan: `{filename}`
+  > **Goal:** {goal from plan}
+  > **Steps:** {step count}
+  Buttons: `["Execute this plan", "Other -- I'll provide a path or description"]`
+- If multiple plans exist, present them via `AskUserQuestion` with plan filenames as buttons (most recent first), plus an "Other -- I'll provide a path or description" option.
+- If the user picks "Other", ask for a path or task description.
 
-## Step 2 -- Review and Confirm
+**No plans found:**
+> No plans found in `.claude/plans/` or `plans/`. Usage:
+> - `/work <path-to-plan.md>` -- execute a specific plan
+> - `/work <task description>` -- work on a task directly
+> - `/plan <task>` -- create a plan first
+**Stop here.**
 
-1. Read the plan file (or inline spec).
-2. If the plan references files, patterns, or prior research -- read those now.
-3. Summarize what you are about to build in 2-3 sentences.
-4. Use `AskUserQuestion`:
-   > Ready to execute: {summary}
-   > **Branch:** {current branch from context above}
-   > **Steps:** {step count if plan has numbered steps}
-   Buttons: `["Start working", "Let me review the plan first", "Cancel"]`
+### Case C: Description provided
 
-   - **Start working** -- proceed to Step 3.
-   - **Let me review the plan first** -- display the full plan and wait for the user to confirm after reviewing.
-   - **Cancel** -- stop here.
+If `$ARGUMENTS` is a description (not a file path):
+- Check `.claude/plans/` and `plans/` for plans whose goal matches the description. If one matches, use it. If multiple match, present options via `AskUserQuestion`. If none match, treat the description as an inline task spec.
 
-## Step 3 -- Setup Environment
+### After loading the plan
 
-**If git is NOT available (Step 0 detected `NO_GIT`):** Skip this step entirely -- proceed to Step 4.
+1. If the plan references files, patterns, or prior research -- read those now.
+2. Check if the plan references a review report:
+   - Check YAML frontmatter for `review_source` field.
+   - Fall back to scanning content for `.claude/reports/review-*.md` paths.
+   - If found, load the review report and note this as a review-fix plan for Step 4.
+   - Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the final iteration -- only Phase 4c verification applies, no additional review agents.
+
+## Step 2 -- Setup Environment
+
+**If git is NOT available (Step 0 detected `NO_GIT`):** Skip this step entirely -- proceed to Step 3.
 
 Check the current branch from the context above.
 
@@ -90,7 +100,7 @@ Check the current branch from the context above.
 - Create a new branch: `git checkout -b <meaningful-name>` derived from the plan goal.
 - Use a descriptive branch name (e.g., `feat/user-auth`, `fix/email-validation`).
 
-## Step 4 -- Execute
+## Step 3 -- Execute
 
 Follow the **work** skill's Phase 3 (Build) methodology:
 
@@ -107,7 +117,7 @@ Follow the **work** skill's Phase 3 (Build) methodology:
 
 **On blockers:** Stop immediately. Note the blocker. Ask the user. Do not force through.
 
-## Step 5 -- Quality Check
+## Step 4 -- Quality Check
 
 Before shipping:
 
@@ -115,9 +125,9 @@ Before shipping:
 2. Run linting if configured.
 3. Verify all TodoWrite tasks are completed.
 4. For non-trivial changes, check system-wide impact (callbacks, middleware, parallel interfaces).
-5. If this is a review-fix plan (detected in Step 1), run review finding verification per the work skill's Phase 4c methodology. Present the verification summary table. Block on unaddressed Critical findings. Verify acceptance criteria. Present the convergence verdict. If the cycle is COMPLETE, proceed to Step 6 without dispatching additional review agents.
+5. If this is a review-fix plan (detected in Step 1), run review finding verification per the work skill's Phase 4c methodology. Present the verification summary table. Block on unaddressed Critical findings. Verify acceptance criteria. Present the convergence verdict. If the cycle is COMPLETE, proceed to Step 5 without dispatching additional review agents.
 
-## Step 6 -- Ship
+## Step 5 -- Ship
 
 **If git is NOT available (Step 0 detected `NO_GIT`):** Skip commit and PR steps. Summarize what was completed and remaining follow-ups, then stop.
 
@@ -136,7 +146,6 @@ Before shipping:
 
 ## Anti-Patterns
 
-- **Don't** skip Step 2 confirmation -- always confirm before starting work.
 - **Don't** ignore plan references -- read the files and patterns the plan points to.
 - **Don't** save all testing for the end -- test after each change.
 - **Don't** use `git add .` -- stage specific files only.
