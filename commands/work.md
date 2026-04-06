@@ -102,9 +102,16 @@ Check the current branch from the context above.
 
 ## Step 2.5 -- Orchestration Decision
 
-1. **Count tasks** in the loaded plan (### Task N headings or equivalent numbered sections).
-2. **1-2 tasks:** Proceed to Step 3 as normal.
-3. **3+ tasks:** Follow the **work** skill's Phase 2.5 (Orchestration Decision). This REPLACES Step 3 -- skip directly to Step 4.
+1. **Count tasks** in the loaded plan. A "task" is any top-level section that describes a discrete, independently completable piece of work -- regardless of heading format or label.
+2. **1-2 tasks:** Sequential execution. Proceed to Step 3.
+3. **3+ tasks:** Parallel orchestration. Follow the **work** skill's Phase 2.5. This REPLACES Step 3 -- skip directly to Step 4.
+
+**Announce your decision immediately after counting:**
+
+```
+Strategy: {sequential | parallel orchestration} ({N} tasks found)
+Reason: {why -- e.g., "2 tasks, below parallel threshold" or "4 tasks with 2 independent groups"}
+```
 
 ## Step 3 -- Execute
 

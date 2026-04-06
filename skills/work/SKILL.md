@@ -80,16 +80,23 @@ Use a descriptive branch name based on the task (e.g., `feat/user-auth`, `fix/em
 
 After setting up the environment, determine the execution strategy.
 
-1. **Count tasks.** Parse the plan and count the number of top-level tasks (### Task N headings or equivalent).
+1. **Count tasks.** Parse the plan and count top-level work units. A "task" is any top-level section that describes a discrete, independently completable piece of work -- regardless of heading format or label.
 
-2. **Route by count:**
+2. **Announce the decision** to the user before proceeding:
+
+```
+Strategy: {sequential | parallel orchestration} ({N} tasks found)
+Reason: {why -- e.g., "2 tasks, below parallel threshold" or "4 tasks with 2 independent groups"}
+```
+
+3. **Route by count:**
 
 | Task Count | Strategy | Action |
 |------------|----------|--------|
 | **1-2** | Sequential | Proceed to Phase 3 (Build) as normal. No subagents. |
-| **3+** | Parallel orchestration | Follow the orchestration procedure below. Skip Phase 3 entirely — orchestration replaces it. |
+| **3+** | Parallel orchestration | Follow the orchestration procedure below. Skip Phase 3 entirely -- orchestration replaces it. |
 
-3. **For 3+ tasks -- orchestration procedure:**
+4. **For 3+ tasks -- orchestration procedure:**
    Follow `skills/work/orchestrator.md` for the full procedure. In brief: parse tasks,
    resolve dependencies (explicit + file overlap), report the execution plan, dispatch
    one worktree-isolated subagent per task, collect results, merge in topological order,
