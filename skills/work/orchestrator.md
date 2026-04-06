@@ -2,6 +2,8 @@
 
 This document defines the subagent orchestration logic used by the work skill when a plan has 3+ tasks. It is NOT a standalone skill — it is referenced by `skills/work/SKILL.md` Phase 2.5.
 
+> **Scope distinction:** This document handles work-specific orchestration (dependency resolution, worktree isolation, merge procedure). For general-purpose agent team assembly and delegation, see `skills/orchestrate-agents/SKILL.md`.
+
 ---
 
 ## 1. Dependency Resolution
