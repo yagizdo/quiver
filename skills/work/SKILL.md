@@ -89,25 +89,11 @@ After setting up the environment, determine the execution strategy.
 | **1-2** | Sequential | Proceed to Phase 3 (Build) as normal. No subagents. |
 | **3+** | Parallel orchestration | Follow the orchestration procedure below. Skip Phase 3 entirely — orchestration replaces it. |
 
-3. **For 3+ tasks — orchestration procedure:**
-
-   Follow the orchestrator reference document (`skills/work/orchestrator.md`) for the full procedure. Summary:
-
-   a. **Parse tasks** — Extract each task's title, description, acceptance criteria, and file list from the plan.
-   
-   b. **Resolve dependencies** — Build the dependency graph using explicit `blockedBy` fields + file overlap detection (see orchestrator.md § Dependency Resolution).
-   
-   c. **Report the execution plan** — Show the user the dependency graph and execution groups before dispatching. Do NOT ask for confirmation — proceed directly (the user invoked /work, that IS the approval).
-   
-   d. **Dispatch subagents** — For each execution group, spawn one `general-purpose` Agent per task with `isolation: "worktree"` and `run_in_background: true`. Each agent gets a self-contained prompt with the task scope, file list, and constraints (see orchestrator.md § Subagent Dispatch).
-   
-   e. **Collect results** — As agents complete, classify results as DONE / BLOCKED / FAILED. Update TaskCreate/TaskUpdate entries. If a task fails or blocks, pause its dependents but allow independent tasks to continue.
-   
-   f. **Merge branches** — After all groups complete, merge worktree branches in dependency order. If a merge conflict occurs, report it to the user and stop merging (see orchestrator.md § Merge Procedure).
-   
-   g. **Post-merge verification** — Run the project's test suite on the merged result. Report any failures.
-   
-   h. **Proceed to Phase 4** (Quality Check) with the merged result. Skip Phase 3 entirely — it was handled by the subagents.
+3. **For 3+ tasks -- orchestration procedure:**
+   Follow `skills/work/orchestrator.md` for the full procedure. In brief: parse tasks,
+   resolve dependencies (explicit + file overlap), report the execution plan, dispatch
+   one worktree-isolated subagent per task, collect results, merge in topological order,
+   run post-merge tests, then proceed to Phase 4.
 
 ### Phase 3: Build
 

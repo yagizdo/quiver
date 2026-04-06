@@ -42,7 +42,7 @@ Compare each pair of tasks' file lists to detect implicit dependencies. If two t
 
 1. Extract file paths from each task's `Files:` section — include all lines under `Create:`, `Modify:`, and `Test:`.
 2. For each pair `(i, j)` where `i < j`:
-   - Compute the intersection: `files[i] ∩ files[j]`
+   - Compute the intersection: `intersection(files[i], files[j])`
    - If the intersection is non-empty AND task `j` does not already depend on task `i` (directly or transitively), add `i` to task `j`'s `blockedBy`.
 3. Transitive check: task `j` already depends on task `i` transitively if there is any chain `j → ... → i` in the existing dependency graph. Do not add redundant edges.
 
@@ -193,15 +193,10 @@ After all branches have merged successfully:
 When orchestration begins, report:
 
 ```
-Orchestrating 4 tasks across 3 execution groups.
-
-Dependency Graph:
-  Group 0 (parallel): Task 1 [Create database schema]
-  Group 1 (parallel): Task 2 [Build API endpoints], Task 3 [Add input validation]
-  Group 2 (parallel): Task 4 [Write integration tests]
-
-Dispatching Group 0...
+Orchestrating {N} tasks across {M} execution groups.
 ```
+
+Print the dependency graph using the format shown in "Reporting the Graph" above, then announce dispatching the first group.
 
 ### During Execution
 

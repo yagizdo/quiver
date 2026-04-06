@@ -102,37 +102,9 @@ Check the current branch from the context above.
 
 ## Step 2.5 -- Orchestration Decision
 
-Determine execution strategy based on task count:
-
 1. **Count tasks** in the loaded plan (### Task N headings or equivalent numbered sections).
-
-2. **1-2 tasks:** Proceed to Step 3 as normal. Sequential single-context execution.
-
-3. **3+ tasks:** Use parallel subagent orchestration. This REPLACES Step 3.
-
-   Follow the orchestrator reference (`skills/work/orchestrator.md`):
-
-   a. **Parse** each task's title, description, acceptance criteria, and file list.
-   
-   b. **Resolve dependencies:**
-      - Read explicit `blockedBy` fields from the plan.
-      - Compare file lists between all task pairs. If tasks i and j (i < j) share any file, add implicit blockedBy from j to i.
-      - Build execution groups: Group 0 = no dependencies, Group N = depends only on Groups 0..N-1.
-   
-   c. **Report** the execution plan (groups, dependencies, reasons) to the user. Do NOT ask for confirmation.
-   
-   d. **Dispatch** — For each group, spawn one `general-purpose` Agent per task:
-      - `isolation: "worktree"`
-      - `run_in_background: true`
-      - Prompt: self-contained with task description, acceptance criteria, file list, project context, and constraints (only modify listed files, follow existing patterns, self-review, report blockers).
-   
-   e. **Collect results** — Classify as DONE / BLOCKED / FAILED. Update task tracking. Pause dependents of failed/blocked tasks.
-   
-   f. **Merge** worktree branches in dependency order (topological sort). Stop on conflict, report to user.
-   
-   g. **Post-merge** — Run test suite on merged result. Report failures.
-   
-   h. **Skip to Step 4** (Quality Check). Step 3 is not used when orchestrating.
+2. **1-2 tasks:** Proceed to Step 3 as normal.
+3. **3+ tasks:** Follow the **work** skill's Phase 2.5 (Orchestration Decision). This REPLACES Step 3 -- skip directly to Step 4.
 
 ## Step 3 -- Execute
 
