@@ -366,6 +366,10 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 - **Don't** commit, push, or create a PR without asking the user first via `AskUserQuestion` -- every git action in Phase 5 requires explicit confirmation.
 - **Don't** add AI attribution to commits or PRs (`Co-Authored-By`, `Generated with Claude`, etc.) unless the user explicitly asks for it.
 - **Don't** trigger another review cycle after completing a review-fix plan -- Phase 4c verification is the terminal quality gate. Dispatching review agents on review-fix work creates infinite loops.
+- **Don't** spawn subagents for 1-2 task plans -- the overhead exceeds the benefit. Use sequential execution.
+- **Don't** skip dependency resolution -- always check both explicit `blockedBy` and file overlap before dispatching parallel agents.
+- **Don't** attempt automatic merge conflict resolution -- report conflicts to the user and stop.
+- **Don't** continue dispatching dependent tasks when a dependency has failed or is blocked.
 
 ---
 
@@ -376,6 +380,8 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 - All TodoWrite tasks completed
 - No uncommitted changes that belong to this work
 - Plan checkboxes updated (if applicable)
+- Post-merge test suite passes (when orchestration was used)
+- All worktree branches merged successfully (no unresolved conflicts)
 
 **WARNING** (review but do not block):
 - Linting warnings present
