@@ -227,7 +227,7 @@ After **all** agents return, merge their outputs into a single unified report. F
    **CI severity cap:** Configuration issues that cause CI to fail visibly (build errors, missing tools, wrong paths) are capped at Medium. Reserve High for CI issues that silently produce wrong results or expose secrets. Rationale: a failing CI pipeline blocks bad code from merging -- it is self-evident on first run and easily fixed.
 3. **Tag the source.** Prefix each finding with the agent that produced it for traceability. When 2+ agents flagged the same issue, include the `Flagged by:` annotation:
    ```
-   [SEVERITY] (waste-detector) file_path:line_number -- Short title
+   [ID] [SEVERITY] (waste-detector) file_path:line_number -- Short title
    Flagged by: waste-detector, architecture-strategist
    ```
    The `Flagged by:` line only appears when 2+ agents independently flagged the same issue.
@@ -286,34 +286,37 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 {If architecture-strategist ran: include its Architecture Context (3-5 bullets) and Structural Summary here. If it did not run or returned empty, omit this section entirely.}
 
 ## Findings
+
+Each finding gets a short ID: severity initial + sequence number (C1, C2... for Critical; H1, H2... for High; M1, M2... for Medium; L1, L2... for Low). These IDs are stable within a report and can be used to reference findings concisely (e.g., "except L1", "fix H2 first").
+
 ### Critical
-[merged critical findings]
+[C1, C2, ... merged critical findings]
 
 ### High
-[merged high findings]
+[H1, H2, ... merged high findings]
 
 ### Medium
-[merged medium findings]
+[M1, M2, ... merged medium findings]
 
 ### Low
-[merged low findings]
+[L1, L2, ... merged low findings]
 
 {For findings flagged by 2+ agents, include the annotation: "Flagged by: agent1, agent2"}
 
 ## Recommended Fix Order
 {Prioritized action plan for findings of Medium severity or above. Omit this section if 0-2 findings qualify.}
 
-| Priority | Finding | Severity | Effort |
-|----------|---------|----------|--------|
-| 1 | [Short title with file:line] | Critical | ~X min |
-| 2 | [Short title with file:line] | High | ~X min |
-| ... | ... | ... | ... |
+| Priority | ID | Finding | Severity | Effort |
+|----------|----|---------|----------|--------|
+| 1 | C1 | [Short title with file:line] | Critical | ~X min |
+| 2 | H1 | [Short title with file:line] | High | ~X min |
+| ... | ... | ... | ... | ... |
 
 ## Filtered Findings
 
 **{N} findings reported, {M} filtered** ({classification breakdown, e.g., "3 out-of-scope, 2 aspirational, 1 subjective style"})
 
-- [brief reason for each, e.g., "~~[Medium] (waste-detector) config/routes.rb:15 -- Consider extracting nested routes~~ -- Aspirational: working code, no concrete problem"]
+- [brief reason for each, e.g., "~~[M3] [Medium] (waste-detector) config/routes.rb:15 -- Consider extracting nested routes~~ -- Aspirational: working code, no concrete problem"]
 
 (Omit this section entirely if no findings were filtered.)
 

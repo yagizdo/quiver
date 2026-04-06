@@ -199,12 +199,12 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
 
    ```
    ## Review Finding Verification
-   | # | Severity | Finding | Status | Notes |
-   |---|----------|---------|--------|-------|
-   | 1 | Critical | SQL injection in auth.py:42 | Addressed | File modified, task completed |
-   | 2 | High     | Missing input validation | Addressed | File modified, task completed |
-   | 3 | Medium   | Inconsistent error handling | Not in scope | No plan step for this finding |
-   | 4 | Low      | Naming convention | Not addressed | File not modified |
+   | ID | Severity | Finding | Status | Notes |
+   |----|----------|---------|--------|-------|
+   | C1 | Critical | SQL injection in auth.py:42 | Addressed | File modified, task completed |
+   | H1 | High     | Missing input validation | Addressed | File modified, task completed |
+   | M1 | Medium   | Inconsistent error handling | Not in scope | No plan step for this finding |
+   | L1 | Low      | Naming convention | Not addressed | File not modified |
    ```
 
 6. **Apply gates:**
