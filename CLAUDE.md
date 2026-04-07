@@ -15,7 +15,7 @@ Dependencies: `bash`, `claude` CLI.
 - **`agents/`** — 6 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Currently one hook: PreCompact (fires before context compaction).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
-- **Templates** — `.claude/templates/` contains `command-template-system.md` (structural patterns for commands) and `readme-structure.md`.
+- **Rules** — `.claude/rules/` contains `command-rules.md` (hard rules and learned lessons for commands) and `readme-structure.md`.
 - **External MCP** — Context7 MCP server (`plugin.json` > `mcpServers`) provides real-time library documentation lookups for review agents.
 
 ## System Behavior
@@ -32,7 +32,7 @@ Dependencies: `bash`, `claude` CLI.
 2. Commands are **prompts**, not scripts. `` !`…` `` blocks gather raw data; the rest of the file is a prompt that tells Claude how to interpret the data, make decisions, and take actions with its own tools. Never write a bare code block without accompanying prompt guidance — marketplace users need commands that work out of the box.
 3. Do not use `$()` command substitution, variable assignment, `if/else`, or logic-bearing pipes in `` !`…` `` blocks — Claude Code blocks these in marketplace plugins.
 4. Do not reference `CLAUDE_PLUGIN_ROOT` — it is unavailable in commands.
-5. Follow the structural patterns defined in `.claude/templates/command-template-system.md` — role framing, decision trees, output templates, anti-patterns, quality gates, verification steps, and cross-command references.
+5. Follow the hard rules and learned lessons in `.claude/rules/command-rules.md`. For structural patterns (role framing, decision trees, output format), read existing commands (`review.md`, `work.md`, `commit.md`) as examples -- adapt to the new command's purpose, don't copy mechanically.
 6. Every `` !`…` `` block must exit 0 even when the target file or directory does not exist. Use the `|| echo "NOT_FOUND: <path>"` pattern (like the existing `|| echo "NO_GIT"` pattern for git commands) so the prompt receives actionable context instead of a silent failure. Reserve `|| true` only when no downstream logic needs to know the path was missing.
 
 ### Adding an Agent
