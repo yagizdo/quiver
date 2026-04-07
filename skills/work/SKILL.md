@@ -80,7 +80,7 @@ Use a descriptive branch name based on the task (e.g., `feat/user-auth`, `fix/em
 
 After setting up the environment, determine the execution strategy.
 
-1. **Count tasks.** Parse the plan and count top-level work units. A "task" is any top-level section that describes a discrete, independently completable piece of work -- regardless of heading format or label.
+1. **Count tasks.** Parse the plan and count top-level work units. A "task" is any top-level section that describes a discrete, independently completable piece of work -- regardless of heading format or label. Plans from other tools (e.g., superpowers, ce-plan, custom specs) use varied formats: numbered steps, heading sections, YAML lists, or markdown checklists. Count by semantic intent (one deliverable = one task), not by a specific markup convention.
 
 2. **Announce the decision** to the user before proceeding:
 

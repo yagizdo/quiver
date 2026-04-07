@@ -102,9 +102,20 @@ Check the current branch from the context above.
 
 ## Step 2.5 -- Orchestration Decision
 
-Follow the **work** skill's Phase 2.5 to determine sequential vs. parallel execution.
-- **1-2 tasks:** Sequential. Proceed to Step 3.
-- **3+ tasks:** Parallel orchestration. This REPLACES Step 3 -- skip directly to Step 4.
+Determine execution strategy based on the loaded plan.
+
+1. **Count tasks.** A "task" is any top-level work unit in the plan -- a numbered step, a heading-delimited section, a checklist item, or a YAML list entry. Plans from different tools use different formats; count by semantic units, not by a specific markup convention.
+
+2. **Announce the decision** (mandatory -- always print this before proceeding):
+
+   ```
+   Strategy: {sequential | parallel orchestration} ({N} tasks found)
+   Reason: {one-line explanation -- e.g., "2 tasks, below parallel threshold" or "5 tasks with 3 independent groups"}
+   ```
+
+3. **Route:**
+   - **1-2 tasks:** Sequential. Proceed to Step 3.
+   - **3+ tasks:** Parallel orchestration per the **work** skill's orchestrator reference. This REPLACES Step 3 -- skip directly to Step 4.
 
 ## Step 3 -- Execute
 
