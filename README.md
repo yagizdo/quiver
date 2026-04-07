@@ -1,6 +1,6 @@
 # Quiver
 
-[![Version](https://img.shields.io/badge/version-1.6.1-blue)](https://github.com/yagizdo/quiver/releases)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue)](https://github.com/yagizdo/quiver/releases)
 
 Session continuity, agent orchestration, and development workflows for Claude Code. Never lose context between sessions — carry your decisions, progress, and next steps forward automatically.
 
@@ -29,7 +29,7 @@ Then try your first command:
 
 | Component | Count |
 |-----------|-------|
-| Commands | 11 |
+| Commands | 12 |
 | Hooks | 1 |
 | Skills | 5 |
 | Agents | 6 |
@@ -88,6 +88,7 @@ Then try your first command:
 | Command | Description |
 |---------|-------------|
 | `/commit` | Generate a Conventional Commits message from staged changes, commit, and optionally push |
+| `/create-pr` | Create a GitHub pull request from the current branch |
 
 ```
 /commit                              # Commit with interactive prompt (commit, commit & push, edit, cancel)
