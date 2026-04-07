@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 Analyze a user's request, discover available agents, assemble an optimal team, and delegate subtasks via the Agent tool. This skill runs in the main agent's context -- it is NOT a subagent.
 
+> **Scope distinction:** This skill handles general-purpose agent team assembly and delegation. For work-specific orchestration (dependency resolution, worktree isolation, merge procedure), see `skills/work/orchestrator.md`.
+
 ---
 
 ## Concepts

@@ -76,6 +76,32 @@ git branch --show-current
 
 Use a descriptive branch name based on the task (e.g., `feat/user-auth`, `fix/email-validation`).
 
+### Phase 2.5: Orchestration Decision
+
+After setting up the environment, determine the execution strategy.
+
+1. **Count tasks.** Parse the plan and count top-level work units. A "task" is any top-level section that describes a discrete, independently completable piece of work -- regardless of heading format or label.
+
+2. **Announce the decision** to the user before proceeding:
+
+```
+Strategy: {sequential | parallel orchestration} ({N} tasks found)
+Reason: {why -- e.g., "2 tasks, below parallel threshold" or "4 tasks with 2 independent groups"}
+```
+
+3. **Route by count:**
+
+| Task Count | Strategy | Action |
+|------------|----------|--------|
+| **1-2** | Sequential | Proceed to Phase 3 (Build) as normal. No subagents. |
+| **3+** | Parallel orchestration | Follow the orchestration procedure below. Skip Phase 3 entirely -- orchestration replaces it. |
+
+4. **For 3+ tasks -- orchestration procedure:**
+   Follow `skills/work/orchestrator.md` for the full procedure. In brief: parse tasks,
+   resolve dependencies (explicit + file overlap), report the execution plan, dispatch
+   one worktree-isolated subagent per task, collect results, merge in topological order,
+   run post-merge tests, then proceed to Phase 4.
+
 ### Phase 3: Build
 
 #### 3a -- Create task list
@@ -173,12 +199,12 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
 
    ```
    ## Review Finding Verification
-   | # | Severity | Finding | Status | Notes |
-   |---|----------|---------|--------|-------|
-   | 1 | Critical | SQL injection in auth.py:42 | Addressed | File modified, task completed |
-   | 2 | High     | Missing input validation | Addressed | File modified, task completed |
-   | 3 | Medium   | Inconsistent error handling | Not in scope | No plan step for this finding |
-   | 4 | Low      | Naming convention | Not addressed | File not modified |
+   | ID | Severity | Finding | Status | Notes |
+   |----|----------|---------|--------|-------|
+   | C1 | Critical | SQL injection in auth.py:42 | Addressed | File modified, task completed |
+   | H1 | High     | Missing input validation | Addressed | File modified, task completed |
+   | M1 | Medium   | Inconsistent error handling | Not in scope | No plan step for this finding |
+   | L1 | Low      | Naming convention | Not addressed | File not modified |
    ```
 
 6. **Apply gates:**
@@ -333,6 +359,10 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 - **Don't** commit, push, or create a PR without asking the user first via `AskUserQuestion` -- every git action in Phase 5 requires explicit confirmation.
 - **Don't** add AI attribution to commits or PRs (`Co-Authored-By`, `Generated with Claude`, etc.) unless the user explicitly asks for it.
 - **Don't** trigger another review cycle after completing a review-fix plan -- Phase 4c verification is the terminal quality gate. Dispatching review agents on review-fix work creates infinite loops.
+- **Don't** spawn subagents for 1-2 task plans -- the overhead exceeds the benefit. Use sequential execution.
+- **Don't** skip dependency resolution -- always check both explicit `blockedBy` and file overlap before dispatching parallel agents.
+- **Don't** attempt automatic merge conflict resolution -- report conflicts to the user and stop.
+- **Don't** continue dispatching dependent tasks when a dependency has failed or is blocked.
 
 ---
 
@@ -343,6 +373,8 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 - All TodoWrite tasks completed
 - No uncommitted changes that belong to this work
 - Plan checkboxes updated (if applicable)
+- Post-merge test suite passes (when orchestration was used)
+- All worktree branches merged successfully (no unresolved conflicts)
 
 **WARNING** (review but do not block):
 - Linting warnings present

@@ -100,6 +100,12 @@ Check the current branch from the context above.
 - Create a new branch: `git checkout -b <meaningful-name>` derived from the plan goal.
 - Use a descriptive branch name (e.g., `feat/user-auth`, `fix/email-validation`).
 
+## Step 2.5 -- Orchestration Decision
+
+Follow the **work** skill's Phase 2.5 to determine sequential vs. parallel execution.
+- **1-2 tasks:** Sequential. Proceed to Step 3.
+- **3+ tasks:** Parallel orchestration. This REPLACES Step 3 -- skip directly to Step 4.
+
 ## Step 3 -- Execute
 
 Follow the **work** skill's Phase 3 (Build) methodology:
