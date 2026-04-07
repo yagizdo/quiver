@@ -80,26 +80,52 @@ If push fails, show the error verbatim and **stop here.**
 Gather additional context for PR generation:
 - `git log --oneline {base}..HEAD` -- all commits on this branch
 - `git diff --stat {base}..HEAD` -- files changed summary
+- `git diff {base}..HEAD` -- **full diff** to understand the actual changes in depth
+
+Read the full diff carefully. Understand what was added, modified, and why. Use this understanding to write a PR description that a reviewer can use to evaluate the changes without reading every line of code.
 
 **Title rules:**
 - Concise, imperative mood, no period
 - <= 72 characters
 - Single commit: use its subject line. Multiple commits: summarize the overall theme.
 
-**Body template:**
+**Body rules:**
+
+The body depth should scale with the PR size:
+
+- **Small PR (1 file or < 50 lines changed):** Summary + Test Plan is sufficient.
+- **Medium PR (2-5 files or 50-200 lines):** Add a Changes section with key changes organized by area.
+- **Large PR (5+ files or 200+ lines):** Add "How it works" and/or "Design decisions" sections.
+
+**Body template (adapt sections based on PR size):**
 
 ```
 ## Summary
-- {1-3 bullet points describing what this PR does and why}
 
-## Changes
-- {Key changes organized by area}
+{1-3 sentences explaining what this PR does and WHY it exists -- the motivation, not just a restatement of the diff}
 
-## Test Plan
+{For medium+ PRs, add bullet points with key changes organized by area:}
+- **New file:** `path/to/file` -- what it does
+- **Modified:** `path/to/file` -- what changed and why
+
+### How it works
+
+{For large PRs: describe the flow, architecture, or algorithm. Numbered steps work well.}
+
+### Design decisions
+
+{For large PRs with non-obvious choices: use a table or bullet list explaining key decisions.}
+
+| Decision | Choice | Why |
+|----------|--------|-----|
+| {what was decided} | {what was chosen} | {why this over alternatives} |
+
+## Test plan
+
 - [ ] {Testing steps or verification checklist}
 ```
 
-Generate the title and body from the commit history and diff stats. The summary should explain *why* the changes were made, not just *what* changed.
+Generate the body from the full diff content, commit history, and diff stats. Write for a reviewer -- explain the *why* and *how*, not just the *what*.
 
 ---
 
