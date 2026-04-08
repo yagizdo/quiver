@@ -186,6 +186,12 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
   > Skipping architecture-strategist: no application code, scripts, or structural configuration changed.
 - **`developer-experience-auditor`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Evaluates discoverability, error message quality, debugging experience, and automation-readiness. Skip when no code/scripts changed:
   > Skipping developer-experience-auditor: no application code or scripts changed.
+- **`logic-reviewer`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Traces each changed function's inputs through branches to verify logical correctness. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
+  > Skipping logic-reviewer: no application code or scripts changed.
+- **`test-reviewer`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Evaluates test assertion strength, regression detection power, and risk-based coverage gaps. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
+  > Skipping test-reviewer: no application code or scripts changed.
+- **`stress-tester`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Constructs failure scenarios via assumption stress, composition fracture, and cascade chains. Receives depth calibration context: diff manifest file types + detected risk signals. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
+  > Skipping stress-tester: no application code or scripts changed.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -198,7 +204,7 @@ Each agent receives (in this order):
 5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
-8. **LSP availability** (for waste-detector and architecture-strategist only): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
+8. **LSP availability** (for waste-detector, architecture-strategist, and stress-tester): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
 
 ### Adding future agents
 
