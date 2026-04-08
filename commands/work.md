@@ -23,11 +23,11 @@ argument-hint: "<plan file path or task description>"
 ```
 
 ```
-!`ls -1 .claude/plans/ 2>/dev/null || echo "NOT_FOUND: .claude/plans/"`
+!`find . -maxdepth 4 -type d -name "plans" 2>/dev/null || echo "NOT_FOUND: plans dirs"`
 ```
 
 ```
-!`ls -1 plans/ 2>/dev/null || echo "NOT_FOUND: plans/"`
+!`ls -1 .claude/plans/ 2>/dev/null || echo "NOT_FOUND: .claude/plans/"`
 ```
 
 ---
@@ -53,28 +53,39 @@ If `$ARGUMENTS` is a file path (ends in `.md` or contains `/`):
 
 ### Case B: No arguments
 
-If `$ARGUMENTS` is empty, scan for existing plans from the gather-context output above (`.claude/plans/` and `plans/` directories).
+If `$ARGUMENTS` is empty, collect all `.md` files from every `plans/` directory discovered by the `find` block, plus the `.claude/plans/` listing from the `ls` block.
 
 **Plans found:**
-- If exactly one plan exists, read it and use `AskUserQuestion`:
-  > Found one plan: `{filename}`
+- If exactly one plan exists across all directories, read it and use `AskUserQuestion`:
+  > Found one plan: `{relative path}` (in `{directory}`)
   > **Goal:** {goal from plan}
   > **Steps:** {step count}
   Buttons: `["Execute this plan", "Other -- I'll provide a path or description"]`
-- If multiple plans exist, present them via `AskUserQuestion` with plan filenames as buttons (most recent first), plus an "Other -- I'll provide a path or description" option.
+- If multiple plans exist, present them via `AskUserQuestion` with full relative paths as buttons (most recent first), plus an "Other -- I'll provide a path or description" option. Show the directory in each label so the user can distinguish plans in different locations.
 - If the user picks "Other", ask for a path or task description.
 
 **No plans found:**
-> No plans found in `.claude/plans/` or `plans/`. Usage:
+> No plans found in any `plans/` directory. Usage:
 > - `/work <path-to-plan.md>` -- execute a specific plan
+> - `/work <plan-name>` -- search for a plan by name
 > - `/work <task description>` -- work on a task directly
 > - `/plan <task>` -- create a plan first
 **Stop here.**
 
-### Case C: Description provided
+### Case C: Name or description provided
 
-If `$ARGUMENTS` is a description (not a file path):
-- Check `.claude/plans/` and `plans/` for plans whose goal matches the description. If one matches, use it. If multiple match, present options via `AskUserQuestion`. If none match, treat the description as an inline task spec.
+If `$ARGUMENTS` is not a file path (does not end in `.md` and does not contain `/`) and is not empty:
+
+**Step C1 -- Discover plan files.** From the `find` output above, read every discovered `plans/` directory. For each directory, list its `.md` files. Combine with the `.claude/plans/` listing from the `ls` block. This gives you the full set of plan files across the project.
+
+**Step C2 -- Match by filename.** Compare `$ARGUMENTS` against each plan file's name (stem without `.md` extension):
+- **Exact match:** The stem equals `$ARGUMENTS` (case-insensitive). E.g., input `test-feature` matches `test-feature.md`.
+- **Partial match:** The stem contains `$ARGUMENTS` as a substring (case-insensitive). E.g., input `feature` matches `test-feature.md` and `test-feature-v2.md`.
+
+**Step C3 -- Rank and select.** Rank exact matches above partial matches.
+- **1 match** -- Read the plan file, print `> Executing plan: {filename} from {directory}`, proceed to Step 2. No confirmation needed.
+- **Multiple matches** -- Use `AskUserQuestion` to present candidates. Show full relative paths as button labels (e.g., `superpowers/plans/test-feature-v2.md`). Add a `"None of these -- treat as task description"` button.
+- **0 matches** -- Treat `$ARGUMENTS` as an inline task description. Print `> No matching plan found for "{$ARGUMENTS}". Treating as task description.` Proceed to Step 2 with the description as the work specification.
 
 ### After loading the plan
 
@@ -155,7 +166,7 @@ Before shipping:
 2. After committing, use `AskUserQuestion`:
    > All work is committed on `{branch}`. What next?
    Buttons: `["Create a pull request", "Done -- I'll handle the rest"]`
-3. If creating a PR, draft title and summary, present for confirmation, then create via `gh pr create`.
+3. If creating a PR, delegate to `/quiver:create-pr`. It handles title generation, body formatting, push, and confirmation.
 4. Update plan frontmatter `status: active` to `status: completed` if applicable.
 5. Summarize: what was completed, PR link (if any), remaining follow-ups.
 
