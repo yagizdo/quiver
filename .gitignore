@@ -50,5 +50,8 @@ marketing/
 .claude/plans/
 .claude/commands/
 
+# Claude Code Plugin files
+docs/superpowers/
+
 # Git worktrees
 .worktrees/
