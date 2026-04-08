@@ -166,7 +166,7 @@ Before shipping:
 2. After committing, use `AskUserQuestion`:
    > All work is committed on `{branch}`. What next?
    Buttons: `["Create a pull request", "Done -- I'll handle the rest"]`
-3. If creating a PR, draft title and summary, present for confirmation, then create via `gh pr create`.
+3. If creating a PR, delegate to `/quiver:create-pr`. It handles title generation, body formatting, push, and confirmation.
 4. Update plan frontmatter `status: active` to `status: completed` if applicable.
 5. Summarize: what was completed, PR link (if any), remaining follow-ups.
 
