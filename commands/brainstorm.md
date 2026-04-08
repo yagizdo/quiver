@@ -26,6 +26,14 @@ argument-hint: "<idea or feature description>"
 !`ls .claude/plans/ 2>/dev/null || echo "NOT_FOUND: .claude/plans/"`
 ```
 
+```
+!`ls -1 *.md *.json *.yaml *.yml 2>/dev/null || echo "NOT_FOUND: root config files"`
+```
+
+```
+!`ls src/ lib/ app/ packages/ commands/ components/ 2>/dev/null || echo "NOT_FOUND: source dirs"`
+```
+
 ---
 
 # Instructions
@@ -58,6 +66,37 @@ Buttons: `["Skip brainstorm -- go to /plan", "Brainstorm anyway"]`
 
 If user picks "Skip brainstorm", **stop here** and suggest running `/plan <task>`.
 
+### Decomposition Check
+
+After assessing complexity, evaluate whether the idea is too large for a single spec:
+
+**Trigger signals:**
+- The description contains 3+ independent subsystems (e.g., "chat, file management, billing")
+- Components span different technology layers (backend + frontend + mobile + infra)
+- Estimated affected file count exceeds 20+
+
+If any trigger fires, use `AskUserQuestion`:
+> This idea contains multiple independent subsystems. Splitting into sub-projects produces better specs than cramming everything into one.
+Buttons: `["Split into sub-projects", "Continue as single spec"]`
+
+**If "Split":** List the identified sub-projects with a recommended order. Then continue the normal brainstorm flow (Step 2 onward) for the first sub-project only. At the end (Step 7), note: "Remaining sub-projects: [list]. Run `/brainstorm` for each when ready."
+
+**If "Single spec":** Continue normal flow. User decision takes priority.
+
+## Step 1.5 -- Visual Companion Offer
+
+If the idea involves UI/UX, layout, design, architecture diagrams, or other visual content:
+
+Use `AskUserQuestion`:
+> This topic is well-suited for visual content. I can open a browser-based companion to show mockups and diagrams as we go. Want to try it?
+Buttons: `["Yes, open visual companion", "No, continue with text"]`
+
+**If "Yes":** Read the `visual-companion` skill for setup instructions. Start the companion server and keep it running throughout the brainstorm session. For each step that involves a visual question, write HTML content and direct the user to their browser. For text-only questions, continue in the terminal.
+
+**If "No":** Continue with normal text-only flow.
+
+**If the topic is NOT visual** (pure backend, data model, API design, etc.): Skip this step entirely. Do not offer the companion.
+
 ## Step 2 -- Clarifying Questions
 
 Ask questions to fill gaps in your understanding. Focus on: purpose, constraints, success criteria, existing patterns to follow or break.
@@ -87,6 +126,7 @@ Present 2-3 distinct approaches. Each approach must include:
 **Lead with your recommendation.** Mark it clearly and explain why in 1-2 sentences. Do not be neutral -- take a position.
 
 **Rules:**
+- Approaches must reference actual project structure observed in gather-context. Do not propose patterns that conflict with the project's existing conventions. When evaluating approaches, penalize complexity that does not directly serve the stated requirements.
 - Approaches must be genuinely different strategies, not cosmetic variations of the same idea.
 - Ground approaches in the actual codebase context (existing patterns, frameworks, conventions observed from gather-context).
 - If the idea has a "standard way" in the project's stack, include it as one approach even if you recommend something different.
@@ -162,6 +202,11 @@ Write the validated design as a spec document. Scale section depth to complexity
 
 ## Success Criteria
 [How we know this is done and working correctly]
+
+## Design Principles Applied  <!-- Standard and Deep only -->
+- **YAGNI:** [Features explicitly removed or deferred from this spec, with reasons]
+- **Single Responsibility:** [Each unit's sole responsibility]
+- **Interface Clarity:** [Communication interfaces between units]
 ```
 
 **Rules:**
@@ -169,6 +214,8 @@ Write the validated design as a spec document. Scale section depth to complexity
 - Standard depth: All sections except Alternatives Considered.
 - Deep depth: All sections.
 - No placeholders -- every section must have real content. If you cannot fill a section, remove it.
+- Standard and Deep depth: "Design Principles Applied" section is required. Quick depth: optional.
+- Always write spec documents in English, regardless of the conversation language. Only write in another language if the user explicitly requests it.
 
 ### Save the spec:
 
@@ -215,3 +262,5 @@ Handle each response:
 - **Don't** force questions when the user gave a clear, detailed description -- assess and skip if appropriate.
 - **Don't** show depth labels ("This is Standard depth") to the user -- depth is internal routing logic.
 - **Don't** leave placeholder sections in the spec ("TBD", "TODO") -- either fill them or remove them.
+- **Don't** add features the user didn't ask for -- if it's not in the requirements, it's not in the spec. Ask the user before adding "nice to have" features.
+- **Don't** design for hypothetical future requirements -- solve the problem at hand. If the user says "we might need X later", note it in Open Questions, don't architect for it now.

@@ -267,6 +267,8 @@ Every step must contain actionable content. These are plan failures -- never wri
 - Steps that describe what to do without showing how (include code blocks, commands, or exact file paths)
 - References to types, functions, or methods not defined in any task (if a step calls `processItems()`, some task must define it)
 
+**Language rule:** Always write plan documents in English, regardless of the conversation language. Only write in another language if the user explicitly requests it.
+
 **Research integration (mandatory):**
 - If best-practices-researcher flagged a deprecation, the plan must avoid the deprecated pattern
 - If architecture-strategist identified boundary constraints, steps must respect them
