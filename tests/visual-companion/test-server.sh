@@ -138,7 +138,33 @@ STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$BASE/events")
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Length: abc" -H "Transfer-Encoding: identity" --data-raw "" "$BASE/event")
 [ "$STATUS" = "400" ] && pass "invalid content-length (400)" || fail "invalid CL returned $STATUS, expected 400"
 
-# --- Test 7: SSE endpoint returns event-stream ---
+# --- Test 7a: GET returns 413 for files exceeding 10MB ---
+
+echo ""
+echo "=== File Size Limit ==="
+dd if=/dev/zero of="$SERVE_DIR/huge.bin" bs=1024 count=10241 2>/dev/null
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/huge.bin")
+[ "$STATUS" = "413" ] && pass "GET huge file returns 413" || fail "GET huge file returned $STATUS, expected 413"
+rm -f "$SERVE_DIR/huge.bin"
+
+# --- Test 7b: events.jsonl truncates to 100 lines when exceeding 1MB ---
+
+echo ""
+echo "=== Events Truncation ==="
+META_DIR="$SERVE_DIR/.vc-meta"
+mkdir -p "$META_DIR"
+LARGE_VALUE=$(python3 -c "print('x' * 8000)")
+for i in $(seq 1 150); do
+    echo "{\"type\":\"pad\",\"data\":\"$LARGE_VALUE\"}" >> "$META_DIR/events.jsonl"
+done
+# POST one more event to trigger truncation
+curl -s -X POST -H "Content-Type: application/json" -d '{"type":"trigger"}' "$BASE/event" > /dev/null
+LINE_COUNT=$(wc -l < "$META_DIR/events.jsonl" | tr -d ' ')
+test "$LINE_COUNT" -le 101
+[ "$?" = "0" ] && pass "events.jsonl truncated to <=101 lines after exceeding 1MB (got $LINE_COUNT)" || fail "events.jsonl has $LINE_COUNT lines, expected <=101"
+rm -f "$META_DIR/events.jsonl"
+
+# --- Test 7c: SSE endpoint returns event-stream ---
 
 echo ""
 echo "=== SSE ==="

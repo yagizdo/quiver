@@ -195,7 +195,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(400)
             return
         if length > MAX_EVENT_SIZE:
-            self.send_error(413)
+            self.send_error(413, "Event too large")
             return
         body = self.rfile.read(length) if length else b''
         body_text = body.decode('utf-8', errors='replace').strip()
@@ -295,7 +295,7 @@ class ThreadingServer(ThreadingMixIn, HTTPServer):
 # Directory polling thread
 # ---------------------------------------------------------------------------
 
-def poll_directory(directory, owner_pid):
+def poll_directory(directory, owner_pid, server):
     snapshot = {}
     for name in os.listdir(directory):
         full = os.path.join(directory, name)
@@ -313,7 +313,8 @@ def poll_directory(directory, owner_pid):
             sys.stderr.write("visual-companion: shutting down (idle timeout)\n")
             if _cleanup_fn:
                 _cleanup_fn()
-            sys.exit(0)
+            threading.Thread(target=server.shutdown, daemon=True).start()
+            return
 
         # Owner PID check
         if owner_pid is not None:
@@ -323,7 +324,8 @@ def poll_directory(directory, owner_pid):
                 sys.stderr.write("visual-companion: shutting down (owner process exited)\n")
                 if _cleanup_fn:
                     _cleanup_fn()
-                sys.exit(0)
+                threading.Thread(target=server.shutdown, daemon=True).start()
+                return
 
         # Check for changes in HTML files
         try:
@@ -339,7 +341,8 @@ def poll_directory(directory, owner_pid):
             sys.stderr.write("visual-companion: shutting down (serve directory gone)\n")
             if _cleanup_fn:
                 _cleanup_fn()
-            sys.exit(0)
+            threading.Thread(target=server.shutdown, daemon=True).start()
+            return
 
         changed = False
         for name, mtime in current.items():
@@ -400,7 +403,7 @@ def main():
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     # Start polling thread
-    t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid), daemon=True)
+    t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid, server), daemon=True)
     t.start()
 
     url = info['url']
