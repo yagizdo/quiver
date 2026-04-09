@@ -207,8 +207,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         events_path = os.path.join(serve_dir, '.vc-meta', 'events.jsonl')
-        with open(events_path, 'w') as f:
-            pass  # truncate
+        try:
+            with open(events_path, 'w') as f:
+                pass  # truncate
+        except FileNotFoundError:
+            pass  # nothing to truncate
         self.send_response(204)
         self.end_headers()
 
@@ -364,8 +367,7 @@ def main():
     atexit.register(cleanup)
 
     def sigterm_handler(signum, frame):
-        cleanup()
-        sys.exit(0)
+        threading.Thread(target=server.shutdown, daemon=True).start()
 
     signal.signal(signal.SIGTERM, sigterm_handler)
 
@@ -377,6 +379,7 @@ def main():
     print('visual-companion: {}'.format(url))
 
     server.serve_forever()
+    cleanup()
 
 
 if __name__ == '__main__':

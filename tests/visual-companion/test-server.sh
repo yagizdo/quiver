@@ -59,6 +59,10 @@ echo "=== File Serving ==="
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/index.html")
 [ "$STATUS" = "200" ] && pass "normal file serving (200)" || fail "normal serving returned $STATUS, expected 200"
 
+BODY=$(curl -s "$BASE/index.html")
+echo "$BODY" | grep -q "<h1>test</h1>" && pass "response contains original content" || fail "original content missing"
+echo "$BODY" | grep -q "EventSource" && pass "client JS injected" || fail "client JS not injected"
+
 # --- Test 3: .vc-meta not accessible via GET ---
 
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/.vc-meta/server-info.json")
@@ -85,6 +89,13 @@ if [ -f "$EVENTS_FILE" ]; then
 else
   pass "no blank line in events.jsonl (file not created)"
 fi
+
+# --- Test 5b: Valid POST persists event ---
+
+EVENT='{"type":"choice","choice":"A","text":"Option A"}'
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" -d "$EVENT" "$BASE/event")
+[ "$STATUS" = "204" ] && pass "valid POST accepted (204)" || fail "valid POST returned $STATUS, expected 204"
+grep -q '"choice":"A"' "$SERVE_DIR/.vc-meta/events.jsonl" && pass "event persisted to events.jsonl" || fail "event not found in events.jsonl"
 
 # --- Test 6: Invalid Content-Length returns 400 ---
 
