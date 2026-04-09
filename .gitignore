@@ -51,7 +51,6 @@ marketing/
 .claude/commands/
 
 # Claude Code Plugin files
-docs/superpowers/
 docs/
 
 # Git worktrees

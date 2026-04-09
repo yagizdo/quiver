@@ -13,7 +13,8 @@ import argparse
 import atexit
 import json
 import os
-import socket
+import signal
+import sys
 import threading
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -91,11 +92,18 @@ last_request_time = time.time()
 sse_clients = []  # list of threading.Event objects, one per SSE connection
 sse_lock = threading.Lock()
 serve_dir = ""
+verbose = False
+_cleanup_fn = None  # set by main(), called before os._exit
+
+
+MAX_SSE_CLIENTS = 20
 
 
 def register_sse_client():
-    ev = threading.Event()
     with sse_lock:
+        if len(sse_clients) >= MAX_SSE_CLIENTS:
+            return None
+        ev = threading.Event()
         sse_clients.append(ev)
     return ev
 
@@ -121,7 +129,8 @@ def notify_sse_clients():
 class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
-        pass  # suppress default stderr logging
+        if verbose:
+            super().log_message(format, *args)
 
     def log_request(self, code='-', size='-'):
         global last_request_time
@@ -133,7 +142,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._handle_sse()
         if not path:
             path = 'index.html'
-        filepath = os.path.join(serve_dir, path)
+        # Block access to .vc-meta directory
+        if path.startswith('.vc-meta/') or path == '.vc-meta':
+            self.send_error(404)
+            return
+        filepath = os.path.realpath(os.path.join(serve_dir, path))
+        real_serve = os.path.realpath(serve_dir)
+        if not (filepath == real_serve or filepath.startswith(real_serve + os.sep)):
+            self.send_error(403)
+            return
         if not os.path.isfile(filepath):
             self.send_error(404)
             return
@@ -154,15 +171,33 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(content)
 
     def do_POST(self):
+        MAX_EVENT_SIZE = 65536  # 64 KB
         path = self.path.lstrip('/')
         if path != 'event':
             self.send_error(404)
             return
-        length = int(self.headers.get('Content-Length', 0))
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+        except (ValueError, TypeError):
+            self.send_error(400)
+            return
+        if length < 0:
+            self.send_error(400)
+            return
+        if length > MAX_EVENT_SIZE:
+            self.send_error(413)
+            return
         body = self.rfile.read(length) if length else b''
-        events_path = os.path.join(serve_dir, 'events.jsonl')
+        body_text = body.decode('utf-8', errors='replace').strip()
+        if not body_text:
+            self.send_response(204)
+            self.end_headers()
+            return
+        meta_dir = os.path.join(serve_dir, '.vc-meta')
+        os.makedirs(meta_dir, exist_ok=True)
+        events_path = os.path.join(meta_dir, 'events.jsonl')
         with open(events_path, 'a') as f:
-            f.write(body.decode('utf-8', errors='replace').strip() + '\n')
+            f.write(body_text + '\n')
         self.send_response(204)
         self.end_headers()
 
@@ -171,7 +206,7 @@ class Handler(BaseHTTPRequestHandler):
         if path != 'events':
             self.send_error(404)
             return
-        events_path = os.path.join(serve_dir, 'events.jsonl')
+        events_path = os.path.join(serve_dir, '.vc-meta', 'events.jsonl')
         with open(events_path, 'w') as f:
             pass  # truncate
         self.send_response(204)
@@ -197,12 +232,15 @@ class Handler(BaseHTTPRequestHandler):
         return wrapped.encode('utf-8')
 
     def _handle_sse(self):
+        ev = register_sse_client()
+        if ev is None:
+            self.send_error(503)
+            return
         self.send_response(200)
         self.send_header('Content-Type', 'text/event-stream')
         self.send_header('Cache-Control', 'no-cache')
         self.send_header('Connection', 'keep-alive')
         self.end_headers()
-        ev = register_sse_client()
         try:
             while True:
                 ev.wait(timeout=30)
@@ -247,6 +285,9 @@ def poll_directory(directory, owner_pid):
 
         # Idle timeout
         if time.time() - last_request_time > IDLE_TIMEOUT:
+            sys.stderr.write("visual-companion: shutting down (idle timeout)\n")
+            if _cleanup_fn:
+                _cleanup_fn()
             os._exit(0)
 
         # Owner PID check
@@ -254,6 +295,9 @@ def poll_directory(directory, owner_pid):
             try:
                 os.kill(owner_pid, 0)
             except OSError:
+                sys.stderr.write("visual-companion: shutting down (owner process exited)\n")
+                if _cleanup_fn:
+                    _cleanup_fn()
                 os._exit(0)
 
         # Check for changes in HTML files
@@ -288,23 +332,24 @@ def main():
     parser = argparse.ArgumentParser(description='Visual companion server')
     parser.add_argument('--dir', required=True, help='Directory to serve HTML from')
     parser.add_argument('--owner-pid', type=int, default=None, help='Parent process PID for lifecycle tracking')
+    parser.add_argument('--verbose', action='store_true', help='Enable HTTP request logging to stderr')
     args = parser.parse_args()
 
+    global verbose
+    verbose = args.verbose
     serve_dir = os.path.abspath(args.dir)
     if not os.path.isdir(serve_dir):
         os.makedirs(serve_dir, exist_ok=True)
 
-    # Find a free ephemeral port
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('127.0.0.1', 0))
-    port = sock.getsockname()[1]
-    sock.close()
+    # Bind directly to port 0 to avoid TOCTOU race
+    server = ThreadingServer(('127.0.0.1', 0), Handler)
+    port = server.server_address[1]
 
-    server = ThreadingServer(('127.0.0.1', port), Handler)
-
-    # Write server-info.json
+    # Write server-info.json to .vc-meta (not directly served)
+    meta_dir = os.path.join(serve_dir, '.vc-meta')
+    os.makedirs(meta_dir, exist_ok=True)
     info = {'port': port, 'pid': os.getpid(), 'url': 'http://localhost:{}'.format(port)}
-    info_path = os.path.join(serve_dir, 'server-info.json')
+    info_path = os.path.join(meta_dir, 'server-info.json')
     with open(info_path, 'w') as f:
         json.dump(info, f)
 
@@ -314,14 +359,22 @@ def main():
         except OSError:
             pass
 
+    global _cleanup_fn
+    _cleanup_fn = cleanup
     atexit.register(cleanup)
+
+    def sigterm_handler(signum, frame):
+        cleanup()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, sigterm_handler)
 
     # Start polling thread
     t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid), daemon=True)
     t.start()
 
     url = info['url']
-    print(url)
+    print('visual-companion: {}'.format(url))
 
     server.serve_forever()
 

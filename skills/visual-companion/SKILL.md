@@ -39,9 +39,9 @@ A question about a UI topic is not automatically a visual question. "Should we u
    ```
    `<skill-dir>` is resolved by the invoking agent to the absolute path of `skills/visual-companion/`.
 
-3. Read `server-info.json` from `<temp-dir>` to get the URL and port:
+3. Read `server-info.json` from the `.vc-meta` subdirectory to get the URL and port:
    ```
-   cat <temp-dir>/server-info.json
+   cat <temp-dir>/.vc-meta/server-info.json
    ```
    Returns `{"port": N, "pid": N, "url": "http://localhost:N"}`.
 
@@ -56,7 +56,7 @@ For each visual step in the brainstorm:
 2. **Never reuse filenames.** Each screen gets a fresh file. For iterations, append a version suffix: `layout-options-v2.html`.
 3. **Browser auto-reloads** via SSE when a new or changed `.html` file is detected. No manual refresh needed.
 4. **For clickable options:** Use `data-choice` attributes on elements. The client JS handles selection toggling and event capture.
-5. **Read events:** Before the next question, read `<temp-dir>/events.jsonl` to check for user clicks.
+5. **Read events:** Before the next question, read `<temp-dir>/.vc-meta/events.jsonl` to check for user clicks.
 6. **Clear events:** `DELETE /events` before presenting a new visual question to clear prior selections.
 7. **Terminal-only steps:** No browser action needed. Optionally push a placeholder page:
    ```html
@@ -100,7 +100,7 @@ Add `data-choice` attributes to elements that users can click to make selections
 When a user clicks a `[data-choice]` element:
 - The `.selected` class is added (blue border + light blue background)
 - Previous selections within the same parent are deselected
-- A JSON event is appended to `events.jsonl`:
+- A JSON event is appended to `.vc-meta/events.jsonl`:
   ```
   {"type":"choice","choice":"grid","text":"Grid Layout Content arranged in a responsive grid","timestamp":"2026-04-09T14:30:00.000Z"}
   ```
@@ -121,7 +121,7 @@ The server self-terminates in two cases:
 
 To stop manually:
 ```
-kill $(cat <temp-dir>/server-info.json | python3 -c "import sys,json; print(json.load(sys.stdin)['pid'])") 2>/dev/null
+kill $(cat <temp-dir>/.vc-meta/server-info.json | python3 -c "import sys,json; print(json.load(sys.stdin)['pid'])") 2>/dev/null
 ```
 
 HTML files remain in the temp directory for reference. Optionally copy key mockups to `docs/brainstorms/` alongside the spec:
