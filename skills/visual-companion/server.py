@@ -95,10 +95,11 @@ sse_lock = threading.Lock()
 _events_lock = threading.Lock()
 serve_dir = ""
 verbose = False
-_cleanup_fn = None  # set by main(), called before os._exit
+_cleanup_fn = None  # set by main(), called before exit
 
 
 MAX_SSE_CLIENTS = 20
+MAX_EVENTS_SIZE = 1_000_000  # 1MB
 
 
 def register_sse_client():
@@ -156,6 +157,10 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isfile(filepath):
             self.send_error(404)
             return
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        if os.path.getsize(filepath) > MAX_FILE_SIZE:
+            self.send_error(413, "File too large")
+            return
         with open(filepath, 'rb') as f:
             content = f.read()
         # Serve HTML with potential wrapping
@@ -207,6 +212,11 @@ class Handler(BaseHTTPRequestHandler):
         os.makedirs(meta_dir, exist_ok=True)
         events_path = os.path.join(meta_dir, 'events.jsonl')
         with _events_lock:
+            if os.path.exists(events_path) and os.path.getsize(events_path) > MAX_EVENTS_SIZE:
+                with open(events_path, 'r') as f:
+                    lines = f.readlines()
+                with open(events_path, 'w') as f:
+                    f.writelines(lines[-100:])
             with open(events_path, 'a') as f:
                 f.write(json.dumps(parsed, separators=(',', ':')) + '\n')
         self.send_response(204)
@@ -233,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
         is_full = prefix.startswith('<!doctype') or prefix.startswith('<html')
         if is_full:
             # Inject client JS before </body> if not already present
-            if '/sse' not in text:
+            if 'new EventSource' not in text:
                 text = text.replace('</body>', CLIENT_JS + '\n</body>')
             return text.encode('utf-8')
         # Fragment: wrap with full document
@@ -249,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_sse(self):
         ev = register_sse_client()
         if ev is None:
-            self.send_error(503)
+            self.send_error(503, "Too many SSE clients (max 20)")
             return
         self.send_response(200)
         self.send_header('Content-Type', 'text/event-stream')
@@ -303,7 +313,7 @@ def poll_directory(directory, owner_pid):
             sys.stderr.write("visual-companion: shutting down (idle timeout)\n")
             if _cleanup_fn:
                 _cleanup_fn()
-            os._exit(0)
+            sys.exit(0)
 
         # Owner PID check
         if owner_pid is not None:
@@ -313,17 +323,23 @@ def poll_directory(directory, owner_pid):
                 sys.stderr.write("visual-companion: shutting down (owner process exited)\n")
                 if _cleanup_fn:
                     _cleanup_fn()
-                os._exit(0)
+                sys.exit(0)
 
         # Check for changes in HTML files
-        current = {}
-        for name in os.listdir(directory):
-            full = os.path.join(directory, name)
-            if os.path.isfile(full):
-                try:
-                    current[name] = os.path.getmtime(full)
-                except OSError:
-                    pass
+        try:
+            current = {}
+            for name in os.listdir(directory):
+                full = os.path.join(directory, name)
+                if os.path.isfile(full):
+                    try:
+                        current[name] = os.path.getmtime(full)
+                    except OSError:
+                        pass
+        except OSError:
+            sys.stderr.write("visual-companion: shutting down (serve directory gone)\n")
+            if _cleanup_fn:
+                _cleanup_fn()
+            sys.exit(0)
 
         changed = False
         for name, mtime in current.items():

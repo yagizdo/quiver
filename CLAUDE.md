@@ -10,7 +10,7 @@ Dependencies: `bash`, `claude` CLI.
 ## Architecture
 
 - **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/command/skill/agent registration, and MCP servers.
-- **`commands/`** — 11 markdown slash commands. Each file has YAML front-matter (`name`, `description`) and is a self-contained prompt.
+- **`commands/`** — 13 markdown slash commands. Each file has YAML front-matter (`name`, `description`) and is a self-contained prompt.
 - **`skills/`** — 6 skill directories (each contains `SKILL.md`). Skills are prompt-based references that commands and agents can invoke. **Exception:** `visual-companion` also contains `server.py`, a runtime executable -- this is the only skill with non-prompt code.
 - **`agents/`** — 6 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Currently one hook: PreCompact (fires before context compaction).

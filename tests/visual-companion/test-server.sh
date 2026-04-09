@@ -32,7 +32,14 @@ echo "<h1>test</h1>" > "$SERVE_DIR/index.html"
 
 python3 "$SERVER" --dir "$SERVE_DIR" &
 SERVER_PID=$!
-sleep 1
+
+# Wait for server to start (max 10 seconds)
+for i in $(seq 1 20); do
+    if [ -f "$SERVE_DIR/.vc-meta/server-info.json" ]; then
+        break
+    fi
+    sleep 0.5
+done
 
 # Read port from .vc-meta/server-info.json
 INFO_FILE="$SERVE_DIR/.vc-meta/server-info.json"
@@ -62,6 +69,17 @@ STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/index.html")
 BODY=$(curl -s "$BASE/index.html")
 echo "$BODY" | grep -q "<h1>test</h1>" && pass "response contains original content" || fail "original content missing"
 echo "$BODY" | grep -q "EventSource" && pass "client JS injected" || fail "client JS not injected"
+
+# --- Test 2b: Full HTML document serves with JS injection before </body> ---
+
+echo "<html><head></head><body><h1>full doc</h1></body></html>" > "$SERVE_DIR/full.html"
+FULL_BODY=$(curl -s "$BASE/full.html")
+echo "$FULL_BODY" | grep -q "<h1>full doc</h1>" && pass "full doc contains original content" || fail "full doc original content missing"
+echo "$FULL_BODY" | grep -q "new EventSource" && pass "full doc has JS injected" || fail "full doc JS not injected"
+# Verify JS appears before </body> by checking the order in output
+JS_LINE=$(echo "$FULL_BODY" | grep -n "new EventSource" | head -1 | cut -d: -f1)
+BODY_LINE=$(echo "$FULL_BODY" | grep -n "</body>" | head -1 | cut -d: -f1)
+[ -n "$JS_LINE" ] && [ -n "$BODY_LINE" ] && [ "$JS_LINE" -lt "$BODY_LINE" ] && pass "full doc JS injected before </body>" || fail "full doc JS not before </body>"
 
 # --- Test 3: .vc-meta not accessible via GET ---
 
