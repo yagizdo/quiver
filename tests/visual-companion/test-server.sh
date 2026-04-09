@@ -104,6 +104,11 @@ STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: applic
 [ "$STATUS" = "204" ] && pass "valid POST accepted (204)" || fail "valid POST returned $STATUS, expected 204"
 grep -q '"choice":"A"' "$SERVE_DIR/.vc-meta/events.jsonl" && pass "event persisted to events.jsonl" || fail "event not found in events.jsonl"
 
+# --- Test 5b2: POST invalid JSON returns 400 ---
+
+INVALID_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d 'not-valid-json' "$BASE/event")
+[ "$INVALID_RESPONSE" = "400" ] && pass "POST invalid JSON rejected (400)" || fail "POST invalid JSON returned $INVALID_RESPONSE, expected 400"
+
 # --- Test 5c: DELETE after events exist truncates file ---
 
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$BASE/events")

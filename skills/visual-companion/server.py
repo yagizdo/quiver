@@ -12,6 +12,7 @@ elements are captured to events.jsonl.
 import argparse
 import atexit
 import json
+import mimetypes
 import os
 import signal
 import sys
@@ -91,6 +92,7 @@ POLL_INTERVAL = 0.5  # seconds
 last_request_time = time.time()
 sse_clients = []  # list of threading.Event objects, one per SSE connection
 sse_lock = threading.Lock()
+_events_lock = threading.Lock()
 serve_dir = ""
 verbose = False
 _cleanup_fn = None  # set by main(), called before os._exit
@@ -165,7 +167,10 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(content)
         else:
+            ctype, _ = mimetypes.guess_type(filepath)
             self.send_response(200)
+            self.send_header('Content-Type', ctype or 'application/octet-stream')
+            self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Content-Length', str(len(content)))
             self.end_headers()
             self.wfile.write(content)
@@ -193,11 +198,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(204)
             self.end_headers()
             return
+        try:
+            parsed = json.loads(body_text)
+        except (json.JSONDecodeError, ValueError):
+            self.send_error(400, 'Invalid JSON')
+            return
         meta_dir = os.path.join(serve_dir, '.vc-meta')
         os.makedirs(meta_dir, exist_ok=True)
         events_path = os.path.join(meta_dir, 'events.jsonl')
-        with open(events_path, 'a') as f:
-            f.write(body_text + '\n')
+        with _events_lock:
+            with open(events_path, 'a') as f:
+                f.write(json.dumps(parsed, separators=(',', ':')) + '\n')
         self.send_response(204)
         self.end_headers()
 
@@ -207,11 +218,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         events_path = os.path.join(serve_dir, '.vc-meta', 'events.jsonl')
-        try:
-            with open(events_path, 'w') as f:
-                pass  # truncate
-        except FileNotFoundError:
-            pass  # nothing to truncate
+        with _events_lock:
+            try:
+                with open(events_path, 'w') as f:
+                    pass  # truncate
+            except FileNotFoundError:
+                pass  # nothing to truncate
         self.send_response(204)
         self.end_headers()
 
