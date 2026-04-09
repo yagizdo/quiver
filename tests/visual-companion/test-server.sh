@@ -68,6 +68,13 @@ echo "$BODY" | grep -q "EventSource" && pass "client JS injected" || fail "clien
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/.vc-meta/server-info.json")
 [ "$STATUS" = "404" ] && pass ".vc-meta blocked (404)" || fail ".vc-meta returned $STATUS, expected 404"
 
+# --- Test 3b: DELETE before events exist returns 204 ---
+
+echo ""
+echo "=== DELETE ==="
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$BASE/events")
+[ "$STATUS" = "204" ] && pass "DELETE before events exist (204)" || fail "DELETE pre-events returned $STATUS, expected 204"
+
 # --- Test 4: Oversized POST returns 413 ---
 
 echo ""
@@ -96,6 +103,12 @@ EVENT='{"type":"choice","choice":"A","text":"Option A"}'
 STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" -d "$EVENT" "$BASE/event")
 [ "$STATUS" = "204" ] && pass "valid POST accepted (204)" || fail "valid POST returned $STATUS, expected 204"
 grep -q '"choice":"A"' "$SERVE_DIR/.vc-meta/events.jsonl" && pass "event persisted to events.jsonl" || fail "event not found in events.jsonl"
+
+# --- Test 5c: DELETE after events exist truncates file ---
+
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$BASE/events")
+[ "$STATUS" = "204" ] && pass "DELETE clears events (204)" || fail "DELETE returned $STATUS, expected 204"
+[ ! -s "$SERVE_DIR/.vc-meta/events.jsonl" ] && pass "events.jsonl truncated" || fail "events.jsonl not empty after DELETE"
 
 # --- Test 6: Invalid Content-Length returns 400 ---
 
