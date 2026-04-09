@@ -33,29 +33,32 @@ A question about a UI topic is not automatically a visual question. "Should we u
    mktemp -d /tmp/visual-companion-XXXXXX
    ```
 
-2. Start a local server in the background:
+2. Start the visual companion server in the background:
    ```
-   python3 -m http.server 8432 --directory <temp-dir> &
+   python3 <skill-dir>/server.py --dir <temp-dir> --owner-pid $$ &
    ```
+   `<skill-dir>` is resolved by the invoking agent to the absolute path of `skills/visual-companion/`.
 
-3. Save the server PID for cleanup:
+3. Read `server-info.json` from `<temp-dir>` to get the URL and port:
    ```
-   echo $! > <temp-dir>/.server-pid
+   cat <temp-dir>/server-info.json
    ```
+   Returns `{"port": N, "pid": N, "url": "http://localhost:N"}`.
 
 4. Tell the user:
-   > Visual companion is running. Open http://localhost:8432 in your browser.
-   > I will tell you when to refresh for new content.
+   > Visual companion running at {url}. It auto-refreshes when I update content.
 
 ## 3. The Loop
 
 For each visual step in the brainstorm:
 
-1. **Write an HTML file** to the temp directory with a semantic filename (e.g., `layout-options.html`, `navigation-flow.html`).
+1. **Write an HTML fragment** to `<temp-dir>` with a semantic filename (e.g., `layout-options.html`). Write body content only -- the server wraps fragments automatically.
 2. **Never reuse filenames.** Each screen gets a fresh file. For iterations, append a version suffix: `layout-options-v2.html`.
-3. **Tell the user** to open the specific file URL: `http://localhost:8432/layout-options.html`
-4. **User provides feedback** in the terminal. There is no client-side event system -- all communication happens through the normal conversation.
-5. **When returning to terminal-only questions:** Push a placeholder page so the user knows the visual step is done:
+3. **Browser auto-reloads** via SSE when a new or changed `.html` file is detected. No manual refresh needed.
+4. **For clickable options:** Use `data-choice` attributes on elements. The client JS handles selection toggling and event capture.
+5. **Read events:** Before the next question, read `<temp-dir>/events.jsonl` to check for user clicks.
+6. **Clear events:** `DELETE /events` before presenting a new visual question to clear prior selections.
+7. **Terminal-only steps:** No browser action needed. Optionally push a placeholder page:
    ```html
    <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#666">
      <p>Continuing in terminal...</p>
@@ -64,59 +67,9 @@ For each visual step in the brainstorm:
 
 ## 4. HTML Content Guide
 
-Write content fragments, not full documents. Each HTML file should be self-contained with inline styles.
+Write body content only. The server wraps fragments with DOCTYPE, CSS, and client JS automatically.
 
-### Frame Template
-
-Use this base structure for all visual pages:
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{Page Title}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif; padding: 2rem; background: #fafafa; color: #1a1a1a; }
-  h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
-  h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #444; }
-
-  /* Options grid -- side-by-side approach comparison */
-  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
-  .option { background: #fff; border: 2px solid #e0e0e0; border-radius: 8px; padding: 1.5rem; }
-  .option.recommended { border-color: #2563eb; }
-  .option h3 { margin-bottom: 0.75rem; }
-
-  /* Cards -- feature or component gallery */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-  .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 1rem; }
-
-  /* Mockup container -- wireframe wrapper */
-  .mockup { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; max-width: 800px; margin: 0 auto; }
-
-  /* Split view -- two-panel comparison */
-  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-
-  /* Pros and cons */
-  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  .pros-cons .pros { color: #16a34a; }
-  .pros-cons .cons { color: #dc2626; }
-
-  /* Mock UI elements for wireframes */
-  .mock-nav { background: #f3f4f6; padding: 0.75rem 1rem; border-bottom: 1px solid #e5e5e5; display: flex; gap: 1rem; align-items: center; }
-  .mock-sidebar { background: #f9fafb; padding: 1rem; border-right: 1px solid #e5e5e5; min-width: 200px; }
-  .mock-content { padding: 1.5rem; flex: 1; }
-  .mock-button { display: inline-block; background: #2563eb; color: #fff; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.875rem; }
-  .mock-input { display: block; width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; margin-bottom: 0.5rem; }
-</style>
-</head>
-<body>
-  <!-- Content here -->
-</body>
-</html>
-```
+A file is treated as a fragment if its first 256 bytes (stripped, case-insensitive) do not start with `<!DOCTYPE` or `<html>`. Full HTML documents are served as-is, with client JS injected before `</body>`.
 
 ### Layout Patterns
 
@@ -125,19 +78,53 @@ Use this base structure for all visual pages:
 - **Mockup:** Use `.mockup` with `.mock-nav`, `.mock-sidebar`, `.mock-content` for wireframes.
 - **Split view:** Use `.split` for before/after or A/B comparisons.
 - **Pros/cons:** Use `.pros-cons` for tradeoff visualization.
+- **Mock UI:** `.mock-button`, `.mock-input` for wireframe form elements.
+
+### Clickable Options with `data-choice`
+
+Add `data-choice` attributes to elements that users can click to make selections:
+
+```html
+<div class="options">
+  <div class="option" data-choice="grid">
+    <h3>Grid Layout</h3>
+    <p>Content arranged in a responsive grid</p>
+  </div>
+  <div class="option" data-choice="list">
+    <h3>List Layout</h3>
+    <p>Content in a vertical list</p>
+  </div>
+</div>
+```
+
+When a user clicks a `[data-choice]` element:
+- The `.selected` class is added (blue border + light blue background)
+- Previous selections within the same parent are deselected
+- A JSON event is appended to `events.jsonl`:
+  ```
+  {"type":"choice","choice":"grid","text":"Grid Layout Content arranged in a responsive grid","timestamp":"2026-04-09T14:30:00.000Z"}
+  ```
+
+### events.jsonl Format
+
+Each line is a JSON object appended by the server. The agent reads this file to see what the user clicked:
+```
+{"type":"choice","choice":"option-a","text":"Option A","timestamp":"..."}
+{"type":"choice","choice":"option-b","text":"Option B","timestamp":"..."}
+```
 
 ## 5. Cleaning Up
 
-When the brainstorm session ends:
+The server self-terminates in two cases:
+- **Idle timeout:** No HTTP requests for 30 minutes.
+- **Owner PID death:** The `--owner-pid` process no longer exists (checked every 0.5s).
 
-1. Kill the server:
-   ```
-   kill $(cat <temp-dir>/.server-pid) 2>/dev/null
-   ```
+To stop manually:
+```
+kill $(cat <temp-dir>/server-info.json | python3 -c "import sys,json; print(json.load(sys.stdin)['pid'])") 2>/dev/null
+```
 
-2. HTML files remain in the temp directory for reference.
-
-3. Optionally copy key mockups to `docs/brainstorms/` alongside the spec:
-   ```
-   cp <temp-dir>/final-layout.html docs/brainstorms/YYYY-MM-DD-<name>-mockups/
-   ```
+HTML files remain in the temp directory for reference. Optionally copy key mockups to `docs/brainstorms/` alongside the spec:
+```
+cp <temp-dir>/final-layout.html docs/brainstorms/YYYY-MM-DD-<name>-mockups/
+```
