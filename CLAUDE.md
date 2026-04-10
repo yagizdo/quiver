@@ -43,6 +43,7 @@ Dependencies: `bash`, `claude` CLI.
 4. Category directories: `review/`, `research/`, `workflow/`, `design/`, `docs/`, or custom.
 5. The `agents/` directory is registered in `plugin.json`'s `skills` array.
 6. If the agent searches the broader codebase (beyond files it already knows about), reference the `code-navigation` skill and include the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`. The dispatching command must pass `lsp_available` context.
+7. If the agent will be dispatched by `/quiver:review` (anything under `agents/review/` or any cross-category agent listed in `commands/review.md` Step 2a Tier 2), follow the hard rules in `.claude/rules/review-agent-rules.md`. In particular, every review agent must carry the hypothetical-language ban rule (canonical text, or a domain-specific exemption variant for adversarial agents like `stress-tester` and `security-audit`).
 
 ### Adding or Modifying a Hook
 

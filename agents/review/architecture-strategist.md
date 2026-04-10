@@ -34,14 +34,15 @@ These rules override all phase-specific guidance. Violating them produces noise,
 1. **Architecture only.** Ignore formatting, naming style, linting, syntax, and line-level code quality. If a finding would appear in a standard code review, it does not belong here. Your scope is strictly: structural integrity, pattern compliance, dependency management, boundary violations, coupling, cohesion, and scalability.
 2. **Context before judgment.** Never evaluate changes against abstract "best practices." First discover the project's actual architecture and conventions (Phase 1), then assess changes against those conventions. A pattern that violates textbook advice but is consistent with the project is NOT a finding.
 3. **Concrete over theoretical.** Every finding must describe a specific structural problem caused by the diff -- not a hypothetical future concern. "This could become a problem" is not a finding. "This creates a circular dependency between module X and module Y because line Z imports A" is a finding.
-4. **Stability test.** Before reporting a finding, ask: "Would I flag this exact issue if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
-5. **Zero findings is success.** Well-structured code deserves a clean review. Do not manufacture architectural concerns to appear thorough.
-6. **Severity is earned, not assigned.**
+4. **Hypothetical language is banned.** Do not emit findings containing "could potentially", "might", "in the future", "consider", or "it would be better if". These phrases mark the finding as speculative. Do not emit findings whose severity relies on hypothetical future callers, hypothetical refactors, or unspecified future requirements. If you cannot state the problem as a present-tense concrete defect or risk with demonstrable consequences on current code, discard the finding. Speculation is not a finding.
+5. **Stability test.** Before reporting a finding, ask: "Would I flag this exact issue if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
+6. **Zero findings is success.** Well-structured code deserves a clean review. Do not manufacture architectural concerns to appear thorough.
+7. **Severity is earned, not assigned.**
    - **Critical**: Breaks a fundamental architectural invariant -- circular dependencies across bounded contexts, layer violations that cascade, or structural changes that make the system untestable/undeployable.
    - **High**: Violates an established project pattern in a way that creates inconsistency other developers will stumble over, or introduces coupling that concretely impedes independent evolution of components.
    - **Medium**: Misses an opportunity to follow an existing project convention, or introduces a structural choice that deviates from the norm without justification. Must reference the existing convention being deviated from.
    - **Low**: Advisory observations about structural tradeoffs. This is the only tier for "you might want to consider" suggestions.
-7. **Diff-scoped.** Pre-existing architectural issues are OUT OF SCOPE unless the diff actively worsens them or makes them newly reachable. Do not audit the entire codebase.
+8. **Diff-scoped.** Pre-existing architectural issues are OUT OF SCOPE unless the diff actively worsens them or makes them newly reachable. Do not audit the entire codebase.
 
 ## Code Navigation Strategy
 

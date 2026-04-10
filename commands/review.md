@@ -205,6 +205,7 @@ Each agent receives (in this order):
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
 8. **LSP availability** (for waste-detector, architecture-strategist, and stress-tester): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
+9. **Scope discipline**: Aspirational improvements, stylistic preferences, "could be better" suggestions, and theoretical hardening are out of scope. Flag only concrete demonstrable problems with code that is wrong, unsafe, or broken as written. If the code works correctly as written and you would not fix it yourself, do not flag it. Zero findings is a correct and expected result on clean code. (This clause applies on every review. Re-review mode adds additional delta-specific scope on top of this general lock.)
 
 ### Adding future agents
 
@@ -246,6 +247,21 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
    - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
    - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation is real: (a) `file_path` must exist in the repository, (b) `line_number` must fall within the file's actual line count, (c) if the finding quotes a code snippet or describes specific content at that line, the file's actual content at that line must match. If any check fails → DISCARD. Record as filtered phantom citation. This filter catches agent hallucinations where findings cite non-existent code, fabricated template sections, or incorrect line numbers.
+
+**4a. Proportional severity floor.** After applying the 8 false-positive filters above, apply a diff-shape filter to Low findings only. Medium, High, and Critical findings are never affected by this rule.
+
+Compute the diff profile from the Diff Manifest (Step 1.5) and the diff line count:
+
+- **Profile A** (strict floor): zero `CODE`/`SCRIPT`/`CONFIG-APP` files, OR diff has `CODE`/`SCRIPT` but is under ~100 changed lines AND contains no risk signals (auth, payments, secrets, CI workflow changes). **Rule:** drop all Low findings. Record each drop in Filtered Findings with reason "Proportional floor (strict)".
+- **Profile B** (consensus floor): diff is 100-250 changed lines, no high-risk signals. **Rule:** keep Low findings only when 2+ agents flagged the same issue (use the `Flagged by:` consensus annotation from Step 3.1). Drop single-agent Lows. Record each drop in Filtered Findings with reason "Proportional floor (consensus)".
+- **Profile C** (no floor): any high-risk signal is present (auth, payments, secrets, CI workflow changes), OR diff is over 250 changed lines. **Rule:** no filter applied. Current behavior preserved.
+
+Risk signals are detected from the Diff Manifest: any `CONFIG-APP` file touching auth or secrets, any file under a `payments/` or `auth/` path, any CI workflow file (`.github/workflows/*.yml`, `.gitlab-ci.yml`), any file matching `secrets|credentials|keys|tokens` in its name.
+
+The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filters (Step 3.4) so that dropped findings have already been deduplicated. Dropped findings still appear in the Filtered Findings section with their drop reason, preserving transparency.
+
+**No promotion to escape the floor.** Severity is assigned based on concrete consequence, not on whether a finding will survive the proportional floor. Do NOT reclassify a finding from Low to Medium solely because the current profile would drop Lows. If a finding is genuinely Low under the severity rubric, drop it (record in Filtered Findings) -- do not launder it into Medium to preserve it in the report. The floor is a synthesis-stage noise filter, not an incentive to inflate severity. Violating this rule reintroduces the exact noise pattern the floor exists to suppress. When in doubt, ask: "Would I assign this severity if no filter existed?" If the honest answer is Low, keep it Low.
+
 5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
@@ -352,12 +368,13 @@ Evaluate in order:
 
 1. Create the chosen directory if it does not exist.
 2. Write the full synthesized report as `review-{timestamp}.md` (use `date '+%Y-%m-%d_%H-%M-%S'`).
-3. Print a short terminal summary:
+3. Draft a short terminal summary with these elements:
    - One-line verdict
    - Counts per severity
    - Which agents ran and their individual verdicts
    - Path to the saved report file
-4. Do **not** print the full review in the terminal unless `--terminal` was used.
+4. **Pre-print scan (mandatory gate).** Before printing the drafted summary, run the scan defined in the "Status Messages: Plain Language Required" section against the draft. The summary is a live chat-stream message and is fully covered by the plain-language rule -- it is not exempt because it appears at the end of the run. If the draft contains any rule code, hash prefix, bare commit SHA, or internal invariant name, rewrite it using the translation table and re-scan. Only print the summary after the scan passes.
+5. Do **not** print the full review in the terminal unless `--terminal` was used.
 
 ---
 
@@ -397,6 +414,55 @@ Evaluate in order:
 
 ---
 
+## Status Messages: Plain Language Required
+
+Every character of text the user sees in their terminal during or after a review run is read by a human who has not memorized this file's internal rule codes. This covers: mid-run status lines between tool calls, `AskUserQuestion` prompt bodies and button labels, the Step 4b terminal summary, the final verdict line, and any warning, confirmation, or error message. The review pipeline is dense with internal terms (rule codes, hash prefixes, invariant names) and it is tempting to narrate your work by referencing them directly. Resist that. A user running `/quiver:review` wants to know what is being checked and why, not which numbered rule in which internal document is being enforced.
+
+**Rewrite rule:** before printing any chat-stream text, re-read it once. If it contains a rule code, a raw SHA or hash prefix, a commit SHA without plain-language context, or an internal invariant name, rewrite it. State what you are checking in plain English, and attach a short clause explaining why it matters -- the concrete problem the check prevents, not the rule that demands it. Being slightly more verbose is fine and preferred; two clear sentences beat one cryptic one.
+
+**Pre-print scan (mandatory gate, not a suggestion).** Before any chat-stream output leaves you -- including the Step 4b terminal summary and the final verdict line, which are fully in scope -- scan your drafted text for the patterns below. If any match, rewrite and re-scan before printing. This is a gate. Text that has not passed the scan must not be printed.
+
+- Rule codes: any `RA` followed by a digit, any `LA` followed by a digit, `R[0-9]` or `L[0-9]` references to hard rules, any "rule N" / "lesson N" phrasing that only makes sense if you have read the Quiver rule files.
+- Hash material: any unbroken run of 8 or more hexadecimal characters (full SHAs, hash prefixes, `5fc168ad...` style truncations).
+- Bare commit SHAs: any `[0-9a-f]{7,}` appearing without a short plain-language label ("the commit that added the status-message section" is fine; `337eab3` by itself is not).
+- Internal invariant names: "canonical text", "byte-identical", "drift check", "drift-detection workflow", "exemption variant", "adversarial exemption", "research-shaped exemption", "subsumption rule", "proportional floor", "severity floor", "Profile A", "Profile B", "Profile C", "diff manifest", "discipline section", "stability test", "RA1-RA8", "LA1-LA4".
+- Section references into the rule files that mean nothing to an outside reader: "Step 2 item 9", "sub-item 4a", "hard rule N", etc.
+
+If you need a concept that appears on this list and you cannot find a plain-English version, omit the detail rather than leaking the jargon. A correct but shorter status line is better than a complete but cryptic one.
+
+**Plain-language translation table.** When you would otherwise reach for one of the banned terms, use the replacement on the right. If a term is missing from this table and you cannot paraphrase it, drop the detail.
+
+| Jargon | Plain-language replacement |
+|--------|---------------------------|
+| RA2 / canonical text / byte-identical | "the exact rule text that must appear in every agent word-for-word" |
+| LA1 drift check / drift-detection workflow | "confirming the rule text has not silently diverged between agent files" |
+| SHA256 hash, hash prefix | omit entirely -- hashes are never user-facing |
+| bare commit SHA (`337eab3`) | "the commit that added X" or "the most recent commit on this branch" |
+| RA3 exemption variant / adversarial exemption | "the adversarial agents use their own wording of the rule" |
+| research-shaped exemption | "research agents are treated differently because they only report facts, not graded findings" |
+| proportional severity floor | "a filter that drops low-severity findings on small diffs" |
+| subsumption rule | "a narrower finding absorbed into a broader one it is a symptom of" |
+| Profile A / Profile B / Profile C | "small / medium / large-or-risky diff" |
+| diff manifest | "the classified list of changed files" |
+| stability test / RA4 | "the 'would I still flag this cold tomorrow' check" |
+| discipline section | "the top-of-file rules every review agent follows" |
+
+**What stays technical:** file paths, agent names (`waste-detector`, `project-context-analyst`), line counts, file counts, finding severities (Critical/High/Medium/Low), commit counts in a delta. These are concrete and users expect them. The rule applies only to terms that only make sense if you have read the Quiver rules files.
+
+**Example -- bad:**
+
+> Before finalizing I'll verify the one concrete constraint worth checking: that the RA2 canonical text is byte-identical across the seven non-adversarial agents.
+> All seven non-adversarial agents carry the byte-identical canonical RA2 text (SHA256 5fc168ad...), matching the baseline from commit d55d5fb. LA1 drift check passes.
+
+**Example -- good:**
+
+> One last check before I write the report. This PR copies the same "no speculation" rule text into seven different agent files. That kind of duplication drifts over time -- someone edits one copy, forgets the others, and the rule quietly splits into inconsistent variants. I'll hash all seven copies and confirm they are still word-for-word identical.
+> All seven agent files carry the exact same rule text, matching the version the project has recorded as the baseline. No drift detected. Writing the report now.
+
+**Scope:** this rule governs every chat-stream character printed during or after a review run, including mid-run status lines, `AskUserQuestion` prompt bodies, the Step 4b terminal summary, and the final verdict line. "Between tool calls" is not a loophole -- the Step 4b terminal summary and verdict line are fully covered even though they come after the last tool call. The only place rule codes, hashes, and internal invariant names are allowed is inside the saved report file on disk; that file is a persisted artifact that lives alongside the rules, not live conversation. If the text appears in the user's terminal, the ban applies.
+
+---
+
 ## Anti-Patterns
 
 - **Don't** prompt the user for input **between base branch confirmation and report save** -- the review itself runs end-to-end without interaction until the save-location prompt in Step 4.
@@ -414,3 +480,4 @@ Evaluate in order:
 - **Don't** prompt to post a PR comment when no PR context exists (Mode 2/3 without `--comment-pr`) -- skip silently.
 - **Don't** hardcode platform tokens, repository URLs, or API endpoints -- rely on `gh`/`glab` CLIs which manage their own authentication.
 - **Don't** retry or error out if PR comment posting fails -- warn and move on.
+- **Don't** narrate your work to the user using internal rule codes, SHA hashes, or invariant names -- every chat-stream status line must follow the "Status Messages: Plain Language Required" section above. The saved report body is the only place rule codes belong.

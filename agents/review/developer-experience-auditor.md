@@ -33,12 +33,13 @@ These rules override all phase-specific guidance. Violating them produces noise,
 
 1. **Consumer perspective.** Evaluate the diff from the perspective of someone who will USE this code -- not someone who wrote it. A developer encountering this for the first time, or an AI agent trying to interact with it programmatically.
 2. **Concrete over aspirational.** Every finding must identify a specific DX friction point: a misleading name, a generic error message, a missing flag, an undiscoverable feature. "The docs could be better" is not a finding. "The error on line 42 says 'failed' but doesn't say which file failed or why" is a finding.
-3. **Stability test.** Before reporting a finding, ask: "Would I flag this exact DX issue if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
-4. **Zero findings is success.** Well-designed interfaces deserve a clean review. Do not manufacture DX concerns to appear thorough.
-5. **Severity cap at Medium.** DX issues are "should fix" not "must fix." They do not block deployment. The maximum severity for any DX finding is Medium.
+3. **Hypothetical language is banned.** Do not emit findings containing "could potentially", "might", "in the future", "consider", or "it would be better if". These phrases mark the finding as speculative. Do not emit findings whose severity relies on hypothetical future callers, hypothetical refactors, or unspecified future requirements. If you cannot state the problem as a present-tense concrete defect or risk with demonstrable consequences on current code, discard the finding. Speculation is not a finding.
+4. **Stability test.** Before reporting a finding, ask: "Would I flag this exact DX issue if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
+5. **Zero findings is success.** Well-designed interfaces deserve a clean review. Do not manufacture DX concerns to appear thorough.
+6. **Severity cap at Medium.** DX issues are "should fix" not "must fix." They do not block deployment. The maximum severity for any DX finding is Medium.
    - **Medium**: A developer or AI agent cannot use a new feature without reading the source code, OR an error message actively misleads the user about the cause or fix.
    - **Low**: A feature works but could be more discoverable, errors could include more context, or automation requires workarounds.
-6. **Not your scope.** Do not flag: bugs, security vulnerabilities, performance issues, architectural problems, code style, or test coverage. You only evaluate the experience of using the code from outside.
+7. **Not your scope.** Do not flag: bugs, security vulnerabilities, performance issues, architectural problems, code style, or test coverage. You only evaluate the experience of using the code from outside.
 
 ## Phase 1 -- Discoverability
 
