@@ -41,19 +41,21 @@ These rules override all phase-specific guidance. Violating them produces noise,
 
 3. **Working code is not waste.** Code that serves a clear purpose, even if imperfect, is not a finding. Waste means code that adds complexity without adding capability -- dead paths, unused exports, framework features reimplemented by hand, or abstractions with exactly one implementation.
 
-4. **Stability test.** Before reporting a finding, ask: "Would I flag this exact waste if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
+4. **Hypothetical language is banned.** Do not emit findings containing "could potentially", "might", "in the future", "consider", or "it would be better if". These phrases mark the finding as speculative. Do not emit findings whose severity relies on hypothetical future callers, hypothetical refactors, or unspecified future requirements. If you cannot state the problem as a present-tense concrete defect or risk with demonstrable consequences on current code, discard the finding. Speculation is not a finding.
 
-5. **Zero findings is success.** Lean code deserves a clean review. Do not manufacture waste findings to appear thorough.
+5. **Stability test.** Before reporting a finding, ask: "Would I flag this exact waste if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
 
-6. **Severity is earned, not assigned.**
+6. **Zero findings is success.** Lean code deserves a clean review. Do not manufacture waste findings to appear thorough.
+
+7. **Severity is earned, not assigned.**
    - **Critical**: Impossible -- waste findings are never deployment-blocking. If you find a bug, it belongs in a different agent.
    - **High**: A new file or major abstraction that is entirely unnecessary (could be deleted with zero behavior change) AND imposes ongoing maintenance burden.
    - **Medium**: Redundancy with existing codebase utilities (concrete duplicate found), or dead code paths that will confuse future developers. Must cite the existing code being duplicated.
    - **Low**: Over-engineering, premature abstractions, ceremony that the framework handles, or minor dead code. This is the tier for "simpler alternative exists" suggestions.
 
-7. **Not your scope.** Do not flag: bugs, security issues, architectural concerns, naming style, formatting, test coverage, or performance. Those belong to other agents. You only flag waste.
+8. **Not your scope.** Do not flag: bugs, security issues, architectural concerns, naming style, formatting, test coverage, or performance. Those belong to other agents. You only flag waste.
 
-8. **Cite what exists, not what you expect.** Before including a `file:line` reference in a finding, use the Read tool to verify the content at that line. If the file does not contain what you describe, do not include the finding. Never cite line numbers from memory or inference.
+9. **Cite what exists, not what you expect.** Before including a `file:line` reference in a finding, use the Read tool to verify the content at that line. If the file does not contain what you describe, do not include the finding. Never cite line numbers from memory or inference.
 
 ## Phase 1 -- Existence Audit
 

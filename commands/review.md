@@ -205,6 +205,7 @@ Each agent receives (in this order):
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
 8. **LSP availability** (for waste-detector, architecture-strategist, and stress-tester): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
+9. **Scope discipline**: Aspirational improvements, stylistic preferences, "could be better" suggestions, and theoretical hardening are out of scope. Flag only concrete demonstrable problems with code that is wrong, unsafe, or broken as written. If the code works correctly as written and you would not fix it yourself, do not flag it. Zero findings is a correct and expected result on clean code. (This clause applies on every review. Re-review mode adds additional delta-specific scope on top of this general lock.)
 
 ### Adding future agents
 
@@ -246,6 +247,19 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
    - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
    - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation is real: (a) `file_path` must exist in the repository, (b) `line_number` must fall within the file's actual line count, (c) if the finding quotes a code snippet or describes specific content at that line, the file's actual content at that line must match. If any check fails → DISCARD. Record as filtered phantom citation. This filter catches agent hallucinations where findings cite non-existent code, fabricated template sections, or incorrect line numbers.
+
+**4a. Proportional severity floor.** After applying the 8 false-positive filters above, apply a diff-shape filter to Low findings only. Medium, High, and Critical findings are never affected by this rule.
+
+Compute the diff profile from the Diff Manifest (Step 1.5) and the diff line count:
+
+- **Profile A** (strict floor): zero `CODE`/`SCRIPT`/`CONFIG-APP` files, OR diff has `CODE`/`SCRIPT` but is under ~100 changed lines AND contains no risk signals (auth, payments, secrets, CI workflow changes). **Rule:** drop all Low findings. Record each drop in Filtered Findings with reason "Proportional floor (strict)".
+- **Profile B** (consensus floor): diff is 100-250 changed lines, no high-risk signals. **Rule:** keep Low findings only when 2+ agents flagged the same issue (use the `Flagged by:` consensus annotation from Step 3.1). Drop single-agent Lows. Record each drop in Filtered Findings with reason "Proportional floor (consensus)".
+- **Profile C** (no floor): any high-risk signal is present (auth, payments, secrets, CI workflow changes), OR diff is over 250 changed lines. **Rule:** no filter applied. Current behavior preserved.
+
+Risk signals are detected from the Diff Manifest: any `CONFIG-APP` file touching auth or secrets, any file under a `payments/` or `auth/` path, any CI workflow file (`.github/workflows/*.yml`, `.gitlab-ci.yml`), any file matching `secrets|credentials|keys|tokens` in its name.
+
+The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filters (Step 3.4) so that dropped findings have already been deduplicated. Dropped findings still appear in the Filtered Findings section with their drop reason, preserving transparency.
+
 5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**

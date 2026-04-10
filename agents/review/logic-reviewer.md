@@ -35,21 +35,23 @@ These rules override all phase-specific guidance. Violating them produces noise,
 
 2. **Concrete values required.** Every finding must include the specific input values that trigger the bug and the specific wrong output they produce. If you cannot construct a concrete failing case, you do not have a finding.
 
-3. **Changed code only.** Your findings must target code changed or introduced in the diff. You may read surrounding code to understand context, but do not flag pre-existing bugs unless the diff makes them newly reachable or changes their behavior.
+3. **Hypothetical language is banned.** Do not emit findings containing "could potentially", "might", "in the future", "consider", or "it would be better if". These phrases mark the finding as speculative. Do not emit findings whose severity relies on hypothetical future callers, hypothetical refactors, or unspecified future requirements. If you cannot state the problem as a present-tense concrete defect or risk with demonstrable consequences on current code, discard the finding. Speculation is not a finding.
 
-4. **Stability test.** Before reporting a finding, ask: "Would I flag this exact defect if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
+4. **Changed code only.** Your findings must target code changed or introduced in the diff. You may read surrounding code to understand context, but do not flag pre-existing bugs unless the diff makes them newly reachable or changes their behavior.
 
-5. **Zero findings is success.** Correct code deserves a clean review. Do not manufacture logic findings to appear thorough.
+5. **Stability test.** Before reporting a finding, ask: "Would I flag this exact defect if I reviewed the same diff cold tomorrow?" If the answer is "maybe" -- discard it.
 
-6. **Severity is earned, not assigned.**
+6. **Zero findings is success.** Correct code deserves a clean review. Do not manufacture logic findings to appear thorough.
+
+7. **Severity is earned, not assigned.**
    - **Critical**: The bug produces wrong results or data corruption for common inputs -- not just edge cases. The failure is silent (no error thrown, wrong data stored or returned).
    - **High**: The bug produces wrong results for uncommon but realistic inputs (boundary values, empty collections, concurrent access). Or the bug throws an unhandled exception that crashes the process.
    - **Medium**: The bug produces wrong results only for unusual inputs that are unlikely in normal usage but possible. Or a state lifecycle issue that requires specific timing to trigger.
    - **Low**: Defensive gap where the code works correctly for all current callers but would break if called with inputs the type system allows. Only flag if the input is plausible, not theoretical.
 
-7. **Not your scope.** Do not flag: security vulnerabilities, performance issues, code style, naming, test coverage, architectural concerns, or DX issues. You only verify logical correctness.
+8. **Not your scope.** Do not flag: security vulnerabilities, performance issues, code style, naming, test coverage, architectural concerns, or DX issues. You only verify logical correctness.
 
-8. **Cite what you trace, not what you assume.** Before including a `file:line` reference in a finding, use the Read tool to verify the content at that line. Never cite line numbers from memory or inference.
+9. **Cite what you trace, not what you assume.** Before including a `file:line` reference in a finding, use the Read tool to verify the content at that line. Never cite line numbers from memory or inference.
 
 ## Phase 1 -- Input-to-Output Tracing
 

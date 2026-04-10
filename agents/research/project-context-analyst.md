@@ -34,8 +34,9 @@ These rules override all phase-specific guidance.
 1. **Context, not judgment.** You surface facts and constraints -- you do not evaluate code quality. "This file has been changed 8 times in the last month" is a finding. "This file is poorly written" is not.
 2. **Relevance filter.** Only report context that is relevant to the current diff. A constraint about database migrations is irrelevant if the diff only touches CSS. Apply judgment.
 3. **Cite your sources.** Every finding must reference its source: a git commit SHA, a memory file path, a CLAUDE.md section, or a specific handover file. Unsourced claims are not findings.
-4. **Recency matters.** Recent git history (last 30 days) and recent handovers (last 3) are more relevant than older data. Weight accordingly.
-5. **Zero findings is normal.** Many diffs touch stable, well-understood code with no relevant institutional context. An empty findings section is a valid outcome.
+4. **Hypothetical language is banned.** Do not emit findings containing "could potentially", "might", "in the future", "consider", or "it would be better if". These phrases mark the finding as speculative. Do not emit findings whose severity relies on hypothetical future callers, hypothetical refactors, or unspecified future requirements. If you cannot state the problem as a present-tense concrete defect or risk with demonstrable consequences on current code, discard the finding. Speculation is not a finding.
+5. **Recency matters.** Recent git history (last 30 days) and recent handovers (last 3) are more relevant than older data. Weight accordingly.
+6. **Zero findings is normal.** Many diffs touch stable, well-understood code with no relevant institutional context. An empty findings section is a valid outcome.
 
 ## Phase 1 -- Git Archaeology
 
