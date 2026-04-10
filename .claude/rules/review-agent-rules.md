@@ -1,6 +1,10 @@
 # Review Agent Rules
 
-Hard rules and learned lessons for writing agents that participate in `/quiver:review`. Applies to everything under `agents/review/` and to any cross-category agent dispatched by `commands/review.md` (currently `agents/research/best-practices-researcher.md` and `agents/research/project-context-analyst.md`).
+Hard rules and learned lessons for writing agents that participate in `/quiver:review`.
+
+**Scope:**
+- Everything under `agents/review/` is covered by the full rule set (RA1-RA8) without exception.
+- Cross-category research agents dispatched by `commands/review.md` (currently `agents/research/best-practices-researcher.md` and `agents/research/project-context-analyst.md`) are a research-shaped exemption class, analogous to RA3's adversarial-agent exemptions. They MUST carry RA2 (hypothetical ban) in its canonical form, and SHOULD carry an RA1-equivalent discipline section, an RA5 zero-findings clause, an RA7 relevance/diff-scoping clause, and an RA8-equivalent citation rule. RA4 (stability test) and RA6 (severity earned, not assigned) do not apply because these agents surface context and facts rather than severity-graded findings -- the stability and severity-tier framings have no target to act on. When writing or editing a research agent, name this exemption explicitly in its discipline section so reviewers do not treat the missing rules as drift.
 
 For command authoring rules, see `command-rules.md`.
 
