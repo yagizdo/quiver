@@ -260,6 +260,8 @@ Risk signals are detected from the Diff Manifest: any `CONFIG-APP` file touching
 
 The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filters (Step 3.4) so that dropped findings have already been deduplicated. Dropped findings still appear in the Filtered Findings section with their drop reason, preserving transparency.
 
+**No promotion to escape the floor.** Severity is assigned based on concrete consequence, not on whether a finding will survive the proportional floor. Do NOT reclassify a finding from Low to Medium solely because the current profile would drop Lows. If a finding is genuinely Low under the severity rubric, drop it (record in Filtered Findings) -- do not launder it into Medium to preserve it in the report. The floor is a synthesis-stage noise filter, not an incentive to inflate severity. Violating this rule reintroduces the exact noise pattern the floor exists to suppress. When in doubt, ask: "Would I assign this severity if no filter existed?" If the honest answer is Low, keep it Low.
+
 5. **Unified verdict.** Apply the strictest verdict across all agents (using only non-filtered findings):
    - If **any** agent produces a Critical or High finding --> **Request changes**
    - If the worst finding is Medium --> **Approve with suggestions**
