@@ -1,6 +1,6 @@
 # Quiver
 
-[![Version](https://img.shields.io/badge/version-1.7.0-blue)](https://github.com/yagizdo/quiver/releases)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue)](https://github.com/yagizdo/quiver/releases)
 
 Session continuity, agent orchestration, and development workflows for Claude Code. Never lose context between sessions — carry your decisions, progress, and next steps forward automatically.
 
@@ -29,10 +29,10 @@ Then try your first command:
 
 | Component | Count |
 |-----------|-------|
-| Commands | 12 |
+| Commands | 13 |
 | Hooks | 1 |
-| Skills | 5 |
-| Agents | 6 |
+| Skills | 6 |
+| Agents | 9 |
 
 ## Commands
 
@@ -106,6 +106,7 @@ Then try your first command:
 
 | Command | Description |
 |---------|-------------|
+| `/brainstorm` | Explore ideas, compare approaches, and produce a validated spec before planning |
 | `/plan` | Create a structured implementation plan with parallel agent research before coding |
 | `/work` | Execute a work plan or specification systematically with continuous testing and incremental commits |
 
@@ -147,6 +148,12 @@ Then try your first command:
 |-------|-------------|
 | `code-navigation` | LSP-first code navigation with grep fallback -- guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
 
+### Brainstorming
+
+| Skill | Description |
+|-------|-------------|
+| `visual-companion` | Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options when topics are better understood visually |
+
 ### Maintenance
 
 | Skill | Description |
@@ -165,6 +172,9 @@ Then try your first command:
 | `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) attack surfaces with prompt-vs-code awareness |
 | `architecture-strategist` (`quiver:architecture-strategist`) | Evaluates structural integrity via context7-driven convention discovery, diff manifest-aware boundary analysis, and pattern compliance grounded in the project's actual codebase |
 | `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Evaluates code changes for developer experience quality across discoverability, error messages, debugging experience, and automation-readiness for both human developers and AI agents |
+| `logic-reviewer` (`quiver:logic-reviewer`) | Systematic path tracer that finds logic defects by tracing each changed function's inputs through branches to outputs -- verifying correctness at every step rather than scanning for known bug patterns |
+| `test-reviewer` (`quiver:test-reviewer`) | Evaluates whether tests actually prove code works by analyzing assertion strength, regression detection power, and risk-based coverage gaps |
+| `stress-tester` (`quiver:stress-tester`) | Constructs concrete failure scenarios by stressing assumptions, fracturing component interactions, and building cascade chains into narrative findings |
 
 <!-- agents:review-end -->
 
