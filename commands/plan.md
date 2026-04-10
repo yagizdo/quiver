@@ -234,12 +234,40 @@ Using the synthesized research, draft the plan following this document structure
 | **Standard** | Standard | + Context (with agent findings), Risks, File Map |
 | **Comprehensive** | Deep | + Alternatives Considered, Phased Rollout, Rollback Strategy, Architectural Constraints |
 
+**File structure mapping (before defining tasks):**
+Map out which files will be created, modified, or deleted. This locks in decomposition decisions before task writing begins.
+- Create: `exact/path/to/new-file.ext` -- one-line purpose
+- Modify: `exact/path/to/existing.ext` -- what changes and why
+- Test: `tests/path/to/test-file.ext` -- which test files are new or updated
+- Delete: `exact/path/to/removed.ext` -- only if applicable
+
 **Task granularity:**
 - Each step: 2-10 minutes, independently verifiable
 - Pattern: what to do, which file(s), expected outcome
 - Include exact file paths from Explore findings
 - Incorporate best practices into step design
 - Respect architectural boundaries from architecture-strategist
+
+**TDD task structure (when the project has tests):**
+If the Explore agent found an existing test framework, structure each task following the TDD cycle:
+1. Write the failing test (show exact test code)
+2. Run the test -- confirm it fails with the expected error
+3. Write the minimal implementation to make it pass
+4. Run the test -- confirm it passes
+5. Commit
+
+Not every task requires TDD (e.g., config changes, docs, migrations). Apply it to tasks that produce testable behavior.
+
+**No placeholders rule:**
+Every step must contain actionable content. These are plan failures -- never write them:
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation" / "handle edge cases"
+- "Write tests for the above" (without actual test code or at minimum the test scenario description)
+- "Similar to Task N" (repeat the relevant details -- the implementer may read tasks out of order)
+- Steps that describe what to do without showing how (include code blocks, commands, or exact file paths)
+- References to types, functions, or methods not defined in any task (if a step calls `processItems()`, some task must define it)
+
+**Language rule:** Always write plan documents in English, regardless of the conversation language. Only write in another language if the user explicitly requests it.
 
 **Research integration (mandatory):**
 - If best-practices-researcher flagged a deprecation, the plan must avoid the deprecated pattern
@@ -260,7 +288,18 @@ review_iteration: 1  # increments for each fix plan targeting the same review
 - Add a verification criterion (e.g., "flutter analyze passes clean")
 - These criteria become the Definition of Done -- the work skill uses them to determine when the review-fix cycle is COMPLETE and to prevent infinite re-review loops
 
-## Step 6 -- Review Gate
+## Step 6 -- Plan Self-Review
+
+After drafting the plan, review it before presenting to the user. This is an internal check -- do not show it as a separate section to the user.
+
+1. **Spec coverage:** If the task originated from a brainstorm spec or review report, skim each requirement. Can you point to a task that implements it? Add missing tasks.
+2. **Placeholder scan:** Search for "TBD", "TODO", "implement later", vague steps without file paths or code. Fix them.
+3. **Naming consistency:** Do function names, type names, and variable names match across tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug in the plan.
+4. **Test coverage:** Does every task that produces testable behavior have a corresponding test step? If the project has tests, missing test steps are plan gaps.
+
+Fix issues inline. No need to re-review after fixes -- just fix and move on.
+
+## Step 7 -- Review Gate
 
 Present the full plan to the user. Then call the `AskUserQuestion` tool with these parameters:
 
@@ -275,11 +314,11 @@ Present the full plan to the user. Then call the `AskUserQuestion` tool with the
 If the plan exceeds 15 steps, append to the question: " Consider splitting into sub-plans or phasing the work."
 
 Handle each response:
-- **Approve** -- move to Step 7. Do NOT stop after approval.
+- **Approve** -- move to Step 8. Do NOT stop after approval.
 - **Modify** -- ask which steps to change, revise the plan, and re-present with `AskUserQuestion` again.
 - **Reject** -- abandon the plan. **Stop here.**
 
-## Step 7 -- Save and Follow-up
+## Step 8 -- Save and Follow-up
 
 **This step has TWO mandatory parts. Do NOT stop after saving.**
 
