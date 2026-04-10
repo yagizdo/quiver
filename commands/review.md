@@ -413,6 +413,28 @@ Evaluate in order:
 
 ---
 
+## Status Messages: Plain Language Required
+
+Every status line you print between tool calls during the review is read by a human who has not memorized this file's internal rule codes. Do not drop them into raw jargon. The review pipeline is dense with internal terms (RA2, LA1, RA8, "canonical text", "drift check", "subsumption rule", "proportional floor", "Profile A/B/C") and it is tempting to narrate your work by referencing those codes directly. Resist that. A user running `/quiver:review` wants to know what is being checked and why, not which numbered rule in which internal document is being enforced.
+
+**Rewrite rule:** before printing any status line, re-read it once. If it contains a rule code (`RA2`, `LA1`, `RA8`, etc.), a raw SHA hash, a commit SHA without plain-language context, or an internal invariant name ("drift-detection workflow", "research-shaped exemption", "subsumption"), rewrite it. State what you are checking in plain English, and attach a short clause explaining why it matters -- the concrete problem the check prevents, not the rule that demands it. Being slightly more verbose is fine and preferred; two clear sentences beat one cryptic one.
+
+**What stays technical:** file paths, agent names, line counts, file counts, finding severities, commit counts in a delta. These are concrete and users expect them. The rule applies to terms that only make sense if you have read the Quiver rules files.
+
+**Example -- bad:**
+
+> Before finalizing I'll verify the one concrete constraint worth checking: that the RA2 canonical text is byte-identical across the seven non-adversarial agents.
+> All seven non-adversarial agents carry the byte-identical canonical RA2 text (SHA256 5fc168ad...), matching the baseline from commit d55d5fb. LA1 drift check passes.
+
+**Example -- good:**
+
+> One last check before I write the report. This PR copies the same "no speculation" rule text into seven different agent files. That kind of duplication drifts over time -- someone edits one copy, forgets the others, and the rule quietly splits into inconsistent variants. I'll hash all seven copies and confirm they are still word-for-word identical.
+> All seven agent files carry the exact same rule text, matching the version the project has recorded as the baseline. No drift detected. Writing the report now.
+
+**Scope:** this rule governs conversational status messages printed to the user between tool calls. The saved report file and the underlying agent outputs may still reference rule codes -- those are artifacts, not conversation. Rule codes appearing inside the synthesized report body are fine; rule codes appearing in the chat stream are not.
+
+---
+
 ## Anti-Patterns
 
 - **Don't** prompt the user for input **between base branch confirmation and report save** -- the review itself runs end-to-end without interaction until the save-location prompt in Step 4.
@@ -430,3 +452,4 @@ Evaluate in order:
 - **Don't** prompt to post a PR comment when no PR context exists (Mode 2/3 without `--comment-pr`) -- skip silently.
 - **Don't** hardcode platform tokens, repository URLs, or API endpoints -- rely on `gh`/`glab` CLIs which manage their own authentication.
 - **Don't** retry or error out if PR comment posting fails -- warn and move on.
+- **Don't** narrate your work to the user using internal rule codes, SHA hashes, or invariant names -- every chat-stream status line must follow the "Status Messages: Plain Language Required" section above. The saved report body is the only place rule codes belong.
