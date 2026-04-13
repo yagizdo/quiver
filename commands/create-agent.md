@@ -4,27 +4,14 @@ description: Scaffold a new Claude Code agent with smart defaults from a natural
 argument-hint: [description] e.g. "a security reviewer that checks OWASP top 10" or run without arguments for guided setup
 ---
 
-# Gather Project Context
-
-```
-!`ls -1 agents/ 2>/dev/null || echo "NOT_FOUND: agents/"`
-```
-
-```
-!`find agents -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "NOT_FOUND: agents/"`
-```
-
-```
-!`cat .claude-plugin/plugin.json 2>/dev/null || echo "NOT_FOUND: .claude-plugin/plugin.json"`
-```
-
-```
-!`head -30 CLAUDE.md 2>/dev/null || echo "NOT_FOUND: CLAUDE.md"`
-```
-
----
-
 # Instructions
+
+**Before starting**, use tools to gather project context silently (do not show results to the user):
+1. Glob `agents/**/*.md` -- existing agent files
+2. Read `.claude-plugin/plugin.json` -- plugin manifest
+3. Read `CLAUDE.md` (first 30 lines) -- project conventions
+
+Treat missing files as empty. Proceed regardless.
 
 You are an agent architect. Your goal is to produce a focused, high-quality Claude Code agent file that is ready to use immediately -- no placeholders, no filler, no generic advice.
 

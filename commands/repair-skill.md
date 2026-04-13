@@ -4,27 +4,14 @@ description: Diagnose and fix a broken skill by analyzing its structure, verifyi
 argument-hint: "[optional: skill name or description of what broke]"
 ---
 
-# Gather Project Context
-
-```
-!`ls -1 skills/ 2>/dev/null || echo "NOT_FOUND: skills/"`
-```
-
-```
-!`find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "NOT_FOUND: skills/"`
-```
-
-```
-!`find .claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "NOT_FOUND: .claude/skills/"`
-```
-
-```
-!`cat .claude-plugin/plugin.json 2>/dev/null || echo "NOT_FOUND: .claude-plugin/plugin.json"`
-```
-
----
-
 # Instructions
+
+**Before starting**, use tools to gather project context silently (do not show results to the user):
+1. Glob `skills/*/SKILL.md` -- skill directories
+2. Glob `.claude/skills/*/SKILL.md` -- alternative skill location
+3. Read `.claude-plugin/plugin.json` -- plugin manifest
+
+Treat missing paths as empty. Proceed regardless.
 
 You are a skill diagnostician. Your goal is to identify exactly what is broken in a skill, verify against current documentation, and apply the minimum targeted repairs needed to fix it.
 

@@ -4,35 +4,7 @@ description: Generate or rewrite an AGENTS.md file — a high-signal-density ope
 argument-hint: Generates project-specific AGENTS.md with constraints, conventions, and gotchas that prevent costly agent mistakes.
 ---
 
-# Gather Project Context
-
-```
-!`ls -1`
-```
-
-```
-!`find . -maxdepth 2 -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.build/*' -not -path './vendor/*' -not -path './target/*'`
-```
-
-```
-!`cat AGENTS.md 2>/dev/null || echo "NOT_FOUND: AGENTS.md"`
-```
-
-```
-!`cat README.md 2>/dev/null || echo "NOT_FOUND: README.md"`
-```
-
-```
-!`cat CLAUDE.md 2>/dev/null || echo "NOT_FOUND: CLAUDE.md"`
-```
-
-```
-!`find . -maxdepth 3 -type f -name "*.yml" -path "*ci*" -o -name "*.yaml" -path "*ci*" -o -name "Jenkinsfile" -o -name ".travis.yml" -o -name "Makefile"`
-```
-
-```
-!`find . -maxdepth 1 -type f -name ".eslintrc*" -o -name ".prettierrc*" -o -name "biome.json" -o -name "rustfmt.toml" -o -name ".swiftlint.yml" -o -name ".rubocop.yml" -o -name ".editorconfig" -o -name ".clang-format"`
-```
+# Gather Context
 
 ```
 !`git remote -v 2>/dev/null || echo "NO_GIT"`
@@ -45,6 +17,14 @@ argument-hint: Generates project-specific AGENTS.md with constraints, convention
 ---
 
 # Instructions
+
+**Before starting**, use tools to gather project context silently (do not show results to the user):
+1. Glob `**/*` (max depth 2, exclude `.git/`, `node_modules/`, `.build/`, `vendor/`, `target/`) -- project file structure
+2. Read `AGENTS.md`, `README.md`, `CLAUDE.md` -- existing docs (skip if missing)
+3. Glob `**/*ci*.yml`, `**/*ci*.yaml`, `**/Jenkinsfile`, `**/.travis.yml`, `**/Makefile` (max depth 3) -- CI config
+4. Glob for linter configs in root: `.eslintrc*`, `.prettierrc*`, `biome.json`, `rustfmt.toml`, `.swiftlint.yml`, `.rubocop.yml`, `.editorconfig`, `.clang-format`
+
+Treat missing files as empty. Proceed regardless.
 
 You are an AGENTS.md architect. Your goal is **maximum signal density** — every line must be project-specific, non-obvious, and action-guiding. No generic advice. No README duplication. No rules already enforced by tooling.
 
