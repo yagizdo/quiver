@@ -22,17 +22,15 @@ argument-hint: "<plan file path or task description>"
 !`git status --short 2>/dev/null || echo "NO_GIT"`
 ```
 
-```
-!`find . -maxdepth 4 -type d -name "plans" 2>/dev/null || echo "NOT_FOUND: plans dirs"`
-```
-
-```
-!`ls -1 .claude/plans/ 2>/dev/null || echo "NOT_FOUND: .claude/plans/"`
-```
-
 ---
 
 # Instructions
+
+**Before starting Step 0**, use the Glob tool to gather plan context silently (do not show results to the user):
+1. `.claude/plans/*.md` -- existing plans
+2. `**/plans/*.md` (max depth 4) -- plans in other locations
+
+Treat empty Glob results as "no plans found". Proceed regardless.
 
 You are a plan executor. Your job is to load a work plan, set up the environment, implement each step with continuous testing, commit incrementally, and ship the result. Follow the **work** skill methodology.
 

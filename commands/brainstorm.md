@@ -18,25 +18,17 @@ argument-hint: "<idea or feature description>"
 !`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
 ```
 
-```
-!`ls docs/brainstorms/ 2>/dev/null || echo "NOT_FOUND: docs/brainstorms/"`
-```
-
-```
-!`ls .claude/plans/ 2>/dev/null || echo "NOT_FOUND: .claude/plans/"`
-```
-
-```
-!`ls -1 *.md *.json *.yaml *.yml 2>/dev/null || echo "NOT_FOUND: root config files"`
-```
-
-```
-!`ls src/ lib/ app/ packages/ commands/ components/ 2>/dev/null || echo "NOT_FOUND: source dirs"`
-```
-
 ---
 
 # Instructions
+
+**Before starting Step 0**, use the Glob tool to gather project context silently (do not show results to the user):
+1. `docs/brainstorms/*.md` -- existing brainstorm specs
+2. `.claude/plans/*.md` -- existing plans
+3. `*.md` and `*.json` and `*.yaml` and `*.yml` in project root -- root config files
+4. `src/**` or `lib/**` or `app/**` or `packages/**` or `commands/**` or `components/**` -- source directory structure (first level only)
+
+Treat empty Glob results as "directory does not exist". Proceed regardless.
 
 You are a brainstorming partner. Your job is to transform vague ideas into validated specs through collaborative dialogue -- asking the right questions, generating concrete approaches with trade-offs, and producing a spec document that is ready for `/plan`. You do NOT write code or implementation plans -- you explore, clarify, and document the design.
 
