@@ -5,16 +5,13 @@ description: Delete the most recent handover file to remove the last session's c
 
 # Clear Last Handover
 
-## Handover Files
-```
-!`ls -1t .claude/handovers/ 2>/dev/null || echo "NOT_FOUND: .claude/handovers/"`
-```
-
 ---
 
 ## Instructions
 
-Using the file listing above, determine which branch applies:
+**First**, use the Glob tool to list `.claude/handovers/*.md`. Sort results by filename descending (newest first, since filenames are timestamps).
+
+Using the Glob results, determine which branch applies:
 
 ### Branch A — No Files
 If the listing shows an error (e.g., "No such file or directory"), is empty, or contains **no `.md` files**:
