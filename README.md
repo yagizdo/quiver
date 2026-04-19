@@ -2,7 +2,23 @@
 
 [![Version](https://img.shields.io/badge/version-1.8.1-blue)](https://github.com/yagizdo/quiver/releases)
 
-Session continuity, agent orchestration, and development workflows for Claude Code. Never lose context between sessions — carry your decisions, progress, and next steps forward automatically.
+Quiver is a Claude Code plugin for multi-agent code review, end-to-end workflow orchestration, and session continuity -- carry your plans, decisions, and review findings from idea to PR without re-explaining context between sessions.
+
+## What is Quiver?
+
+Quiver coordinates multi-step development workflows and session continuity for Claude Code. You use it to brainstorm feature ideas, produce research-backed implementation plans, execute those plans with continuous testing and incremental commits, and run a suite of specialized agents that review the resulting code for logic bugs, security gaps, architectural drift, and weak test coverage before merging. When work spans sessions, Quiver saves a handover with decisions, blockers, and next steps so you resume exactly where you left off -- no re-investigation, no lost context.
+
+## Typical workflow
+
+A normal feature cycle in Quiver chains the commands below. Each command is self-contained, so skip or substitute steps as needed.
+
+1. `/brainstorm` -- turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
+2. `/plan` -- research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
+3. `/work` -- execute the plan task-by-task with continuous testing, branch setup, and incremental commits.
+4. `/commit` -- generate a Conventional Commits message from staged changes and commit (optionally pushing).
+5. `/create-pr` -- open a GitHub pull request with an auto-generated title and description from the branch diff.
+6. `/review` -- dispatch specialized review agents in parallel (logic, architecture, security, tests, devex, waste) and synthesize findings into one report.
+7. `/handover` -- save an 8-section summary of the session so the next session resumes with full context.
 
 ## Quick Start
 
@@ -14,16 +30,8 @@ Session continuity, agent orchestration, and development workflows for Claude Co
 Then try your first command:
 
 ```
-/handover
+/brainstorm
 ```
-
-## Why Quiver?
-
-- **Session handovers** -- never re-explain context when starting a new session
-- **Auto-save on compact** -- context is captured automatically before Claude compacts
-- **Multi-agent code review** -- security, architecture, and code quality analysis in parallel
-- **Planning & execution** -- structured plans with parallel agent research, then systematic implementation
-- **Agent scaffolding** -- create custom agents with smart defaults from a description
 
 ## Components
 
@@ -38,10 +46,10 @@ Then try your first command:
 
 ### Session Handover
 
-| Command | Description |
-|---------|-------------|
-| `/handover` | Build an 8-section handover note with freshness checks and quality gates |
-| `/load-handover` | Load the most recent handover and highlight top priorities |
+| Command | Description | When to use |
+|---------|-------------|-------------|
+| `/handover` | Builds an 8-section handover note with freshness checks and quality gates | At the end of a work session to preserve context for resuming later |
+| `/load-handover` | Loads the most recent handover and highlights top priorities | At the start of a new session to pick up where the last one left off |
 
 ### Cleanup
 
@@ -52,9 +60,9 @@ Then try your first command:
 
 ### Code Review
 
-| Command | Description |
-|---------|-------------|
-| `/review` | Multi-agent code review with synthesized findings |
+| Command | Description | When to use |
+|---------|-------------|-------------|
+| `/review` | Dispatches specialized review agents in parallel and synthesizes their findings into one report | Before merging a PR, or whenever you want multi-agent code review of a branch or PR URL |
 
 **Diff source** (pick one):
 ```
@@ -104,11 +112,11 @@ Then try your first command:
 
 ### Planning & Execution
 
-| Command | Description |
-|---------|-------------|
-| `/brainstorm` | Explore ideas, compare approaches, and produce a validated spec before planning |
-| `/plan` | Create a structured implementation plan with parallel agent research before coding |
-| `/work` | Execute a work plan or specification systematically with continuous testing and incremental commits |
+| Command | Description | When to use |
+|---------|-------------|-------------|
+| `/brainstorm` | Explores ideas, compares approaches, and produces a validated spec before planning | When you have a vague idea and need to pin down scope, constraints, and approach before coding |
+| `/plan` | Creates a structured implementation plan with parallel agent research before coding | When scope is clear but the work breakdown and research are not -- produces a step-by-step plan |
+| `/work` | Executes a work plan or specification systematically with continuous testing and incremental commits | When a plan file is ready and you want hands-off task-by-task execution with tests and commits |
 
 ### Maintenance
 
@@ -122,6 +130,8 @@ Then try your first command:
 |------|-------|-------------|
 | `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before Claude compacts context |
 
+> The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
+
 ## Skills
 
 ### Agent Orchestration
@@ -134,7 +144,7 @@ Then try your first command:
 
 | Skill | Description |
 |-------|-------------|
-| `create-agent` | Agent authoring reference — frontmatter spec, category definitions, body structure, and quality gates |
+| `create-agent` | Agent authoring reference -- frontmatter spec, category definitions, body structure, and quality gates |
 
 ### Planning & Execution
 
@@ -166,44 +176,36 @@ Then try your first command:
 ### Review
 <!-- agents:review-start -->
 
-| Agent | Description |
-|-------|-------------|
-| `waste-detector` (`quiver:waste-detector`) | Detects wasted effort in diffs: unnecessary files, dead code paths, redundancy with existing codebase utilities, over-engineered abstractions, and ceremony the framework already handles |
-| `security-audit` (`quiver:security-audit`) | Adversarial security auditor covering web, API, and mobile (Flutter, Kotlin/Android, Swift/iOS) attack surfaces with prompt-vs-code awareness |
-| `architecture-strategist` (`quiver:architecture-strategist`) | Evaluates structural integrity via context7-driven convention discovery, diff manifest-aware boundary analysis, and pattern compliance grounded in the project's actual codebase |
-| `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Evaluates code changes for developer experience quality across discoverability, error messages, debugging experience, and automation-readiness for both human developers and AI agents |
-| `logic-reviewer` (`quiver:logic-reviewer`) | Systematic path tracer that finds logic defects by tracing each changed function's inputs through branches to outputs -- verifying correctness at every step rather than scanning for known bug patterns |
-| `test-reviewer` (`quiver:test-reviewer`) | Evaluates whether tests actually prove code works by analyzing assertion strength, regression detection power, and risk-based coverage gaps |
-| `stress-tester` (`quiver:stress-tester`) | Constructs concrete failure scenarios by stressing assumptions, fracturing component interactions, and building cascade chains into narrative findings |
+| Agent | What it catches |
+|-------|-----------------|
+| `architecture-strategist` (`quiver:architecture-strategist`) | Code that violates the project's own conventions and module boundaries |
+| `logic-reviewer` (`quiver:logic-reviewer`) | Branches where inputs don't reach the documented output correctly |
+| `waste-detector` (`quiver:waste-detector`) | Dead code, redundant utilities, unnecessary abstractions |
+| `stress-tester` (`quiver:stress-tester`) | Failure scenarios: inputs, timings, and states that break the new code |
+| `security-audit` (`quiver:security-audit`) | Concrete exploit paths for web, API, and mobile surfaces |
+| `test-reviewer` (`quiver:test-reviewer`) | Tests that pass without proving the code works |
+| `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Confusing error messages, hidden debugging paths, brittle UX for humans and agents |
 
 <!-- agents:review-end -->
 
 ### Research
 <!-- agents:research-start -->
 
-| Agent | Description |
-|-------|-------------|
-| `best-practices-researcher` (`quiver:best-practices-researcher`) | 5-phase research pipeline that dynamically detects the project's tech stack, validates against current docs via context7 MCP, and flags deprecations before they become bugs |
-| `project-context-analyst` (`quiver:project-context-analyst`) | Cross-references the diff against project memory, git history, and past decisions to surface institutional knowledge, churn patterns, and recurring issues |
+| Agent | What it catches |
+|-------|-----------------|
+| `best-practices-researcher` (`quiver:best-practices-researcher`) | Deprecated APIs and outdated patterns versus current library docs |
+| `project-context-analyst` (`quiver:project-context-analyst`) | Prior decisions, past bugs, and churn patterns in this area of the codebase |
 
 <!-- agents:research-end -->
 <!-- agents-end -->
-
-## How It Works
-
-- **Session handovers** — structured summaries of your work: git state, decisions made, current progress, and planned next steps
-- **Auto-save on compact** — PreCompact hook captures context automatically before Claude compacts the conversation
-- **Retention policy** — keeps the 3 most recent handovers, prunes older ones automatically
-- **Agent orchestration** — discover your local and plugin agents, assemble teams, and run subtasks in parallel
-- **Agent scaffolding** — create new agents interactively with smart defaults and best practices
 
 ## External Dependencies
 
 This plugin includes a [Context7](https://context7.com) MCP server for real-time library documentation lookups. It starts automatically when the plugin is enabled (configured in `plugin.json` under `mcpServers`). No authentication required.
 
 **Tools provided:**
-- `resolve-library-id` — Find library ID for a framework/package
-- `query-docs` — Get documentation for a specific library
+- `resolve-library-id` -- Find library ID for a framework/package
+- `query-docs` -- Get documentation for a specific library
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
