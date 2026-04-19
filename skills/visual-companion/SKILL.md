@@ -39,13 +39,18 @@ A question about a UI topic is not automatically a visual question. "Should we u
    ```
    `<skill-dir>` is resolved by the invoking agent to the absolute path of `skills/visual-companion/`.
 
-3. Read `server-info.json` from the `.vc-meta` subdirectory to get the URL and port:
+3. **Wait for the server to become ready before announcing its URL.** The `&` in step 2 returns immediately; the Python process still needs to import modules, bind the port, and write `server-info.json`. Announcing the URL before this finishes is the #1 cause of "localhost opened but link unreachable" failures. Probe until both `server-info.json` exists and the port accepts TCP connections:
    ```
-   cat <temp-dir>/.vc-meta/server-info.json
+   for i in $(seq 1 30); do
+     [ -f <temp-dir>/.vc-meta/server-info.json ] && \
+       python3 -c "import json,socket; info=json.load(open('<temp-dir>/.vc-meta/server-info.json')); s=socket.socket(); s.settimeout(0.5); s.connect(('127.0.0.1', info['port'])); s.close(); print(info['url'])" 2>/dev/null && break
+     sleep 0.2
+   done
    ```
-   Returns `{"port": N, "pid": N, "url": "http://localhost:N"}`.
+   - If the loop prints a URL, the server is ready. Use that URL.
+   - If the loop completes with no output, the server failed to launch. Do NOT announce a URL. Inspect `<temp-dir>/.vc-meta/` and the background-process output, fix the underlying issue, and retry step 2.
 
-4. Tell the user:
+4. Tell the user (only after step 3 prints a URL):
    > Visual companion running at {url}. It auto-refreshes when I update content.
 
 ## 3. The Loop
@@ -55,10 +60,40 @@ For each visual step in the brainstorm:
 1. **Write an HTML fragment** to `<temp-dir>` with a semantic filename (e.g., `layout-options.html`). Write body content only -- the server wraps fragments automatically.
 2. **Never reuse filenames.** Each screen gets a fresh file. For iterations, append a version suffix: `layout-options-v2.html`.
 3. **Browser auto-reloads** via SSE when a new or changed `.html` file is detected. No manual refresh needed.
-4. **For clickable options:** Use `data-choice` attributes on elements. The client JS handles selection toggling and event capture.
-5. **Read events:** Before the next question, read `<temp-dir>/.vc-meta/events.jsonl` to check for user clicks.
-6. **Clear events:** `DELETE /events` before presenting a new visual question to clear prior selections.
-7. **Terminal-only steps:** No browser action needed. Optionally push a placeholder page:
+
+### Pick ONE input mode per step
+
+A step is either **browser-answered** or **terminal-answered**. Do not do both in the same step. Mixing them produces the common failure: agent renders clickable cards, user clicks them, agent is actually blocked on `AskUserQuestion` -- clicks land in `events.jsonl` that the agent never reads, and the user sees their clicks "do nothing."
+
+**Mode A -- Browser-answered (the cards ARE the question):**
+
+Use when the whole point is "pick one of these visual options."
+
+1. Clear stale selections first so old clicks do not leak into the new question:
+   ```
+   python3 -c "import urllib.request; req=urllib.request.Request('http://localhost:{port}/events', method='DELETE'); urllib.request.urlopen(req)"
+   ```
+2. Write HTML with `[data-choice]` elements. The client JS highlights the clicked element and POSTs to `/event`, which appends a line to `.vc-meta/events.jsonl`.
+3. Tell the user explicitly: `> Click one of the cards in the browser to select your choice.`
+4. Poll `events.jsonl` until a new line arrives (up to ~60s):
+   ```
+   for i in $(seq 1 300); do
+     line=$(tail -n 1 <temp-dir>/.vc-meta/events.jsonl 2>/dev/null)
+     [ -n "$line" ] && echo "$line" && break
+     sleep 0.2
+   done
+   ```
+5. Parse the JSON line and use the `choice` field as the answer.
+6. If the poll times out with no click, fall back to `AskUserQuestion` and treat the step as Mode B from this point on.
+
+**Mode B -- Terminal-answered (browser is visual aid only):**
+
+Use when the browser shows a diagram, mockup, or reference and the real answer is a conceptual choice or free text.
+
+1. Write the HTML WITHOUT `[data-choice]` attributes. Clickable styling with no listener on the agent side is the bug that bit us before -- if you are not going to poll `events.jsonl`, do not ship clickable targets.
+2. Ask the question with `AskUserQuestion`. The browser is decoration; the button click is the answer.
+
+**Terminal-only steps (no browser):** No HTML update needed. Optionally push a placeholder page:
    ```html
    <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#666">
      <p>Continuing in terminal...</p>
