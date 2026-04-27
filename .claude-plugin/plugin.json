@@ -22,6 +22,7 @@
     "./agents/review/logic-reviewer.md",
     "./agents/review/test-reviewer.md",
     "./agents/review/stress-tester.md",
+    "./agents/review/codex-code-reviewer.md",
     "./agents/research/best-practices-researcher.md",
     "./agents/research/project-context-analyst.md"
   ],

@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings.
-argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr]"
+argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 ---
 
 # Gather Context
@@ -192,6 +192,9 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
   > Skipping test-reviewer: no application code or scripts changed.
 - **`stress-tester`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Constructs failure scenarios via assumption stress, composition fracture, and cascade chains. Receives depth calibration context: diff manifest file types + detected risk signals. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping stress-tester: no application code or scripts changed.
+- **`codex-code-reviewer`**: Only dispatched when `$ARGUMENTS` contains `--with-codex` AND the `codex` CLI is detected on PATH. This agent is a transport adapter that delegates the review to OpenAI Codex via the `codex` CLI; the actual reviewing is performed by Codex, not Claude. The Codex agent runs in parallel with all qualifying Claude review agents, providing cross-model "third eye" coverage. The CLI presence check is a Bash tool call the orchestrator performs at dispatch time (`command -v codex >/dev/null 2>&1 && echo PRESENT || echo MISSING`); do not place this check inside a `!` block in this command file (R3 forbids logic-bearing pipes in shell blocks). Skip with notes otherwise:
+  > Skipping codex-code-reviewer: --with-codex flag not provided.
+  > Skipping codex-code-reviewer: codex CLI not found on PATH. Install with `npm install -g @openai/codex` (>= 0.123.0) or run `/codex:setup` from the openai/codex-plugin-cc plugin.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.

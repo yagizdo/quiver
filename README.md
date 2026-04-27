@@ -40,7 +40,7 @@ Then try your first command:
 | Commands | 13 |
 | Hooks | 1 |
 | Skills | 6 |
-| Agents | 9 |
+| Agents | 10 |
 
 ## Commands
 
@@ -77,6 +77,7 @@ Then try your first command:
 --output ./reports/                  # Save report to a custom path (one-time)
 --set-output ./reports/              # Save report to a custom path and remember it as default
 --comment-pr                         # Post the review as a PR comment (opt-in)
+--with-codex                         # Also dispatch a Codex-backed reviewer in parallel
 ```
 
 **Examples:**
@@ -85,9 +86,12 @@ Then try your first command:
 /review --base main --output ./tmp/   # Review against main, save to ./tmp/
 /review --set-output ./reports/      # Set default save path for future reviews
 /review <PR-URL> --comment-pr        # Review a PR and post the report as a comment
+/review --with-codex                 # Run the standard review plus Codex (cross-model coverage)
 ```
 
 > When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.
+
+> `--with-codex` requires the `codex` CLI installed (`npm install -g @openai/codex`, >= 0.123.0) and authenticated (`codex login`). When the flag is set but the CLI is missing or not authenticated, the Codex agent is skipped with a one-line note and the review proceeds with Claude agents only. Codex findings carry a `(codex-code-reviewer)` source prefix in the synthesized report; when both Claude and Codex flag the same line, the existing `Flagged by:` consensus annotation kicks in.
 
 **Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review -- no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
 
@@ -185,6 +189,7 @@ Then try your first command:
 | `security-audit` (`quiver:security-audit`) | Concrete exploit paths for web, API, and mobile surfaces |
 | `test-reviewer` (`quiver:test-reviewer`) | Tests that pass without proving the code works |
 | `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Confusing error messages, hidden debugging paths, brittle UX for humans and agents |
+| `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed |
 
 <!-- agents:review-end -->
 
