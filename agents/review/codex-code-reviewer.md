@@ -27,13 +27,13 @@ Before invoking Codex, confirm both that the CLI is installed and that the user 
 ```bash
 # Check 1: Is the binary present?
 if ! command -v codex >/dev/null 2>&1; then
-  echo "[INFO] (codex-code-reviewer) codex CLI not found on PATH. Install with: npm install -g @openai/codex (>= 0.123.0). Or run /codex:setup from the openai/codex-plugin-cc plugin."
+  echo "[Low] (codex-code-reviewer) codex CLI not found on PATH. Install with: npm install -g @openai/codex (>= 0.123.0). Or run /codex:setup from the openai/codex-plugin-cc plugin."
   exit 0
 fi
 
 # Check 2: Is the user authenticated?
 if ! codex login status >/dev/null 2>&1; then
-  echo "[INFO] (codex-code-reviewer) codex CLI installed but not authenticated. Run: codex login. (Or: printenv OPENAI_API_KEY | codex login --with-api-key)"
+  echo "[Low] (codex-code-reviewer) codex CLI installed but not authenticated. Run: codex login. (Or: printenv OPENAI_API_KEY | codex login --with-api-key)"
   exit 0
 fi
 ```
@@ -86,7 +86,7 @@ cat > "$SCHEMA_FILE" <<'SCHEMA_EOF'
     "overall_explanation": { "type": "string" },
     "overall_confidence_score": { "type": "number", "minimum": 0, "maximum": 1 }
   },
-  "required": ["findings", "overall_correctness", "overall_explanation"]
+  "required": ["findings", "overall_correctness", "overall_explanation", "overall_confidence_score"]
 }
 SCHEMA_EOF
 ```
@@ -100,6 +100,17 @@ You are reviewing a code diff. Identify defects, bugs, and risks. Use the struct
 priority mapping: 0 = highest severity (must fix), 1 = strongly recommended, 2 = should fix, 3 = optional.
 
 Diff scope: every finding's code_location.absolute_file_path MUST refer to a file CHANGED in the diff below. Do not flag pre-existing patterns.
+
+Line accuracy (mandatory, with verification protocol): code_location.line_range.start MUST point to the exact line in the FILE (not the diff hunk position) where the content you describe lives. The diff's `@@ -X,Y +A,B @@` hunk headers show file-relative starting lines; do not count from 1 inside a hunk. You have read-only filesystem access via the sandbox -- use it.
+
+Verification protocol for every finding (do NOT skip):
+1. After drafting your finding, read the cited file at line_range.start using your filesystem tools.
+2. In the finding `body`, include a line of the form `Cited line content: <verbatim text at line_range.start>` so the orchestrator can verify the citation against the file. The verbatim quote must be the actual text on that line, not a paraphrase.
+3. If the text you read does not match what your finding describes, search the file (grep on a distinctive snippet from the issue) to locate the correct line, then update line_range.start before emitting.
+4. If the issue spans multiple lines, set line_range.start to the FIRST relevant line and quote that line's content in the body.
+5. If the issue is structural (e.g., a missing field in a JSON object spanning many lines), cite the line where the structural element begins or where it should appear, not an arbitrary nearby line.
+
+Common citation drift sources to avoid: counting from 1 inside a diff hunk instead of using file-absolute lines; citing the line of a section heading instead of the line of the actual issue; citing the line of a heredoc terminator instead of the schema/content lines inside it. The orchestrator's synthesis stage attempts to recover findings whose line numbers drifted (by searching for your `Cited line content` excerpt), but a finding whose described content does not appear anywhere in the cited file is filtered as a fabrication. Verify before emitting.
 
 Confidence: emit confidence_score per finding; emit overall_confidence_score for the patch.
 
@@ -117,11 +128,10 @@ PROMPT_EOF
 
 ## Phase 3 -- Invoke Codex
 
-Run `codex exec` with the canonical cookbook flags. Use `timeout 600` (10 minutes) -- review-style runs typically complete in 60-180 seconds; 600s is a generous ceiling.
+Run `codex exec` with the canonical cookbook flags. Do NOT pass `--model` -- the user's local codex configuration (`~/.codex/config.toml` or CLI default) decides which model is used. Forcing a specific model breaks for users whose plan or auth method does not have access to that model (e.g., a free ChatGPT plan rejects `gpt-5.2-codex` with HTTP 400). Whatever model the user has selected locally is the right one for this run. Use `timeout 600` (10 minutes) -- review-style runs typically complete in 60-180 seconds; 600s is a generous ceiling.
 
 ```bash
 timeout 600 codex exec \
-  --model gpt-5.2-codex \
   --sandbox read-only \
   --skip-git-repo-check \
   --ephemeral \
