@@ -37,4 +37,4 @@ When a command says `AskUserQuestion(...)` or asks you to present action-button 
 
 ## PreCompact hook
 
-Cursor's `preCompact` hook event maps to Claude Code's PreCompact event. The handover auto-save script ships unchanged. If it ever fails to fire, see `platforms/cursor/install.md` for the field-name verification step.
+Cursor's `preCompact` hook event maps to Claude Code's PreCompact event. The handover auto-save script ships unchanged. If it ever fails to fire, see the Cursor install subsection in the root `README.md` for the one-time field-name verification step.

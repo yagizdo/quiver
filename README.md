@@ -20,18 +20,47 @@ A normal feature cycle in Quiver chains the commands below. Each command is self
 6. `/review` -- dispatch specialized review agents in parallel (logic, architecture, security, tests, devex, waste) and synthesize findings into one report.
 7. `/handover` -- save an 8-section summary of the session so the next session resumes with full context.
 
-## Quick Start
+## Installation
 
-```bash
+Quiver's primary target is Claude Code; Cursor 2.5+ is also supported. Gemini CLI, Codex CLI, and Antigravity are planned in sequential follow-up branches.
+
+### Claude Code
+
+```
 /plugin marketplace add yagizdo/quiver
 /plugin install quiver@yagizdo/quiver
 ```
 
-Then try your first command:
+Then try `/brainstorm` in any session.
+
+### Cursor (2.5+)
+
+Marketplace install (one-click, recommended once published):
 
 ```
-/brainstorm
+/add-plugin quiver
 ```
+
+Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor". Quiver is in the marketplace submission queue; until it lands, use the pre-marketplace install below.
+
+Pre-marketplace install (local symlink):
+
+```bash
+ln -s "$HOME/Projects/quiver-plugin" "$HOME/.cursor/plugins/local/quiver"
+```
+
+Then in Cursor: Cmd+Shift+P -> Reload Window. Cursor discovers `.cursor-plugin/plugin.json` at the symlink target and registers the plugin.
+
+One-time hook verification: Cursor's `preCompact` event may use a different JSON field name than Claude Code. Trigger a context compaction once after install and confirm a new timestamped file appears in `.claude/handovers/` within ~150 seconds. If nothing appears, edit `.cursor/hooks.json` to log raw stdin to a file, trigger compaction again, and inspect the log for the actual field names.
+
+Cursor-specific notes:
+- The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
+- `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
+- Tool-name and primitive differences (Bash -> Shell, Edit folded into Write, etc.) are handled automatically by `platforms/cursor/rules/quiver-shell-blocks.mdc`. The full mapping lives in `platforms/cursor/tool-map.md` and the per-primitive contract in `platforms/cursor/primitives.md`.
+
+### Other CLIs
+
+Gemini CLI, Codex CLI, and Antigravity overlays are planned in sequential follow-up branches. Install instructions for each will land in this section as the overlays ship.
 
 ## Components
 
@@ -216,11 +245,7 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
-## Other CLIs
-
-Quiver's primary target is Claude Code, but its commands, agents, and skills can also be installed on Cursor as of 2026 (Cursor 2.5+). Additional CLIs (Gemini CLI, Codex CLI, Antigravity) are planned in sequential follow-up branches.
-
-### Compatibility matrix
+## Compatibility
 
 | Command | Claude Code | Cursor | Gemini CLI | Codex CLI | Antigravity |
 |---------|-------------|--------|------------|-----------|-------------|
@@ -231,8 +256,7 @@ Quiver's primary target is Claude Code, but its commands, agents, and skills can
 | `/commit` | yes | yes (with polyfilled prompts) | planned | planned | planned |
 | `/brainstorm` | yes | yes (with polyfilled prompts) | planned | planned | planned |
 
-Per-CLI install and usage guides:
-- Cursor: [`platforms/cursor/README.md`](platforms/cursor/README.md)
+On Cursor, the six core commands above are smoke-tested; the remaining commands (`/load-handover`, `/delete-last-handover`, `/delete-all-handovers`, `/create-pr`, `/create-agent`, `/create-agents-md`, `/repair-skill`) work in principle but are not part of the initial overlay's verified surface.
 
 ## Uninstall
 

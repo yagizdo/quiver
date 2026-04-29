@@ -16,9 +16,9 @@ Non-negotiable. Every platform-overlay branch must follow all of these. Violatio
 
 **PR3. Dependency direction.** `platforms/<cli>/` and the CLI's manifest dir reference the canonical sources (commands, agents, skills, hooks). The reverse is forbidden -- no `requires:`, `platforms:`, or `cli:` field in canonical frontmatter; no conditional branches in command bodies based on detected CLI. Verified by `grep -rn 'platforms/' commands/ agents/ skills/ hooks/`.
 
-**PR4. Per-CLI docs location.** The per-CLI install/usage doc lives at `platforms/<cli>/README.md`. Never under `docs/` (gitignored per `.gitignore:54`). The repo `README.md` links to it from the `## Other CLIs` section.
+**PR4. Install steps live in the repo root README.** The `## Installation` section in the root `README.md` has one subsection per CLI (Claude Code, Cursor, Gemini CLI, etc.) with the marketplace install command and any pre-marketplace local install path. Per-CLI directories under `platforms/<cli>/` contain only technical contracts (primitives, tool-map, polyfills, rule files) and any CLI-specific manifest. Never put install/usage docs under `docs/` (gitignored per `.gitignore:54`) or in a per-CLI README/install file -- the user must not have to navigate file by file to install. Verified by `ls platforms/<cli>/` returning no `README.md` or `install.md`.
 
-**PR5. Manifest location.** If a CLI's plugin system requires a manifest at the repo root, the manifest dir is named `.<cli>-plugin/` (sibling of `.claude-plugin/`). The plan owns this decision per CLI; document the reason in `platforms/<cli>/install.md`.
+**PR5. Manifest location.** If a CLI's plugin system requires a manifest at the repo root, the manifest dir is named `.<cli>-plugin/` (sibling of `.claude-plugin/`). The plan owns this decision per CLI; document the reason in the root `README.md`'s install subsection for that CLI.
 
 **PR6. Polyfill bodies are per-CLI, not shared.** Until at least 3 of 4 CLIs ship near-identical polyfills for the same primitive, do not extract a `_shared/` directory. (YAGNI; matches spec's stance.)
 
