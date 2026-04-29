@@ -1,7 +1,7 @@
 ---
 name: review
-description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings.
-argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr]"
+description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings. Pass --with-codex for cross-model coverage via the OpenAI Codex CLI.
+argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 ---
 
 # Gather Context
@@ -192,6 +192,9 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
   > Skipping test-reviewer: no application code or scripts changed.
 - **`stress-tester`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Constructs failure scenarios via assumption stress, composition fracture, and cascade chains. Receives depth calibration context: diff manifest file types + detected risk signals. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping stress-tester: no application code or scripts changed.
+- **`codex-code-reviewer`**: Only dispatched when `$ARGUMENTS` contains `--with-codex` AND the `codex` CLI is detected on PATH. This agent is a transport adapter that delegates the review to OpenAI Codex via the `codex` CLI; the actual reviewing is performed by Codex, not Claude. The Codex agent runs in parallel with all qualifying Claude review agents, providing cross-model "third eye" coverage. The CLI presence check is a Bash tool call the orchestrator performs at dispatch time (`command -v codex >/dev/null 2>&1 && echo PRESENT || echo MISSING`); do not place this check inside a `!` block in this command file (R3 forbids logic-bearing pipes in shell blocks). Skip with notes otherwise:
+  > Skipping codex-code-reviewer: --with-codex flag not provided.
+  > Skipping codex-code-reviewer: codex CLI not found on PATH. Install with `npm install -g @openai/codex` (>= 0.123.0) or run `/codex:setup` from the openai/codex-plugin-cc plugin.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -215,6 +218,8 @@ Each agent receives (in this order):
 ## Step 3 -- Synthesize Findings
 
 After **all** agents return, merge their outputs into a single unified report. Follow these rules:
+
+**0. Filter on substance, not citation form.** When a finding's underlying observation is verifiable in the codebase but its citation is malformed (wrong line number, off-by-N, points to a blank line or unrelated content), **correct the citation rather than discard the finding**. Use grep or file search to locate the described content; if found, update the `file:line` reference and keep the finding. Only discard as a phantom citation when the described content does not appear anywhere in the cited file (true fabrication). Do not use citation-format filters to drop findings whose underlying defects you have verified to exist. The phantom-citation filter (item 4 below) exists to suppress hallucinations, not to dismiss substantive observations on a technicality. This rule applies to every agent's output but is most relevant for external transport adapters like `codex-code-reviewer`, where line-number drift between diff hunk position and absolute file line is a common LLM error.
 
 1. **Deduplicate with consensus tracking.** If two or more agents flag the same issue (e.g., waste-detector's Redundancy Scan and architecture-strategist both flag unnecessary duplication, or security-audit and best-practices-researcher both flag an unsafe dependency pattern), keep the more detailed finding and discard the other. Prefer the specialist agent's version when depth is comparable. **Record which agents flagged it** -- when 2+ agents independently flag the same issue, add a `Flagged by:` annotation listing all agents. Multi-agent consensus increases confidence; when 3+ agents flag the same issue, consider upgrading its severity by one tier (e.g., Medium -> High) unless it is already Critical.
 
@@ -246,7 +251,14 @@ After **all** agents return, merge their outputs into a single unified report. F
    - **Severity inflation**: If a finding's severity relies on a hypothetical scenario ("an attacker could...", "in the future this might...") rather than a concrete, demonstrable consequence → DOWNGRADE to Low. If it was already Low, keep it.
    - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
    - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
-   - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation is real: (a) `file_path` must exist in the repository, (b) `line_number` must fall within the file's actual line count, (c) if the finding quotes a code snippet or describes specific content at that line, the file's actual content at that line must match. If any check fails → DISCARD. Record as filtered phantom citation. This filter catches agent hallucinations where findings cite non-existent code, fabricated template sections, or incorrect line numbers.
+   - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation. Apply this graduated check (per Step 3 item 0, do NOT default to DISCARD on the first mismatch):
+     - **(a) `file_path` must exist in the repository.** If not → DISCARD as filtered phantom citation. (True fabrication: cited file does not exist.)
+     - **(b) `line_number` must fall within the file's actual line count.** If not → DISCARD as filtered phantom citation. (True fabrication: cited line is past EOF.)
+     - **(c) If the finding describes specific content at that line and the cited line's actual content does NOT match**, do not discard immediately. **Recovery procedure:** Search the file for the described content (grep distinctive snippets, key tokens, or quoted phrases from the finding body). Three outcomes:
+       1. **Found at a different line:** correct the citation to the new line and keep the finding. Add a brief `Citation corrected: original line N -> actual line M` note in the finding body for transparency.
+       2. **Found but ambiguous (multiple plausible matches):** keep the finding with the original citation and add `Citation note: line uncertain, content present in file at lines [list]`. Do not discard.
+       3. **Not found anywhere in the cited file:** this is the true fabrication case → DISCARD as filtered phantom citation.
+     - This filter catches agent hallucinations where findings cite non-existent code or fabricated content. It does NOT catch findings whose underlying observation is real but whose line citation drifted; those are corrected per the recovery procedure above. Self-protective filtering — using citation drift as a pretext to drop substantive findings, especially against one's own earlier work — is the failure mode this rule prevents.
 
 **4a. Proportional severity floor.** After applying the 8 false-positive filters above, apply a diff-shape filter to Low findings only. Medium, High, and Critical findings are never affected by this rule.
 
