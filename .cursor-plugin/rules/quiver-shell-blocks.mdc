@@ -24,16 +24,46 @@ In Claude Code, the harness pre-executes these and injects the output into the p
 
 ## Tool-name substitutions
 
-Refer to `platforms/cursor/tool-map.md` for the full table. Most common:
+When a Quiver command, agent, or skill references a Claude Code tool name, use the Cursor equivalent.
 
-- `Bash` -> use `Shell`
-- `Edit` -> use `Write` (Cursor folds Edit into Write)
-- `Glob` -> use `find` or `fd` via `Shell`
-- `Agent(...)` dispatch -> use `Task`
+| Claude Code | Cursor | Notes |
+|-------------|--------|-------|
+| Bash | Shell | Identical semantics. |
+| Read | Read | Identical. |
+| Write | Write | Identical. |
+| Edit | Write | Cursor folds Edit into Write. Pass the full new content. |
+| Grep | Grep | Identical. |
+| Glob | (use Shell) | Cursor does not expose Glob. Run `find` or `fd` via Shell. |
+| Agent | Task | Cursor's sub-agent dispatch tool is named Task. |
+| Skill | (native) | SKILL.md format loads automatically; no tool call needed. |
+| AskUserQuestion | (polyfill) | See the section below. |
+| WebFetch | (unsupported) | Use the context7 MCP for docs lookups. |
+| WebSearch | (unsupported) | Out of scope on Cursor. |
+| TaskCreate / TaskUpdate / TaskList | (Cursor todo) | Cursor exposes its own task tracking; the agent uses it naturally. |
 
 ## AskUserQuestion substitution
 
-When a command says `AskUserQuestion(...)` or asks you to present action-button prompts, render the question as a numbered text prompt using the format defined in `platforms/cursor/polyfills/ask-user.md`.
+Cursor does not expose a public action-button question API as of 2026. When a Quiver command says `AskUserQuestion(...)` or asks you to present action-button prompts, render a numbered text prompt and wait for the user's reply.
+
+Format:
+
+```
+<one-sentence question>
+
+1. <Option A label> -- <one-line description>
+2. <Option B label> -- <one-line description>
+3. <Option C label> -- <one-line description>
+4. Other -- <ask the user to describe>
+
+Reply with the number, or describe your choice.
+```
+
+Rules:
+
+1. Always include "Other -- describe" as the last option, mirroring Claude Code's free-text fallback.
+2. Number options 1-N; do not letter them.
+3. Do not collapse multiple decisions into a single prompt unless the original `AskUserQuestion` call did so. One question per polyfill prompt is the default.
+4. After the user replies with a number, restate the choice in one sentence ("Going with option 2: ...") before continuing. This catches misclicks visible to the user before the action runs.
 
 ## PreCompact hook
 

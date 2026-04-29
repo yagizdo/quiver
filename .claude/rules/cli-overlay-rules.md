@@ -1,6 +1,6 @@
-# Platform Overlay Rules
+# CLI Overlay Rules
 
-Hard rules and learned lessons for branches that add a new CLI platform overlay (e.g., `feat/cursor`, `feat/gemini-cli`, `feat/codex-cli`, `feat/antigravity`). These rules lock the architecture invariants and the layout decisions made on the first overlay branch (`feat/cursor`, 2026-04-29) so subsequent overlay branches stay consistent.
+Hard rules and learned lessons for branches that add or modify a CLI overlay (Cursor, future Gemini CLI, future Codex CLI, etc.). These rules lock the architecture invariants of the flattened overlay layout.
 
 For command authoring rules, see `command-rules.md`. For review-agent rules, see `review-agent-rules.md`.
 
@@ -8,29 +8,31 @@ For command authoring rules, see `command-rules.md`. For review-agent rules, see
 
 ## Hard Rules
 
-Non-negotiable. Every platform-overlay branch must follow all of these. Violations break the source-of-truth invariant and force duplication.
+Non-negotiable. Every CLI overlay branch must follow all of these. Violations break the source-of-truth invariant or force duplication.
 
-**PR1. Diff scope.** The PR diff for `feat/<cli>` may modify only paths under `platforms/<cli>/`, the CLI's manifest dir at the repo root if applicable (e.g., `.cursor-plugin/`), `README.md`, and -- on the first overlay branch only -- `.claude/rules/platforms-rules.md`. Any other modification is a violation. Verified by `git diff --name-only master...HEAD`.
+**OR1. Source-of-truth invariant.** `commands/`, `agents/`, `skills/`, `hooks/`, and `.claude-plugin/plugin.json` are byte-identical regardless of which CLIs are supported. CLI overlay work must never modify these. Verified by `git diff --stat master...HEAD -- commands/ agents/ skills/ hooks/ .claude-plugin/`.
 
-**PR2. Source-of-truth invariant.** `commands/`, `agents/`, `skills/`, `.claude-plugin/plugin.json`, and `hooks/` are byte-identical across all CLI branches. Never modify, never duplicate. Verified by `git diff --stat master...HEAD -- commands/ agents/ skills/ hooks/ .claude-plugin/`.
+**OR2. Dependency direction.** A CLI's manifest dir or root manifest file references the canonical sources (commands, agents, skills, hooks). The reverse is forbidden: no `requires:`, `platforms:`, or `cli:` field in canonical frontmatter; no conditional branches in command bodies based on the running CLI. Verified by `grep -rn '\.cursor-plugin\|\.codex-plugin\|gemini-extension' commands agents skills hooks` returning no matches.
 
-**PR3. Dependency direction.** `platforms/<cli>/` and the CLI's manifest dir reference the canonical sources (commands, agents, skills, hooks). The reverse is forbidden -- no `requires:`, `platforms:`, or `cli:` field in canonical frontmatter; no conditional branches in command bodies based on detected CLI. Verified by `grep -rn 'platforms/' commands/ agents/ skills/ hooks/`.
+**OR3. Each CLI has one home.** Cursor's overlay lives entirely inside `.cursor-plugin/`. Future overlays live inside their CLI's native manifest location at the repo root: `.codex-plugin/`, `gemini-extension.json` (single-file manifest), and so on. There is no `platforms/<cli>/` parallel home. CLI-specific files (rule files, per-CLI hook variants, per-CLI shims) live next to that CLI's manifest.
 
-**PR4. Install steps live in the repo root README.** The `## Installation` section in the root `README.md` has one subsection per CLI (Claude Code, Cursor, Gemini CLI, etc.) with the marketplace install command and any pre-marketplace local install path. Per-CLI directories under `platforms/<cli>/` contain only technical contracts (primitives, tool-map, polyfills, rule files) and any CLI-specific manifest. Never put install/usage docs under `docs/` (gitignored per `.gitignore:54`) or in a per-CLI README/install file -- the user must not have to navigate file by file to install. Verified by `ls platforms/<cli>/` returning no `README.md` or `install.md`.
+**OR4. Shared assets live at the repo root.** Logo files, icons, and other shared graphical assets live in `assets/` at the repo root. Each CLI's manifest references its own assets by repo-root-relative path. No per-CLI asset folders.
 
-**PR5. Manifest location.** If a CLI's plugin system requires a manifest at the repo root, the manifest dir is named `.<cli>-plugin/` (sibling of `.claude-plugin/`). The plan owns this decision per CLI; document the reason in the root `README.md`'s install subsection for that CLI.
+**OR5. Scaffolding-on-demand.** CLI-specific abstractions are created only when a concrete consumer in the canonical content needs them, not in advance. Specifically:
+- **Tool-name maps:** when a skill genuinely fans out to multiple CLIs with different tool names, ship a per-skill `references/<cli>-tools.md` next to that skill. Do not maintain a global per-CLI tool map.
+- **Degraded-mode behavior:** when a command needs a fallback because a CLI lacks a primitive (e.g. `AskUserQuestion`), inline the fallback in the command body. Do not create a separate polyfill file.
+- **Hook variants:** when a CLI's hook contract genuinely differs from `hooks/hooks.json`, ship a parallel `hooks/hooks-<cli>.json` and reference it from that CLI's manifest. Do not modify the canonical hooks file.
 
-**PR6. Polyfill bodies are per-CLI, not shared.** Until at least 3 of 4 CLIs ship near-identical polyfills for the same primitive, do not extract a `_shared/` directory. (YAGNI; matches spec's stance.)
-
-**PR7. Compatibility matrix is hand-maintained in the README.** No auto-generation, no separate matrix file. Per-CLI `primitives.md` is the contract; the README matrix is the summary.
-
-**PR8. Branch hygiene.** Each CLI branch is based on `master` (not on a long-lived integration branch). Sequential merges only. Lessons propagate via spec/rules edits, not branch ordering.
+**OR6. Branch hygiene.** Each CLI overlay branch is based on `master` (not on a long-lived integration branch). Sequential merges only.
 
 ---
 
 ## Learned Lessons
 
-Each lesson comes from a real decision or failure on a previous overlay branch. Add new entries when issues are discovered.
+Each lesson comes from a real decision or failure on a previous overlay branch. Add new entries when issues surface.
 
-**LP1. Prefer rule-files or context-injection over forking commands.**
-Cursor 2.5+ does not auto-execute Claude Code's inline `` !`<command>` `` shell blocks. The first instinct was to fork command files into `platforms/cursor/commands/` so the forks could be rewritten for Cursor. This was rejected because it violates PR2 -- every fix to a canonical command would need to be mirrored into N forks, and drift would be inevitable. The accepted solution: ship a Cursor rule file (`platforms/cursor/rules/quiver-shell-blocks.mdc`, `alwaysApply: true`) that tells the Cursor agent to read `` !`<command>` `` blocks as instructions and execute them via the `Shell` tool. When facing a similar "commands assume harness behavior X" gap on Gemini, Codex, or Antigravity, prefer rule-file or context-injection mechanisms over duplication. Cite: `docs/brainstorms/2026-04-29-multi-cli-platform-overlays.md` and `.claude/plans/2026-04-29-feat-cursor-platform-overlay-plan.md` (Phase 3 Task 8).
+**LO1. Prefer rule-files or context-injection over forking commands.**
+Cursor 2.5+ does not auto-execute Claude Code's inline `` !`<command>` `` shell blocks. The first instinct was to fork command files into a parallel directory so the forks could be rewritten for Cursor. That was rejected because it violates OR1 -- every fix to a canonical command would need to be mirrored into N forks, and drift would be inevitable. The accepted solution: ship a Cursor rule file (`.cursor-plugin/rules/quiver-shell-blocks.mdc`, `alwaysApply: true`) that tells the Cursor agent to read those blocks as instructions and execute them via the `Shell` tool. When facing a similar "the CLI does not implement Claude Code behavior X" gap on a future CLI, prefer rule files or context-injection mechanisms (rules/, context files like `GEMINI.md`) over command duplication.
+
+**LO2. Delete unused scaffolding rather than carrying it forward.**
+The first overlay branch shipped `platforms/cursor/{primitives,tool-map,polyfills/}` as forward-looking documentation for abstractions that no command, agent, or skill exercised. Carrying the empty scaffolding forward created the worst of both worlds: documentation no consumer honored, and structure no skill referenced. The flatten refactor (this branch) removed it. Lesson: when reviewing an overlay before merge, audit each file for a current consumer; if none exists, delete and resurrect later when a real need surfaces.
