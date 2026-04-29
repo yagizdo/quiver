@@ -2,11 +2,11 @@
 
 [![Version](https://img.shields.io/badge/version-1.8.1-blue)](https://github.com/yagizdo/quiver/releases)
 
-Quiver is a Claude Code plugin for multi-agent code review, end-to-end workflow orchestration, and session continuity -- carry your plans, decisions, and review findings from idea to PR without re-explaining context between sessions.
+Quiver is a plugin for AI coding CLIs that brings multi-agent code review, end-to-end workflow orchestration, and session continuity -- carry your plans, decisions, and review findings from idea to PR without re-explaining context between sessions.
 
 ## What is Quiver?
 
-Quiver coordinates multi-step development workflows and session continuity for Claude Code. You use it to brainstorm feature ideas, produce research-backed implementation plans, execute those plans with continuous testing and incremental commits, and run a suite of specialized agents that review the resulting code for logic bugs, security gaps, architectural drift, and weak test coverage before merging. When work spans sessions, Quiver saves a handover with decisions, blockers, and next steps so you resume exactly where you left off -- no re-investigation, no lost context.
+Quiver coordinates multi-step development workflows and session continuity for your AI coding CLI. You use it to brainstorm feature ideas, produce research-backed implementation plans, execute those plans with continuous testing and incremental commits, and run a suite of specialized agents that review the resulting code for logic bugs, security gaps, architectural drift, and weak test coverage before merging. When work spans sessions, Quiver saves a handover with decisions, blockers, and next steps so you resume exactly where you left off -- no re-investigation, no lost context.
 
 ## Typical workflow
 
@@ -163,7 +163,7 @@ Gemini CLI, Codex CLI, and Antigravity overlays are planned in sequential follow
 
 | Hook | Event | Description |
 |------|-------|-------------|
-| `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before Claude compacts context |
+| `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before the CLI compacts context |
 
 > The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
 
