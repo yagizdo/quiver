@@ -92,6 +92,8 @@ Then try your first command:
 > When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.
 
 > `--with-codex` requires the `codex` CLI installed (`npm install -g @openai/codex`, >= 0.123.0) and authenticated (`codex login`). When the flag is set but the CLI is missing or not authenticated, the Codex agent is skipped with a one-line note and the review proceeds with Claude agents only. Codex findings carry a `(codex-code-reviewer)` source prefix in the synthesized report; when both Claude and Codex flag the same line, the existing `Flagged by:` consensus annotation kicks in.
+>
+> **Model selection:** Quiver does not pass `--model` to the codex CLI -- whichever model your local codex is configured to use (set in `~/.codex/config.toml`, CLI default, or env override) is the model that will run the review. If your auth method or plan does not have access to a given model, change your local codex configuration; Quiver will not override it.
 
 **Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review -- no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
 
@@ -189,7 +191,7 @@ Then try your first command:
 | `security-audit` (`quiver:security-audit`) | Concrete exploit paths for web, API, and mobile surfaces |
 | `test-reviewer` (`quiver:test-reviewer`) | Tests that pass without proving the code works |
 | `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Confusing error messages, hidden debugging paths, brittle UX for humans and agents |
-| `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed |
+| `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed. Uses whatever model your local codex is configured for -- Quiver does not override `--model` |
 
 <!-- agents:review-end -->
 
