@@ -216,6 +216,24 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
+## Other CLIs
+
+Quiver's primary target is Claude Code, but its commands, agents, and skills can also be installed on Cursor as of 2026 (Cursor 2.5+). Additional CLIs (Gemini CLI, Codex CLI, Antigravity) are planned in sequential follow-up branches.
+
+### Compatibility matrix
+
+| Command | Claude Code | Cursor | Gemini CLI | Codex CLI | Antigravity |
+|---------|-------------|--------|------------|-----------|-------------|
+| `/handover` | yes | yes (with auto-save via preCompact) | planned | planned | planned |
+| `/review` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/plan` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/work` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/commit` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/brainstorm` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+
+Per-CLI install and usage guides:
+- Cursor: [`platforms/cursor/README.md`](platforms/cursor/README.md)
+
 ## Uninstall
 
 ```
