@@ -35,11 +35,11 @@ Then try `/brainstorm` in any session.
 
 ### Cursor (2.5+)
 
-```bash
-ln -s "$HOME/Projects/quiver-plugin" "$HOME/.cursor/plugins/local/quiver"
+```text
+/add-plugin quiver
 ```
 
-Then in Cursor: Cmd+Shift+P -> Reload Window.
+Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor".
 
 ### Gemini CLI, OpenAI Codex CLI, Antigravity
 
