@@ -2,11 +2,11 @@
 
 [![Version](https://img.shields.io/badge/version-1.8.1-blue)](https://github.com/yagizdo/quiver/releases)
 
-Quiver is a Claude Code plugin for multi-agent code review, end-to-end workflow orchestration, and session continuity -- carry your plans, decisions, and review findings from idea to PR without re-explaining context between sessions.
+Quiver is a plugin for AI coding CLIs that brings multi-agent code review, end-to-end workflow orchestration, and session continuity -- carry your plans, decisions, and review findings from idea to PR without re-explaining context between sessions.
 
 ## What is Quiver?
 
-Quiver coordinates multi-step development workflows and session continuity for Claude Code. You use it to brainstorm feature ideas, produce research-backed implementation plans, execute those plans with continuous testing and incremental commits, and run a suite of specialized agents that review the resulting code for logic bugs, security gaps, architectural drift, and weak test coverage before merging. When work spans sessions, Quiver saves a handover with decisions, blockers, and next steps so you resume exactly where you left off -- no re-investigation, no lost context.
+Quiver coordinates multi-step development workflows and session continuity for your AI coding CLI. You use it to brainstorm feature ideas, produce research-backed implementation plans, execute those plans with continuous testing and incremental commits, and run a suite of specialized agents that review the resulting code for logic bugs, security gaps, architectural drift, and weak test coverage before merging. When work spans sessions, Quiver saves a handover with decisions, blockers, and next steps so you resume exactly where you left off -- no re-investigation, no lost context.
 
 ## Typical workflow
 
@@ -20,18 +20,36 @@ A normal feature cycle in Quiver chains the commands below. Each command is self
 6. `/review` -- dispatch specialized review agents in parallel (logic, architecture, security, tests, devex, waste) and synthesize findings into one report.
 7. `/handover` -- save an 8-section summary of the session so the next session resumes with full context.
 
-## Quick Start
+## Installation
 
-```bash
+Installation differs by CLI.
+
+### Claude Code
+
+```
 /plugin marketplace add yagizdo/quiver
 /plugin install quiver@yagizdo/quiver
 ```
 
-Then try your first command:
+Then try `/brainstorm` in any session.
 
+### Cursor (2.5+)
+
+```text
+/add-plugin quiver
 ```
-/brainstorm
-```
+
+Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor".
+
+### Gemini CLI, OpenAI Codex CLI, Antigravity
+
+Planned in sequential follow-up branches.
+
+## Cursor notes
+
+- The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
+- `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
+- If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
 
 ## Components
 
@@ -134,7 +152,7 @@ Then try your first command:
 
 | Hook | Event | Description |
 |------|-------|-------------|
-| `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before Claude compacts context |
+| `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before the CLI compacts context |
 
 > The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
 
@@ -215,6 +233,19 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 - `query-docs` -- Get documentation for a specific library
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
+
+## Compatibility
+
+| Command | Claude Code | Cursor | Gemini CLI | Codex CLI | Antigravity |
+|---------|-------------|--------|------------|-----------|-------------|
+| `/handover` | yes | yes (with auto-save via preCompact) | planned | planned | planned |
+| `/review` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/plan` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/work` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/commit` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+| `/brainstorm` | yes | yes (with polyfilled prompts) | planned | planned | planned |
+
+On Cursor, the six core commands above are smoke-tested; the remaining commands (`/load-handover`, `/delete-last-handover`, `/delete-all-handovers`, `/create-pr`, `/create-agent`, `/create-agents-md`, `/repair-skill`) work in principle but are not part of the initial overlay's verified surface.
 
 ## Uninstall
 
