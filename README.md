@@ -22,7 +22,7 @@ A normal feature cycle in Quiver chains the commands below. Each command is self
 
 ## Installation
 
-Quiver's primary target is Claude Code; Cursor 2.5+ is also supported. Gemini CLI, Codex CLI, and Antigravity are planned in sequential follow-up branches.
+Installation differs by CLI.
 
 ### Claude Code
 
@@ -35,32 +35,21 @@ Then try `/brainstorm` in any session.
 
 ### Cursor (2.5+)
 
-Marketplace install (one-click, recommended once published):
-
-```
-/add-plugin quiver
-```
-
-Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor". Quiver is in the marketplace submission queue; until it lands, use the pre-marketplace install below.
-
-Pre-marketplace install (local symlink):
-
 ```bash
 ln -s "$HOME/Projects/quiver-plugin" "$HOME/.cursor/plugins/local/quiver"
 ```
 
-Then in Cursor: Cmd+Shift+P -> Reload Window. Cursor discovers `.cursor-plugin/plugin.json` at the symlink target and registers the plugin.
+Then in Cursor: Cmd+Shift+P -> Reload Window.
 
-One-time hook verification: Cursor's `preCompact` event may use a different JSON field name than Claude Code. Trigger a context compaction once after install and confirm a new timestamped file appears in `.claude/handovers/` within ~150 seconds. If nothing appears, edit `.cursor/hooks.json` to log raw stdin to a file, trigger compaction again, and inspect the log for the actual field names.
+### Gemini CLI, OpenAI Codex CLI, Antigravity
 
-Cursor-specific notes:
+Planned in sequential follow-up branches.
+
+## Cursor notes
+
 - The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
 - `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
-- Tool-name and primitive differences (Bash -> Shell, Edit folded into Write, etc.) are handled automatically by `platforms/cursor/rules/quiver-shell-blocks.mdc`. The full mapping lives in `platforms/cursor/tool-map.md` and the per-primitive contract in `platforms/cursor/primitives.md`.
-
-### Other CLIs
-
-Gemini CLI, Codex CLI, and Antigravity overlays are planned in sequential follow-up branches. Install instructions for each will land in this section as the overlays ship.
+- If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
 
 ## Components
 
