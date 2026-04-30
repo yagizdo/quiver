@@ -1,6 +1,27 @@
 ---
 name: work
 description: "Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR. Use when you have a plan file, spec, or task list ready to execute."
+argument-hint: "<plan file path or task description>"
+---
+
+# Gather Context
+
+```
+!`git rev-parse --is-inside-work-tree 2>/dev/null || echo "NO_GIT"`
+```
+
+```
+!`git branch --show-current 2>/dev/null || echo "NO_GIT"`
+```
+
+```
+!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
+```
+
+```
+!`git status --short 2>/dev/null || echo "NO_GIT"`
+```
+
 ---
 
 # Work
@@ -8,6 +29,12 @@ description: "Execute a work plan or specification systematically -- read the pl
 Execute a work plan, specification, or task list systematically. The focus is on shipping complete features by understanding requirements quickly, following existing patterns, and maintaining quality throughout.
 
 **Announce:** "Using the work skill to execute the plan."
+
+**Before starting Phase 1**, use the Glob tool to gather plan context silently (do not show results to the user):
+1. `.claude/plans/*.md` -- existing plans
+2. `**/plans/*.md` (max depth 4) -- plans in other locations
+
+Treat empty Glob results as "no plans found". Proceed regardless.
 
 ---
 
@@ -34,27 +61,77 @@ Execute a work plan, specification, or task list systematically. The focus is on
 +----------+     +---------+     +---------+     +---------+     +--------+
 ```
 
+### Phase 0: Git Availability
+
+If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
+Print: `> No git repository detected -- skipping branch/commit context.`
+Proceed to Phase 1. Treat all git-sourced fields (branch, log, diff, status) as empty. Skip branch creation in Phase 2, commit steps in Phase 3, and git-dependent actions in Phase 5.
+
 ### Phase 1: Load and Clarify
 
-1. **Read the work document.** If the user provided a path, read it. If not, check `.claude/plans/` for the most recent plan file. If no plan exists, ask the user what to work on.
+#### 1a -- Load the plan
 
-2. **Review references.** If the plan links to files, patterns, or prior research -- read those now. Understanding context before coding prevents rework.
+**Case A: Path provided.** If `$ARGUMENTS` is a file path (ends in `.md` or contains `/`):
+- Read that file as the work plan.
+- Print: `> Executing plan: {plan filename} ({step count} steps) on branch {branch}`
+- Proceed directly to Phase 1b. The user chose this plan explicitly -- no confirmation needed.
 
-3. **Detect review-fix plan.** Check if this is a plan created to address review findings:
-   - **Primary**: Check plan YAML frontmatter for a `review_source` field (e.g., `review_source: .claude/reports/review-2026-03-10_14-30-00.md`).
-   - **Fallback**: Scan plan content for paths matching `.claude/reports/review-*.md` or `review-*_*-*-*.md`.
-   - If detected, read the review report file. If the file exists, note this as a **review-fix plan** and carry the parsed findings forward to Phase 4. If the file does not exist, warn: "Review report not found at {path}. Proceeding without review-aware verification."
-   - If no review reference detected, proceed normally.
-   - **Iteration tracking**: Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the **final iteration** -- Phase 4c verification is the only quality gate, and Phase 4d agent review is skipped unconditionally.
+**Case B: No arguments.** If `$ARGUMENTS` is empty, collect all `.md` files from every `plans/` directory discovered by the Glob block above, plus the `.claude/plans/` listing.
 
-4. **Flag ambiguities.** If the plan contains genuine contradictions (e.g., two steps that conflict, a referenced file that does not exist), note them. If the plan is clear, skip this step entirely -- do not invent ambiguities.
+- If exactly one plan exists across all directories, read it and use `AskUserQuestion`:
+  > Found one plan: `{relative path}` (in `{directory}`)
+  > **Goal:** {goal from plan}
+  > **Steps:** {step count}
+  Buttons: `["Execute this plan", "Other -- I'll provide a path or description"]`
+- If multiple plans exist, present them via `AskUserQuestion` with full relative paths as buttons (most recent first), plus an `"Other -- I'll provide a path or description"` option. Show the directory in each label so the user can distinguish plans in different locations.
+- If the user picks "Other", ask for a path or task description.
 
-5. **Proceed or clarify.**
-   - **No plan found:** Ask the user what to work on.
-   - **Plan has contradictions** flagged in step 4: Ask about those specific contradictions only.
-   - **Plan is clear:** Move directly to Phase 2. Do NOT ask "should I proceed?", "are you sure?", "shall I start?", or any variation of confirmation. The user invoked `/work` with a plan -- that IS the approval. Summarizing the plan back and asking to continue is wasted time.
+If no plans found:
+> No plans found in any `plans/` directory. Usage:
+> - `/work <path-to-plan.md>` -- execute a specific plan
+> - `/work <plan-name>` -- search for a plan by name
+> - `/work <task description>` -- work on a task directly
+> - `/plan <task>` -- create a plan first
+
+**Stop here.**
+
+**Case C: Name or description provided.** If `$ARGUMENTS` is not a file path and is not empty:
+
+1. **Discover plan files.** Read every `plans/` directory discovered by the Glob block. Combine with `.claude/plans/` listing.
+2. **Match by filename.** Compare `$ARGUMENTS` against each plan file's stem (without `.md` extension):
+   - **Exact match:** stem equals `$ARGUMENTS` (case-insensitive).
+   - **Partial match:** stem contains `$ARGUMENTS` as a substring (case-insensitive).
+3. **Rank and select.** Rank exact matches above partial matches.
+   - **1 match** -- Read the plan file, print `> Executing plan: {filename} from {directory}`, proceed to Phase 1b. No confirmation needed.
+   - **Multiple matches** -- Use `AskUserQuestion` to present candidates with full relative paths as button labels. Add a `"None of these -- treat as task description"` button.
+   - **0 matches** -- Treat `$ARGUMENTS` as an inline task description. Print `> No matching plan found for "{$ARGUMENTS}". Treating as task description.` Proceed to Phase 1b with the description as the work specification.
+
+#### 1b -- Review references
+
+If the plan links to files, patterns, or prior research -- read those now. Understanding context before coding prevents rework.
+
+#### 1c -- Detect review-fix plan
+
+Check if this is a plan created to address review findings:
+- **Primary**: Check plan YAML frontmatter for a `review_source` field (e.g., `review_source: .claude/reports/review-2026-03-10_14-30-00.md`).
+- **Fallback**: Scan plan content for paths matching `.claude/reports/review-*.md` or `review-*_*-*-*.md`.
+- If detected, read the review report file. If the file exists, note this as a **review-fix plan** and carry the parsed findings forward to Phase 4. If the file does not exist, warn: "Review report not found at {path}. Proceeding without review-aware verification."
+- If no review reference detected, proceed normally.
+- **Iteration tracking**: Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the **final iteration** -- Phase 4c verification is the only quality gate, and Phase 4d agent review is skipped unconditionally.
+
+#### 1d -- Flag ambiguities
+
+If the plan contains genuine contradictions (e.g., two steps that conflict, a referenced file that does not exist), note them. If the plan is clear, skip this step entirely -- do not invent ambiguities.
+
+#### 1e -- Proceed or clarify
+
+- **No plan found:** Ask the user what to work on.
+- **Plan has contradictions** flagged in 1d: Ask about those specific contradictions only.
+- **Plan is clear:** Move directly to Phase 2. Do NOT ask "should I proceed?", "are you sure?", "shall I start?", or any variation of confirmation. The user invoked `/work` with a plan -- that IS the approval. Summarizing the plan back and asking to continue is wasted time.
 
 ### Phase 2: Setup Environment
+
+**If git is NOT available (Phase 0 detected `NO_GIT`):** Skip this phase entirely -- proceed to Phase 2.5.
 
 Check the current branch:
 
@@ -63,8 +140,10 @@ git branch --show-current
 ```
 
 **If already on a feature branch** (not main/master):
-- Ask: "Continue on `{current_branch}`, or create a new branch?"
-- If continuing, move to Phase 3.
+- Use `AskUserQuestion`:
+  > You're on `{branch}`. Continue here or create a new branch?
+  Buttons: `["Continue on {branch}", "Create new branch"]`
+- If continuing, move to Phase 2.5.
 
 **If on the default branch**, choose how to proceed:
 
@@ -234,7 +313,7 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
      Status: COMPLETE -- ready to ship
      ```
 
-<!-- SYNC: This verification parses the report format defined in commands/review.md (Synthesized report structure section). If the report structure changes, update the parsing logic here. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect this parsing. -->
+<!-- SYNC: This verification parses the report format defined in skills/review/SKILL.md:362 (Synthesized report structure section). If the report structure changes, update the parsing logic here. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect this parsing. -->
 
 #### 4d -- Optional: Agent-assisted review
 
@@ -249,6 +328,8 @@ For **non-review-fix plans** with large, risky, or security-sensitive changes, c
 
 ### Phase 5: Ship
 
+**If git is NOT available (Phase 0 detected `NO_GIT`):** Skip commit and PR steps. Summarize what was completed and remaining follow-ups, then stop.
+
 **CRITICAL: Every git action in this phase requires explicit user confirmation via `AskUserQuestion`. NEVER commit, push, or create a PR without asking first.**
 
 **NO ATTRIBUTION: Do not add `Co-Authored-By`, `Generated with Claude`, `Built with AI`, or any similar attribution lines to commit messages or PR descriptions. Keep them clean. Only add attribution if the user explicitly requests it.**
@@ -262,7 +343,7 @@ If there are uncommitted changes after Phase 4:
    git add <relevant files>
    ```
 
-2. Delegate to `/quiver:commit`. This command generates a Conventional Commits message, presents it to the user via `AskUserQuestion` with Commit / Commit & Push / Edit / Cancel options, and only executes after the user explicitly chooses. It handles the full commit (and optional push) flow with built-in confirmation.
+2. Delegate to `/quiver:commit`. This skill generates a Conventional Commits message, presents it to the user via `AskUserQuestion` with Commit / Commit & Push / Edit / Cancel options, and only executes after the user explicitly chooses. It handles the full commit (and optional push) flow with built-in confirmation.
 
 3. If the user cancelled the commit, respect that -- do not re-ask or proceed to 5b.
 
@@ -274,35 +355,8 @@ After committing (or if all commits were already made during Phase 3), ask the u
    > All work is committed on `{branch_name}`. What would you like to do next?
    Buttons: `["Create a pull request", "Done -- I'll handle the rest"]`
 
-   - **Create a pull request** -- if not already pushed, push first with `git push -u origin <branch-name>`. Then draft the PR title and summary, and present for confirmation (step 2).
+   - **Create a pull request** -- delegate to `/quiver:create-pr`. It handles push, title generation, body formatting, and confirmation.
    - **Done** -- stop here. Move to 5c.
-
-2. If creating a PR, draft the title and summary, then ask for confirmation:
-   > Proposed PR:
-   > **Title:** {title}
-   > **Summary:** {summary}
-   Buttons: `["Create this PR", "Edit before creating", "Skip PR"]`
-
-   - **Create this PR** -- create the PR as shown.
-   - **Edit before creating** -- ask the user what to change, revise, then re-present.
-   - **Skip PR** -- the branch is pushed, but no PR is created.
-
-   PR template:
-   ```
-   gh pr create --title "<title>" --body "$(cat <<'EOF'
-   ## Summary
-   - What was built and why
-   - Key decisions made
-
-   ## Testing
-   - Tests added or modified
-   - Manual testing performed
-
-   ## Changes
-   - List of significant changes
-   EOF
-   )"
-   ```
 
 #### 5c -- Update plan status
 
@@ -380,3 +434,34 @@ Small, focused commits are easier to review, easier to revert, and easier to deb
 - Linting warnings present
 - No integration tests for changes that touch callbacks or middleware
 - Plan had acceptance criteria that were not explicitly verified (NOTE: for review-fix plans, acceptance criteria are BLOCKING per Phase 4c step 7)
+
+---
+
+## Test Plan
+
+**Trigger:** `/work [plan-path | plan-name | task description]` (and `/quiver:work` should also work)
+
+**Setup:**
+- Current directory is a git repo with at least one plan in `.claude/plans/` or a related `plans/` directory.
+- For the review-fix path: a plan with `review_source` frontmatter pointing at an existing `.claude/reports/review-*.md` file.
+
+**Expected behavior:**
+1. Skill runs the four git shell blocks plus the silent Glob over `.claude/plans/` and `**/plans/*.md`.
+2. Phase 1 loads the plan via Case A (path), Case B (no args), or Case C (name match), printing the executing-plan banner before proceeding.
+3. Phase 0 NO_GIT handling skips branch creation, commits, and PR steps cleanly when the directory is not a git repo.
+4. Phase 2.5 announces `Strategy: sequential` for 1-2 tasks or `parallel orchestration` for 3+ tasks before continuing.
+5. For review-fix plans, Phase 4c parses the report's findings (skipping `## Filtered Findings`), runs the verification table, applies the BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
+6. Phase 5 delegates commit and PR creation to `/quiver:commit` and `/quiver:create-pr`, gating each git action with `AskUserQuestion` and never adding AI attribution.
+
+**Verification checklist:**
+- [ ] Slash menu shows `/work`.
+- [ ] Plan banner is printed before any code changes (`> Executing plan: <name>`).
+- [ ] Orchestration decision line appears for every plan, including 1-2 task plans.
+- [ ] In a non-git directory, the skill still loads the plan and runs Phase 3-4 but exits at Phase 5 without commit/PR.
+- [ ] Review-fix plans produce the verification table and convergence verdict; non-review-fix plans skip Phase 4c entirely.
+- [ ] Final commit and PR steps both go through `AskUserQuestion`; the skill never auto-pushes.
+
+**Known gotchas:**
+- Phase 4c parses the synthesized report format produced by the review skill; the SYNC comment near the verification block must stay paired with the matching marker in `skills/review/SKILL.md`.
+- For 3+ task plans the orchestrator (`skills/work/orchestrator.md`) replaces Phase 3; do not run Phase 3's TodoWrite loop in addition to it.
+- `git add .` is banned anywhere in this skill; agents reading the plan must stage explicit file paths.
