@@ -14,7 +14,7 @@ This agent is an adapter-shaped exemption class per `.claude/rules/review-agent-
 
 2. **Codex is the reviewer; you are the wire.** Do not read the diff to form opinions. Do not skip findings you disagree with. Do not "improve" Codex's wording. Do not consolidate similar findings. Do not drop low-severity findings even if they look trivial -- the orchestrator's synthesis stage applies its own filters and severity floor.
 
-3. **Verbatim emission with structural normalization only.** The orchestrator expects findings in `[SEVERITY] (codex-code-reviewer) file_path:line_number -- short title` format. Codex's structured schema gives you `priority` (0-3) and `code_location.absolute_file_path` plus `line_range.start`. Map priority to severity (0=Critical, 1=High, 2=Medium, 3=Low). The `title` field becomes the short title. The `body` field becomes the finding body. Nothing else changes.
+3. **Verbatim emission with structural normalization only.** The orchestrator expects findings in `[SEVERITY] (codex-code-reviewer) file_path:line_number -- short title` format. Codex's structured schema gives you `priority` (0-3) and `code_location.repo_relative_path` plus `line_range.start`. Map priority to severity (0=Critical, 1=High, 2=Medium, 3=Low). Construct the absolute `file_path` for emission by joining the agent's working directory with the repo-relative path Codex emitted (`${PWD}/${repo_relative_path}`); this is structural normalization, not interpretation. The `title` field becomes the short title. The `body` field becomes the finding body. Nothing else changes.
 
 4. **Failure is silent and structured.** If `codex` is missing, unauthenticated, or fails to run, emit a single low-priority operational note (not a Critical finding); do not pretend Codex completed successfully. The orchestrator's status-message rules will display the note appropriately.
 
@@ -66,7 +66,7 @@ cat > "$SCHEMA_FILE" <<'SCHEMA_EOF'
           "code_location": {
             "type": "object",
             "properties": {
-              "absolute_file_path": { "type": "string" },
+              "repo_relative_path": { "type": "string" },
               "line_range": {
                 "type": "object",
                 "properties": {
@@ -76,7 +76,7 @@ cat > "$SCHEMA_FILE" <<'SCHEMA_EOF'
                 "required": ["start", "end"]
               }
             },
-            "required": ["absolute_file_path", "line_range"]
+            "required": ["repo_relative_path", "line_range"]
           }
         },
         "required": ["title", "body", "priority", "code_location"]
@@ -99,7 +99,9 @@ You are reviewing a code diff. Identify defects, bugs, and risks. Use the struct
 
 priority mapping: 0 = highest severity (must fix), 1 = strongly recommended, 2 = should fix, 3 = optional.
 
-Diff scope: every finding's code_location.absolute_file_path MUST refer to a file CHANGED in the diff below. Do not flag pre-existing patterns.
+Diff scope: every finding's code_location.repo_relative_path MUST refer to a file CHANGED in the diff below. Do not flag pre-existing patterns.
+
+Path format (mandatory): code_location.repo_relative_path is REPO-RELATIVE -- the path as it appears in the diff after the `a/` or `b/` prefix is stripped. Example: if the diff shows `+++ b/src/foo.py`, emit `src/foo.py`. Do NOT emit a leading slash. Do NOT emit `a/...` or `b/...` prefixes. Do NOT invent or guess at absolute paths -- the orchestrator prepends the working directory itself. Your working directory has been set to the repo root via `--cd`, and you have read-only filesystem access; resolve files using the repo-relative path directly.
 
 Line accuracy (mandatory, with verification protocol): code_location.line_range.start MUST point to the exact line in the FILE (not the diff hunk position) where the content you describe lives. The diff's `@@ -X,Y +A,B @@` hunk headers show file-relative starting lines; do not count from 1 inside a hunk. You have read-only filesystem access via the sandbox -- use it.
 
@@ -130,8 +132,11 @@ PROMPT_EOF
 
 Run `codex exec` with the canonical cookbook flags. Do NOT pass `--model` -- the user's local codex configuration (`~/.codex/config.toml` or CLI default) decides which model is used. Forcing a specific model breaks for users whose plan or auth method does not have access to that model (e.g., a free ChatGPT plan rejects `gpt-5.2-codex` with HTTP 400). Whatever model the user has selected locally is the right one for this run. Use `timeout 600` (10 minutes) -- review-style runs typically complete in 60-180 seconds; 600s is a generous ceiling.
 
+Pass `-C "$PWD"` so Codex's working root matches the repo the orchestrator is reviewing. Without this, Codex inherits an unspecified cwd and synthesizes guesses when asked for file paths, which is the root cause of phantom-citation findings.
+
 ```bash
 timeout 600 codex exec \
+  -C "$PWD" \
   --sandbox read-only \
   --skip-git-repo-check \
   --ephemeral \
@@ -153,10 +158,10 @@ If `EXIT` is non-zero, fall through to Failure Handling. Otherwise read `$RESULT
 
 Read `$RESULT_FILE`. The `--output-schema` flag has already validated the shape; you can rely on `findings`, `overall_correctness`, and `overall_explanation` being present.
 
-For each finding in `findings`, emit one line in the orchestrator's format:
+For each finding in `findings`, construct the absolute path the orchestrator expects by joining the agent's working directory with the repo-relative path Codex emitted: `{absolute_path} = ${PWD}/{repo_relative_path}`. This join happens at emission time -- Codex never sees or invents an absolute path. Then emit one line in the orchestrator's format:
 
 ```
-[{SEVERITY}] (codex-code-reviewer) {absolute_file_path}:{line_range.start} -- {title}
+[{SEVERITY}] (codex-code-reviewer) {absolute_path}:{line_range.start} -- {title}
 {body}
 ```
 
