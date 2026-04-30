@@ -2,6 +2,7 @@
 name: plan
 description: Create a structured implementation plan with parallel agent research before coding.
 argument-hint: "<task description>"
+disable-model-invocation: true
 ---
 
 # Gather Context
@@ -364,3 +365,32 @@ Handle each response:
 After saving the plan file:
 1. Read the file back to confirm contents.
 2. Confirm the plan directory exists and the file is listed.
+
+---
+
+## Test Plan
+
+**Trigger:** `/plan <task description>` (and `/quiver:plan` should also work)
+
+**Setup:**
+- Project root with optional `.claude/plans/` directory.
+- For review-fix path: a `.claude/reports/review-*.md` file exists and is passed as the argument.
+
+**Expected behavior:**
+1. Skill gathers git context; on a non-git directory it continues with empty git fields and a warning line.
+2. Skill restates the task and assesses complexity (Light / Standard / Deep) silently, dispatching the matched agents in parallel.
+3. Skill detects review-fix context when the argument matches `.claude/reports/review-*.md` and adds `review_source` + `review_iteration` to the plan frontmatter.
+4. Skill presents the synthesized plan and uses `AskUserQuestion` for the Step 7 review gate (`Approve` / `Modify` / `Reject`).
+5. On `Approve`, skill saves the plan to `.claude/plans/YYYY-MM-DD-<name>-plan.md`, reads it back to verify, then invokes `AskUserQuestion` again for the Step 8 next-step gate.
+
+**Verification checklist:**
+- [ ] Slash menu shows `/plan`.
+- [ ] Plan file is written under `.claude/plans/` with the date-prefixed filename.
+- [ ] Multiple agents are dispatched in a single response when complexity is Standard or Deep (parallel execution).
+- [ ] Review-fix detection produces frontmatter with `review_source` and `review_iteration`.
+- [ ] No raw `{placeholder}` strings remain in the saved plan.
+- [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
+
+**Known gotchas:**
+- The Explore agent prompt embeds the full Code Navigation Strategy block; updates to that block must keep the skill body in sync with `skills/code-navigation/SKILL.md`.
+- `review_iteration` is determined by counting prior plans with the same `review_source` field; if naming conventions drift, the iteration count can desync.

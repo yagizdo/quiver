@@ -2,6 +2,7 @@
 name: brainstorm
 description: Explore ideas, compare approaches, and produce a validated spec before planning.
 argument-hint: "<idea or feature description>"
+disable-model-invocation: true
 ---
 
 # Gather Context
@@ -256,3 +257,32 @@ Handle each response:
 - **Don't** leave placeholder sections in the spec ("TBD", "TODO") -- either fill them or remove them.
 - **Don't** add features the user didn't ask for -- if it's not in the requirements, it's not in the spec. Ask the user before adding "nice to have" features.
 - **Don't** design for hypothetical future requirements -- solve the problem at hand. If the user says "we might need X later", note it in Open Questions, don't architect for it now.
+
+---
+
+## Test Plan
+
+**Trigger:** `/brainstorm <idea>` (and `/quiver:brainstorm` should also work)
+
+**Setup:**
+- Project root with optional `docs/brainstorms/` directory.
+
+**Expected behavior:**
+1. Skill silently gathers project context (Glob over brainstorms/plans/source dirs) and runs the three git shell blocks.
+2. Skill restates the idea, picks a depth (Quick / Standard / Deep) silently, and asks 0-4 clarifying questions via `AskUserQuestion`.
+3. Skill presents 2-3 distinct approaches grounded in the codebase, leads with a recommendation, and asks the user to choose via `AskUserQuestion`.
+4. After approach selection, skill prints the Executive Summary and asks `Approve / Adjust / Restart` via `AskUserQuestion`.
+5. On approval, skill writes the spec to `docs/brainstorms/YYYY-MM-DD-<name>.md` (in English regardless of conversation language) and reads it back to verify.
+6. Skill ends with `AskUserQuestion` offering `Looks good / Let me review first / Save and stop`; on the first option it invokes the `plan` skill with the spec path.
+
+**Verification checklist:**
+- [ ] Slash menu shows `/brainstorm`.
+- [ ] Spec file is written under `docs/brainstorms/` with the date-prefixed filename.
+- [ ] All clarifying / approach / approval / next-step prompts use `AskUserQuestion`, not plain text.
+- [ ] Spec body has no raw `{placeholder}` text.
+- [ ] Visual companion offer appears only when the topic is visual (UI/UX/architecture diagrams).
+- [ ] Spec language is English unless the user explicitly asked for another language.
+
+**Known gotchas:**
+- Visual companion requires the `visual-companion` skill's runtime; if its server cannot start, the brainstorm should fall back to text without aborting.
+- The decomposition check fires on 3+ subsystems or 20+ estimated files; tuning these heuristics affects when the split prompt is offered.

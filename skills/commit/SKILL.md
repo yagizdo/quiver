@@ -1,7 +1,8 @@
 ---
 name: commit
 description: Generate a Conventional Commits message, commit, and optionally push to remote.
-argument-hint: [--push] (auto commit & push without prompting)
+argument-hint: "[--push] (auto commit & push without prompting)"
+disable-model-invocation: true
 ---
 
 # Gather Git Context
@@ -140,3 +141,30 @@ Use the `AskUserQuestion` tool with the commit message embedded in the question 
 # Error Handling
 
 If `git commit` fails, show the error verbatim and suggest the user fix the issue and re-run `/quiver:commit`. Never retry automatically or use `--no-verify`.
+
+---
+
+## Test Plan
+
+**Trigger:** `/commit` or `/commit --push` (and `/quiver:commit` should also work)
+
+**Setup:**
+- Current directory is a git repo with at least one staged change (`git diff --cached` is non-empty).
+
+**Expected behavior:**
+1. Skill runs the four git shell blocks; on a non-git directory it prints `> No git repository detected. /commit requires a git repo.` and stops.
+2. With nothing changed, skill tells the user there's nothing to commit. With unstaged-only changes, skill tells the user to stage first.
+3. With staged changes, skill drafts a Conventional Commits message (type/scope/subject) and presents it via `AskUserQuestion` with `Commit / Commit & Push / Edit / Cancel`.
+4. With `--push` argument, skill skips the prompt and runs commit then push (`git push` if upstream exists, `git push -u origin <branch>` otherwise).
+5. On failure, skill shows the error verbatim and exits without retrying or adding `--no-verify`.
+
+**Verification checklist:**
+- [ ] Slash menu shows `/commit`.
+- [ ] Generated commit message starts with a valid type (`feat`, `fix`, `docs`, etc.) and a subject ≤72 chars.
+- [ ] No `Co-authored-by` or AI-attribution footers appear in the commit.
+- [ ] The interactive prompt is an `AskUserQuestion` with the message embedded in the question, not plain text.
+- [ ] `--push` path commits and pushes without prompting.
+
+**Known gotchas:**
+- The `\x1b[2m` ANSI dim escape inside the question string assumes the user's terminal renders ANSI; non-ANSI terminals will see literal escape codes but the message remains readable.
+- Pushing without an upstream requires `git push -u origin <branch>`; do not silently fall back to `git push` when no upstream is configured.

@@ -2,6 +2,7 @@
 name: review
 description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings. Pass --with-codex for cross-model coverage via the OpenAI Codex CLI.
 argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
+disable-model-invocation: true
 ---
 
 # Gather Context
@@ -127,7 +128,7 @@ Format the manifest as a simple list:
 
 ```
 Diff Manifest:
-- commands/review.md → PROMPT (low security relevance)
+- skills/review/SKILL.md → PROMPT (low security relevance)
 - hooks/scripts/pre-compact-handover.sh → SCRIPT (high security relevance)
 - plugin.json → CONFIG-MANIFEST (low security relevance)
 - .env.example → CONFIG-APP (high security relevance)
@@ -358,7 +359,7 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-<!-- SYNC: This report format is parsed by skills/work/SKILL.md Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. -->
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. -->
 
 ## Step 4 -- Save Review Report
 
@@ -493,3 +494,36 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 - **Don't** hardcode platform tokens, repository URLs, or API endpoints -- rely on `gh`/`glab` CLIs which manage their own authentication.
 - **Don't** retry or error out if PR comment posting fails -- warn and move on.
 - **Don't** narrate your work to the user using internal rule codes, SHA hashes, or invariant names -- every chat-stream status line must follow the "Status Messages: Plain Language Required" section above. The saved report body is the only place rule codes belong.
+
+---
+
+## Test Plan
+
+**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
+
+**Setup:**
+- Current directory is a git repo with at least one diff source (PR URL, branch ahead of base, or uncommitted changes).
+- `agents/review/*.md` and `agents/research/*.md` are present and registered in `.claude-plugin/plugin.json`.
+- `gh` and/or `glab` CLI installed if testing PR Mode 1 path.
+
+**Expected behavior:**
+1. Skill picks the first matching review mode (PR/MR URL, branch diff, uncommitted) and announces it.
+2. Skill builds the Diff Manifest (Step 1.5) classifying every changed file (`PROMPT`, `SCRIPT`, `CONFIG-APP`, `CONFIG-MANIFEST`, `CODE`, `DOCS`).
+3. Skill runs LSP detection (Step 1.75) and dispatches all qualifying agents in a single response (parallel) with the agent context including Diff Manifest, scope reminders, and `lsp_available`.
+4. Skill detects existing review reports for the same branch and switches to re-review mode with delta-only scope when a previous report is found.
+5. Skill synthesizes findings (deduplicate, subsumption, severity normalization, false-positive filters, proportional floor) and writes `review-<timestamp>.md` to the configured output directory; with `--terminal`, prints inline instead.
+6. Skill optionally posts the report as a PR comment when `--comment-pr` is set or the user opts in interactively.
+7. All chat-stream output passes the Status-Messages plain-language gate (no rule codes, hashes, or invariant names in user-facing text).
+
+**Verification checklist:**
+- [ ] Slash menu shows `/review`.
+- [ ] All qualifying agents are spawned in a single response (multiple Agent tool calls in one assistant turn).
+- [ ] Re-review mode produces a `Delta` line and `Scope: Delta-only` in the saved report's `## Review Context`.
+- [ ] Report path defaults to `.claude/reports/` and respects `--output`/`--set-output`/saved preference, with path validation rejecting absolute paths and `..` segments.
+- [ ] `--with-codex` is silently skipped when the `codex` CLI is missing (does not error).
+- [ ] No internal jargon (rule codes, hashes, invariant names) appears in the terminal summary; report file content may include them.
+
+**Known gotchas:**
+- Bitbucket/Azure DevOps PR URLs fall back to Mode 2 because there is no diff CLI; PR commenting also skips on those platforms with a manual-paste hint.
+- Two-dot `git diff <base>..<head>` is wrong for branch diffs; the skill uses three-dot `git diff <base>...HEAD` instead.
+- The synthesized report SYNC contract pairs with `skills/work/SKILL.md` Phase 4c parsing; changing section headings or finding-ID format requires updating the work skill verification logic.
