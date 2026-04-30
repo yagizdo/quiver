@@ -1,7 +1,6 @@
 ---
 name: load-handover
 description: Load the most recent handover note from the previous session into context.
-disable-model-invocation: true
 ---
 
 # Previous Session Handover

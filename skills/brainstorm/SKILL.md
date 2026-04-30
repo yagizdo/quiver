@@ -2,7 +2,6 @@
 name: brainstorm
 description: Explore ideas, compare approaches, and produce a validated spec before planning.
 argument-hint: "<idea or feature description>"
-disable-model-invocation: true
 ---
 
 # Gather Context
