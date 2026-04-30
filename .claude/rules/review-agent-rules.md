@@ -4,10 +4,10 @@ Hard rules and learned lessons for writing agents that participate in `/quiver:r
 
 **Scope:**
 - Everything under `agents/review/` is covered by the full rule set (RA1-RA8) without exception.
-- Cross-category research agents dispatched by `commands/review.md` (currently `agents/research/best-practices-researcher.md` and `agents/research/project-context-analyst.md`) are a research-shaped exemption class, analogous to RA3's adversarial-agent exemptions. They MUST carry RA2 (hypothetical ban) in its canonical form, and SHOULD carry an RA1-equivalent discipline section, an RA5 zero-findings clause, an RA7 relevance/diff-scoping clause, and an RA8-equivalent citation rule. RA4 (stability test) and RA6 (severity earned, not assigned) do not apply because these agents surface context and facts rather than severity-graded findings -- the stability and severity-tier framings have no target to act on. When writing or editing a research agent, name this exemption explicitly in its discipline section so reviewers do not treat the missing rules as drift.
+- Cross-category research agents dispatched by `skills/review/SKILL.md` (currently `agents/research/best-practices-researcher.md` and `agents/research/project-context-analyst.md`) are a research-shaped exemption class, analogous to RA3's adversarial-agent exemptions. They MUST carry RA2 (hypothetical ban) in its canonical form, and SHOULD carry an RA1-equivalent discipline section, an RA5 zero-findings clause, an RA7 relevance/diff-scoping clause, and an RA8-equivalent citation rule. RA4 (stability test) and RA6 (severity earned, not assigned) do not apply because these agents surface context and facts rather than severity-graded findings -- the stability and severity-tier framings have no target to act on. When writing or editing a research agent, name this exemption explicitly in its discipline section so reviewers do not treat the missing rules as drift.
 - Transport-adapter agents (currently `agents/review/codex-code-reviewer.md`) are an adapter-shaped exemption class. These agents do NOT review the diff -- they relay another reviewer's findings verbatim (e.g., the OpenAI Codex CLI). Because the agent emits no judgment of its own, RA1-RA8 review-discipline rules have no target and do not apply: there is no discipline section governing trace methodology (the agent traces nothing), no hypothetical-language ban applicable to passthrough output, no stability test on findings the agent did not author, no severity-tier rubric on severities the agent did not assign. The adapter's own discipline -- a passthrough contract forbidding interpretation, summarization, filtering, or rephrasing of the wrapped reviewer's output -- replaces the standard review discipline. When writing a transport-adapter agent, the agent file MUST contain a top-level "Adapter Discipline" section that names this exemption explicitly, so reviewers do not treat the missing review-discipline rules as drift. If a future adapter starts emitting its own analysis on top of the wrapped reviewer's findings, the exemption no longer holds and RA1-RA8 apply automatically.
 
-For command authoring rules, see `command-rules.md`.
+For skill authoring rules, see `skill-rules.md`.
 
 ---
 
@@ -45,18 +45,18 @@ When adding a new adversarial agent, draft an exemption variant that names its a
 ## Learned Lessons
 
 **LA1. Copy-paste drift across agent files is real.**
-When the same rule text is inserted into multiple agent files, future edits drift unless actively verified. `commands/review.md` Task 14 of the 2026-04-10 calibration plan observed this.
+When the same rule text is inserted into multiple agent files, future edits drift unless actively verified. `skills/review/SKILL.md` Task 14 of the 2026-04-10 calibration plan observed this.
 *Prevention:* After inserting shared rule text into multiple files, hash the rule body (stripping the leading `N.` number prefix) across all files and verify a single identical hash. Example command:
 ```
 for f in agents/.../*.md; do grep "{unique phrase}" "$f" | sed -E 's/^[[:space:]]*[0-9]+\. //' | shasum -a 256; done
 ```
 
 **LA2. Discipline rules compose with orchestrator-level scope clauses.**
-The review orchestrator (`commands/review.md` Step 2 item 9) injects a general aspirational-lock clause into every agent prompt, and the Step 1 re-review block adds a delta-specific scope lock on top. Agent-level discipline rules must not contradict these orchestrator-level locks -- they must compose cleanly.
-*Prevention:* When drafting a new discipline rule, re-read `commands/review.md` Step 1 (Re-review detection) and Step 2 (per-agent context item 9) and verify the new rule does not contradict either. If a contradiction exists, the orchestrator-level clause wins; revise the agent rule.
+The review orchestrator (`skills/review/SKILL.md` Step 2 item 9) injects a general aspirational-lock clause into every agent prompt, and the Step 1 re-review block adds a delta-specific scope lock on top. Agent-level discipline rules must not contradict these orchestrator-level locks -- they must compose cleanly.
+*Prevention:* When drafting a new discipline rule, re-read `skills/review/SKILL.md` Step 1 (Re-review detection) and Step 2 (per-agent context item 9) and verify the new rule does not contradict either. If a contradiction exists, the orchestrator-level clause wins; revise the agent rule.
 
 **LA3. The synthesis stage filters hedged findings a second time.**
-Even if an agent emits a hedged finding that violates its discipline, `commands/review.md` Step 3 sub-item 4a (Proportional severity floor) and the existing 8 false-positive filters catch it at synthesis. This is a backstop, not a primary defense. Agent-level bans are the primary defense because they prevent the finding from existing in the first place; synthesis filters are the secondary net.
+Even if an agent emits a hedged finding that violates its discipline, `skills/review/SKILL.md` Step 3 sub-item 4a (Proportional severity floor) and the existing 8 false-positive filters catch it at synthesis. This is a backstop, not a primary defense. Agent-level bans are the primary defense because they prevent the finding from existing in the first place; synthesis filters are the secondary net.
 *Prevention:* Do not rely on synthesis filters to compensate for a weak agent-level discipline. If an agent produces noisy findings, fix the discipline rules in the agent file first.
 
 **LA4. Research-agent exemptions depend on output shape, not identity.**

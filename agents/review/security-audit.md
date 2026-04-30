@@ -55,7 +55,7 @@ Before scanning for specific vulnerabilities, establish what you are defending. 
 
 ## Diff Manifest Awareness
 
-The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+The Diff Manifest is built by the review orchestrator (skills/review/SKILL.md Step 1.5).
 Use it to calibrate audit depth:
 
 - **PROMPT files**: These are LLM instructions, not executable scripts. Do NOT flag shell injection, path traversal, or input validation in prompt blocks. DO flag hardcoded secrets, instructions that expose sensitive data, and prompt injection vectors.

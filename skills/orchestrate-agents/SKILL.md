@@ -744,3 +744,28 @@ Glob("~/.claude/agents/*.md")   # User agents
 ## Ambiguity Handling
 
 If the task is ambiguous and agent selection cannot be determined confidently, ask ONE clarifying question before planning. Do not guess.
+
+---
+
+## Test Plan
+
+**Trigger:** Reference skill -- not directly invoked. Loaded via the Skill tool when the user asks the main agent to delegate work across specialists, run multiple agents on a task, or coordinate parallel agent execution.
+
+**Setup:**
+- A Claude Code session with at least one quiver plugin agent under `agents/<category>/<name>.md` and the plugin enabled.
+
+**Expected behavior:**
+1. Skill is invocable via `Skill orchestrate-agents` (or auto-loaded by description matching) and stays in the main agent's context -- it never spawns itself as a subagent.
+2. Skill discovers available agents from `agents/**/*.md`, `.claude/agents/*.md`, and `~/.claude/agents/*.md` before assembling a team.
+3. Skill defers to `skills/work/orchestrator.md` for plan-execution-specific orchestration (dependency resolution, worktree isolation, merge order).
+4. When task scope is ambiguous, skill asks ONE clarifying question via `AskUserQuestion` before planning.
+
+**Verification checklist:**
+- [ ] `Skill orchestrate-agents` loads without error and is listed in skill discovery.
+- [ ] Agent selection draws from all three discovery roots; project agents override same-named plugin/user agents.
+- [ ] Skill explicitly delegates to the work orchestrator for plan-driven runs instead of duplicating that logic.
+- [ ] Ambiguous tasks produce a single clarifying question, not silent guesses.
+
+**Known gotchas:**
+- This skill is the GENERAL orchestrator; the WORK skill's `orchestrator.md` is the specialized variant for plan execution. Do not conflate them.
+- Discovery globs `~/.claude/agents/*.md` -- on systems where the home directory is unreadable, that source is silently empty.

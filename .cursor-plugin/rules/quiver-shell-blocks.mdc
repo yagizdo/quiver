@@ -1,30 +1,30 @@
 ---
 name: quiver-shell-blocks
-description: How to interpret Quiver command bodies on Cursor
+description: How to interpret Quiver skill bodies on Cursor
 alwaysApply: true
 ---
 
 # Quiver on Cursor: Interpretation Rules
 
-Quiver's commands, agents, and skills were originally written for Claude Code. When you (the Cursor agent) load any file under `commands/`, `agents/`, or `skills/` and execute the workflow it describes, follow these substitution rules.
+Quiver's agents and skills were originally written for Claude Code. When you (the Cursor agent) load any file under `agents/` or `skills/` and execute the workflow it describes, follow these substitution rules.
 
 ## Inline shell-block syntax
 
-Quiver commands contain blocks like:
+Quiver skills contain blocks like:
 
 ```
 !`git status`
 ```
 
-In Claude Code, the harness pre-executes these and injects the output into the prompt. Cursor does not do this. When you see one of these blocks in a command body:
+In Claude Code, the harness pre-executes these and injects the output into the prompt. Cursor does not do this. When you see one of these blocks in a skill body:
 
 1. Execute the command yourself via the `Shell` tool.
 2. Read the output.
-3. Continue with the rest of the command body, treating the output as if the harness had injected it.
+3. Continue with the rest of the skill body, treating the output as if the harness had injected it.
 
 ## Tool-name substitutions
 
-When a Quiver command, agent, or skill references a Claude Code tool name, use the Cursor equivalent.
+When a Quiver agent or skill references a Claude Code tool name, use the Cursor equivalent.
 
 | Claude Code | Cursor | Notes |
 |-------------|--------|-------|
@@ -43,7 +43,7 @@ When a Quiver command, agent, or skill references a Claude Code tool name, use t
 
 ## AskUserQuestion substitution
 
-Cursor does not expose a public action-button question API as of 2026. When a Quiver command says `AskUserQuestion(...)` or asks you to present action-button prompts, render a numbered text prompt and wait for the user's reply.
+Cursor does not expose a public action-button question API as of 2026. When a Quiver skill says `AskUserQuestion(...)` or asks you to present action-button prompts, render a numbered text prompt and wait for the user's reply.
 
 Format:
 

@@ -112,7 +112,7 @@ Evaluate whether the diff introduces unnecessary complexity.
 
 ## Diff Manifest Awareness
 
-The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+The Diff Manifest is built by the review orchestrator (skills/review/SKILL.md Step 1.5).
 Use it to calibrate audit depth:
 
 - **PROMPT files**: Structural waste only -- unnecessary sections, duplicated instructions, unreachable prompt text. Do NOT evaluate prompt quality.

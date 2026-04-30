@@ -1,6 +1,7 @@
 ---
 name: delete-all-handovers
 description: Delete all handover files for the current project to completely reset session history.
+disable-model-invocation: true
 ---
 
 # Clear All Handovers
@@ -60,3 +61,31 @@ After deletion, output:
 ## Verification
 
 Re-list `.claude/handovers/` after deletion to confirm no `.md` files remain. If the directory is now empty, confirm: "Directory clean — 0 handover files."
+
+---
+
+## Test Plan
+
+**Trigger:** `/delete-all-handovers` (and `/quiver:delete-all-handovers` should also work)
+
+**Setup:**
+- `.claude/handovers/` exists in the project root with two or more `.md` files.
+
+**Expected behavior:**
+1. Skill globs `.claude/handovers/*.md` and lists every filename with the count (`Files to delete (N): …`).
+2. Skill calls `AskUserQuestion` with `["Yes, delete all", "Cancel"]`.
+3. On cancel, skill prints `Cancelled — no files were deleted.` and exits without touching any files.
+4. On confirm, skill runs `rm -f .claude/handovers/*.md`, then strips lines tagged `<!-- handover-sourced -->` from `MEMORY.md` via Edit, reporting how many were removed.
+5. Skill re-lists the directory to confirm 0 `.md` files remain and prints the output template (`Purged`, `Files deleted`, `Status: Clean slate.`).
+
+**Verification checklist:**
+- [ ] Slash menu shows `/delete-all-handovers`.
+- [ ] With an empty/missing handovers directory, skill prints the `nothing to purge` line and writes nothing.
+- [ ] Inventory list shows every `.md` filename before deletion.
+- [ ] Confirmation prompt is `AskUserQuestion`, not plain text.
+- [ ] `MEMORY.md` lines without the `<!-- handover-sourced -->` marker stay intact.
+- [ ] Final re-list reports `Directory clean — 0 handover files.`
+
+**Known gotchas:**
+- The `rm -f .claude/handovers/*.md` glob is shell-expanded; if the directory is missing entirely, `rm -f` exits 0, which is desired but means callers must rely on the pre-deletion existence check.
+- Bulk deletion is irreversible; never skip the `AskUserQuestion` step, even when running automated tests.

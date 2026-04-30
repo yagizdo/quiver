@@ -9,12 +9,12 @@
 
 ## Important locations
 
-- `.claude-plugin/plugin.json` -- Plugin manifest (name, version, skill/command registration).
+- `.claude-plugin/plugin.json` -- Plugin manifest (name, version, skill/agent registration).
 - `.claude-plugin/marketplace.json` -- Marketplace listing metadata (keywords, tags, category).
 - `hooks/hooks.json` -- Hook event registration (currently only PreCompact).
 - `hooks/scripts/pre-compact-handover.sh` -- PreCompact hook implementation; uses `claude -p` for summarization.
-- `commands/handover.md:86` -- SYNC comment pointing to hook script headings.
-- `hooks/scripts/pre-compact-handover.sh:25` -- SYNC comment pointing to command headings.
+- `skills/handover/SKILL.md:96` -- SYNC comment pointing to hook script headings; the 8 headings live at lines 99-129.
+- `hooks/scripts/pre-compact-handover.sh:25` -- SYNC comment pointing to handover skill headings.
 
 ## Change safety rules
 

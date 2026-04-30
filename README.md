@@ -10,7 +10,7 @@ Quiver coordinates multi-step development workflows and session continuity for y
 
 ## Typical workflow
 
-A normal feature cycle in Quiver chains the commands below. Each command is self-contained, so skip or substitute steps as needed.
+A normal feature cycle in Quiver chains the skills below. Each one is self-contained, so skip or substitute steps as needed.
 
 1. `/brainstorm` -- turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
 2. `/plan` -- research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
@@ -55,31 +55,30 @@ Planned in sequential follow-up branches.
 
 | Component | Count |
 |-----------|-------|
-| Commands | 13 |
 | Hooks | 1 |
-| Skills | 6 |
+| Skills | 16 |
 | Agents | 10 |
 
-## Commands
+## Skills
 
 ### Session Handover
 
-| Command | Description | When to use |
-|---------|-------------|-------------|
+| Skill | Description | When to use |
+|-------|-------------|-------------|
 | `/handover` | Builds an 8-section handover note with freshness checks and quality gates | At the end of a work session to preserve context for resuming later |
 | `/load-handover` | Loads the most recent handover and highlights top priorities | At the start of a new session to pick up where the last one left off |
 
 ### Cleanup
 
-| Command | Description |
-|---------|-------------|
+| Skill | Description |
+|-------|-------------|
 | `/delete-last-handover` | Show and delete the most recent handover file with confirmation |
 | `/delete-all-handovers` | List all handover files, confirm, then delete everything |
 
 ### Code Review
 
-| Command | Description | When to use |
-|---------|-------------|-------------|
+| Skill | Description | When to use |
+|-------|-------------|-------------|
 | `/review` | Dispatches specialized review agents in parallel and synthesizes their findings into one report | Before merging a PR, or whenever you want multi-agent code review of a branch or PR URL |
 
 **Diff source** (pick one):
@@ -117,8 +116,8 @@ Planned in sequential follow-up branches.
 
 ### Git
 
-| Command | Description |
-|---------|-------------|
+| Skill | Description |
+|-------|-------------|
 | `/commit` | Generate a Conventional Commits message from staged changes, commit, and optionally push |
 | `/create-pr` | Create a GitHub pull request from the current branch |
 
@@ -129,24 +128,34 @@ Planned in sequential follow-up branches.
 
 ### Agent Development
 
-| Command | Description |
-|---------|-------------|
+| Skill | Description |
+|-------|-------------|
 | `/create-agent` | Scaffold a new agent interactively from a description or Q&A walkthrough |
 | `/create-agents-md` | Analyze project context and generate an AGENTS.md checklist for AI agents |
 
 ### Planning & Execution
 
-| Command | Description | When to use |
-|---------|-------------|-------------|
+| Skill | Description | When to use |
+|-------|-------------|-------------|
 | `/brainstorm` | Explores ideas, compares approaches, and produces a validated spec before planning | When you have a vague idea and need to pin down scope, constraints, and approach before coding |
 | `/plan` | Creates a structured implementation plan with parallel agent research before coding | When scope is clear but the work breakdown and research are not -- produces a step-by-step plan |
 | `/work` | Executes a work plan or specification systematically with continuous testing and incremental commits | When a plan file is ready and you want hands-off task-by-task execution with tests and commits |
 
 ### Maintenance
 
-| Command | Description |
-|---------|-------------|
+| Skill | Description |
+|-------|-------------|
 | `/repair-skill` | Diagnose and fix a broken skill by analyzing structure and verifying API references |
+
+### Internal References
+
+These skills back the slash-invocable skills above. They are not invoked directly; they exist so other skills and agents can include their methodology by reference.
+
+| Skill | Description |
+|-------|-------------|
+| `code-navigation` | LSP-first code navigation with grep fallback -- guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
+| `orchestrate-agents` | Discover agents, plan an optimal team, and coordinate parallel or sequential execution |
+| `visual-companion` | Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options when topics are better understood visually |
 
 ## Hooks
 
@@ -155,44 +164,6 @@ Planned in sequential follow-up branches.
 | `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before the CLI compacts context |
 
 > The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
-
-## Skills
-
-### Agent Orchestration
-
-| Skill | Description |
-|-------|-------------|
-| `orchestrate-agents` | Discover agents, plan an optimal team, and coordinate parallel or sequential execution |
-
-### Agent Development
-
-| Skill | Description |
-|-------|-------------|
-| `create-agent` | Agent authoring reference -- frontmatter spec, category definitions, body structure, and quality gates |
-
-### Planning & Execution
-
-| Skill | Description |
-|-------|-------------|
-| `work` | Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR |
-
-### Code Navigation
-
-| Skill | Description |
-|-------|-------------|
-| `code-navigation` | LSP-first code navigation with grep fallback -- guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
-
-### Brainstorming
-
-| Skill | Description |
-|-------|-------------|
-| `visual-companion` | Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options when topics are better understood visually |
-
-### Maintenance
-
-| Skill | Description |
-|-------|-------------|
-| `repair-skill` | Diagnose broken skills, verify API references against current docs, and apply targeted repairs |
 
 ## Agents
 <!-- agents-start -->

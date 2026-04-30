@@ -1,8 +1,10 @@
-# Command Rules
+# Skill Rules
 
-Hard rules and learned lessons for writing Quiver slash commands. Updated whenever a new issue is discovered.
+Hard rules and learned lessons for writing Quiver skills. Updated whenever a new issue is discovered.
 
-For structural patterns (role framing, decision trees, output format), read existing commands as examples -- `review.md`, `work.md`, `commit.md`. Adapt to the new command's purpose, don't copy mechanically.
+> **Note:** This file was previously `command-rules.md`. After the commands-to-skills migration, skills are the universal primitive that backs every Quiver slash invocation. The rules apply unchanged; older lesson text that mentions "command" should be read as "skill". The R-numbered hard rules and L-numbered lessons keep their identifiers so prior pull requests, agent files, and review reports that cite them still resolve.
+
+For structural patterns (role framing, decision trees, output format), read existing skills as examples -- `skills/review/SKILL.md`, `skills/work/SKILL.md`, `skills/commit/SKILL.md`. Adapt to the new skill's purpose, don't copy mechanically.
 
 ---
 

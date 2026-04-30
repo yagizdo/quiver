@@ -199,3 +199,32 @@ If `gh pr create` fails, show the error verbatim and suggest the user check:
 - Whether a PR already exists for this branch (`gh pr list --head {branch}`)
 
 Never retry automatically.
+
+---
+
+## Test Plan
+
+**Trigger:** `/create-pr` (or `/create-pr --draft`, `/create-pr --base develop`); `/quiver:create-pr` should also work.
+
+**Setup:**
+- Current directory is a git repo with a remote configured, the working tree is clean, and the current branch has at least one commit ahead of the base branch.
+- `gh` CLI is installed and authenticated.
+
+**Expected behavior:**
+1. Skill runs the six git shell blocks and stops with a clear message if any of: not a git repo, no remote, dirty working tree.
+2. Skill resolves the base branch via the priority order (`--base` flag > `origin/HEAD` > `main` > `master` > `develop` > prompt).
+3. Skill pushes the branch (`git push` with upstream, otherwise `git push -u origin <branch>`).
+4. Skill builds a title (≤72 chars, imperative mood) and a body whose depth scales with PR size; presents both via `AskUserQuestion` with `Create PR / Create as Draft / Edit / Cancel`.
+5. With `--draft`, skill skips the prompt and runs `gh pr create --draft …`.
+6. Final output shows the PR URL parsed from `gh` stdout.
+
+**Verification checklist:**
+- [ ] Slash menu shows `/create-pr`.
+- [ ] Skill stops cleanly with a single explanatory line on `NO_GIT`, `NO_REMOTE`, dirty tree, base-branch ambiguity, or zero commits ahead.
+- [ ] Body uses HEREDOC formatting in the actual `gh pr create` invocation.
+- [ ] No AI-attribution lines appear in the title or body.
+- [ ] `--base <branch>` overrides every other base-branch source.
+
+**Known gotchas:**
+- `gh pr create` exits non-zero when a PR already exists; the skill must surface the error and suggest `gh pr list --head <branch>` rather than retrying.
+- Bitbucket and Azure DevOps are not supported by `gh`; the user must run a platform-specific tool manually for those.

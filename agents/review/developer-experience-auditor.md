@@ -97,7 +97,7 @@ Can an AI agent or script interact with this code programmatically?
 
 ## Diff Manifest Awareness
 
-The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+The Diff Manifest is built by the review orchestrator (skills/review/SKILL.md Step 1.5).
 Use it to calibrate audit depth:
 
 - **PROMPT files**: Evaluate discoverability and error message patterns only. Do NOT evaluate prompt quality or content.

@@ -1,6 +1,7 @@
 ---
 name: handover
 description: Summarize the current work state and prepare a handover note for the next session.
+disable-model-invocation: true
 ---
 
 # Step 0 — Gather Git Context
@@ -92,7 +93,7 @@ If git context was not available (see Step 0), build the handover from the conve
 └─────────────────┘     └──────────────────┘     └──────────────────┘
 ```
 
-<!-- SYNC: The 8 section headings below (lines 89–122) must match hooks/scripts/pre-compact-handover.sh:25 PROMPT_PREFIX. -->
+<!-- SYNC: The 8 section headings below must match hooks/scripts/pre-compact-handover.sh:25 PROMPT_PREFIX. -->
 Using the context above and our conversation, prepare a structured handover note with these exact sections:
 
 ## Summary
@@ -192,3 +193,31 @@ After all saves, output this confirmation:
 > **Files retained:** {comma-separated list of kept handover files}
 > **MEMORY.md updated:** yes/no
 > **Ready to close the session.**
+
+---
+
+## Test Plan
+
+**Trigger:** `/handover` (and `/quiver:handover` should also work)
+
+**Setup:**
+- Current directory is a git repo with at least one file modification or substantive conversation history.
+
+**Expected behavior:**
+1. Skill runs the three `git` shell blocks (`rev-parse`, `status --short`, `diff --stat`); on a non-git directory, prints `> No git repository detected -- skipping branch/commit context.` and continues.
+2. Skill produces a Decision Log enumerating meaningful actions; if none, exits with `Handover skipped` and writes nothing.
+3. With meaningful work present, skill writes a handover note containing all 8 required sections (Summary, What Was Done, What We Tried / Dead Ends, Bugs & Fixes, Key Decisions, Gotchas, Next Steps, Important Files Map).
+4. Skill saves the handover to `.claude/handovers/<timestamp>.md` (filename uses `date '+%Y-%m-%d_%H-%M-%S'` format), prunes the directory to the 3 most recent files, and updates MEMORY.md with a `## Last Handover` block tagged `<!-- handover-sourced -->`.
+5. Final confirmation block prints the saved file path, retained filenames, and `MEMORY.md updated: yes`.
+
+**Verification checklist:**
+- [ ] Slash menu shows `/handover`.
+- [ ] All 8 section headings are present in the saved file (no section silently omitted).
+- [ ] Filename matches `YYYY-MM-DD_HH-MM-SS.md`.
+- [ ] Older handovers beyond the 3 most recent are removed.
+- [ ] `MEMORY.md` gains a `## Last Handover` block with the `<!-- handover-sourced -->` marker.
+- [ ] In an empty/no-progress session, the skill exits cleanly without writing any file.
+
+**Known gotchas:**
+- The 8 section headings are part of a SYNC contract with `hooks/scripts/pre-compact-handover.sh`. If headings here change, the hook's `PROMPT_PREFIX` must change in lockstep.
+- Lexicographic prune ordering depends on the timestamp filename format; do not rename existing handovers.
