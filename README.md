@@ -234,19 +234,6 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
-## Compatibility
-
-| Command | Claude Code | Cursor | Gemini CLI | Codex CLI | Antigravity |
-|---------|-------------|--------|------------|-----------|-------------|
-| `/handover` | yes | yes (with auto-save via preCompact) | planned | planned | planned |
-| `/review` | yes | yes (with polyfilled prompts) | planned | planned | planned |
-| `/plan` | yes | yes (with polyfilled prompts) | planned | planned | planned |
-| `/work` | yes | yes (with polyfilled prompts) | planned | planned | planned |
-| `/commit` | yes | yes (with polyfilled prompts) | planned | planned | planned |
-| `/brainstorm` | yes | yes (with polyfilled prompts) | planned | planned | planned |
-
-On Cursor, the six core commands above are smoke-tested; the remaining commands (`/load-handover`, `/delete-last-handover`, `/delete-all-handovers`, `/create-pr`, `/create-agent`, `/create-agents-md`, `/repair-skill`) work in principle but are not part of the initial overlay's verified surface.
-
 ## Uninstall
 
 ```

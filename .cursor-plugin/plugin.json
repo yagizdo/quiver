@@ -22,7 +22,7 @@
     "./agents/research/project-context-analyst.md"
   ],
   "hooks": "./hooks/hooks.json",
-  "rules": "./platforms/cursor/rules/",
+  "rules": "./.cursor-plugin/rules/",
   "mcpServers": {
     "context7": {
       "type": "http",
