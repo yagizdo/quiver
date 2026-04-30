@@ -112,7 +112,7 @@ Assess whether the structural changes support the system's ability to grow.
 
 ## Diff Manifest Awareness
 
-The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+The Diff Manifest is built by the review orchestrator (skills/review/SKILL.md Step 1.5).
 Use it to calibrate audit depth:
 
 - **PROMPT files**: Evaluate structural patterns and boundary compliance only. Do NOT evaluate prompt quality.

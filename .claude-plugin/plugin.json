@@ -11,9 +11,6 @@
   "skills": [
     "./skills/"
   ],
-  "commands": [
-    "./commands/"
-  ],
   "agents": [
     "./agents/review/waste-detector.md",
     "./agents/review/security-audit.md",

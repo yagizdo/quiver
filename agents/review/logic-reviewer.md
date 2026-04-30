@@ -84,7 +84,7 @@ When changed code reads, writes, or depends on state (flags, caches, DB rows, se
 
 ## Diff Manifest Awareness
 
-The Diff Manifest is built by the review orchestrator (commands/review.md Step 1.5).
+The Diff Manifest is built by the review orchestrator (skills/review/SKILL.md Step 1.5).
 Use it to calibrate audit depth:
 
 - **PROMPT files**: Skip entirely. Prompt text is not executable logic.

@@ -24,7 +24,7 @@ Three semantic operations where LSP outperforms grep. For everything else, use G
 
 ## Agent Instructions Block
 
-Agents that search the broader codebase should include this block in their prompt. The dispatching command passes `lsp_available: true|false` as part of the agent's context.
+Agents that search the broader codebase should include this block in their prompt. The dispatching skill passes `lsp_available: true|false` as part of the agent's context.
 
 ```
 ## Code Navigation Strategy
@@ -44,9 +44,9 @@ You have been provided an `lsp_available` flag in your context.
 - Use Grep, Glob, and Read for all code navigation.
 ```
 
-## Command-Level LSP Detection
+## Skill-Level LSP Detection
 
-Commands that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. The result is passed to all agents as context.
+Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. The result is passed to all agents as context.
 
 ### Detection Flow
 
@@ -90,12 +90,38 @@ LSP preference is stored in project memory:
 
 - **File:** `lsp_preference.md` in the project's auto-memory directory
 - **Content:** Whether LSP is available/declined, which language server was detected, date cached
-- **Lifetime:** Persists across sessions. User can reset by saying "forget LSP preference" or by installing a language server and re-running a command.
+- **Lifetime:** Persists across sessions. User can reset by saying "forget LSP preference" or by installing a language server and re-running a skill.
 
 ## For Agent Authors
 
 If your agent searches the broader codebase (beyond files it already knows about), reference this skill:
 
 1. Add the **Code Navigation Strategy** block from above to your agent's prompt.
-2. Ensure the dispatching command passes `lsp_available` context to your agent.
-3. Your agent does NOT need to handle LSP detection -- that is the command's responsibility.
+2. Ensure the dispatching skill passes `lsp_available` context to your agent.
+3. Your agent does NOT need to handle LSP detection -- that is the skill's responsibility.
+
+---
+
+## Test Plan
+
+**Trigger:** Reference skill -- not directly invoked. Used by the `plan`, `review`, and any agent skill that searches the broader codebase.
+
+**Setup:**
+- A consumer skill (e.g. `plan` or `review`) loads in a Claude Code session.
+- An LSP server is optionally installed for the project's primary language.
+
+**Expected behavior:**
+1. Consumer skills run a single LSP detection per session and pass the resulting `lsp_available` flag to every agent prompt that searches the codebase.
+2. Agents that include the Code Navigation Strategy block use LSP `goToDefinition` / `findReferences` / `documentSymbol` first when `lsp_available: true`, falling back to grep on empty results.
+3. With `lsp_available: false`, agents use Grep / Glob / Read for all navigation.
+4. LSP preference (`lsp_confirmed` or `lsp_declined`) is cached in project memory at `lsp_preference.md` and reused across sessions.
+
+**Verification checklist:**
+- [ ] `/plan` and `/review` both run LSP detection exactly once before agent dispatch (not per agent).
+- [ ] At least one dispatched agent prompt contains the literal phrase `lsp_available:` in the agent context.
+- [ ] When LSP returns empty results, the agent prints a fallback notice before running grep.
+- [ ] Project memory ends up with `lsp_preference.md` after the first detection run.
+
+**Known gotchas:**
+- LSP availability is cached per project; clearing or installing a new language server requires `forget LSP preference` or manual `lsp_preference.md` removal.
+- Detection is the dispatching skill's responsibility, not the agent's; new agents should NOT re-implement it.
