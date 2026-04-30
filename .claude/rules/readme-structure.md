@@ -6,19 +6,18 @@ Reference: https://github.com/EveryInc/compound-engineering-plugin/tree/main/plu
 
 1. **Title + one-liner** — what the plugin does in one sentence
 2. **Status note** (optional) — development status callout via blockquote
-3. **Quick Start** — marketplace add + plugin install + first command example
+3. **Quick Start** — marketplace add + plugin install + first slash example
 4. **Installation** — Plugin Install (recommended) as standalone section
 5. **Components table** — inventory of all component types with counts
-6. **Commands** — grouped by category (not one flat list)
+6. **Skills** — grouped by category (not one flat list); slash-invocable skills first, "Internal References" subsection last for skills used only by other skills/agents
 7. **Hooks** — table with hook name, event, and description
-8. **Skills** (when added) — grouped by category
-9. **Agents** (when added) — grouped by category (e.g. Review, Research, Workflow)
-10. **MCP Servers** (when added) — table with server name and description, plus tool details
-11. **How It Works** — bullet list of key features/mechanics
-12. **Setup** (optional) — any required config like .gitignore entries
-13. **Known Issues** (optional)
-14. **Uninstall**
-15. **License**
+8. **Agents** (when added) — grouped by category (e.g. Review, Research, Workflow)
+9. **MCP Servers** (when added) — table with server name and description, plus tool details
+10. **How It Works** — bullet list of key features/mechanics
+11. **Setup** (optional) — any required config like .gitignore entries
+12. **Known Issues** (optional)
+13. **Uninstall**
+14. **License**
 
 ## Formatting Rules
 
@@ -31,35 +30,42 @@ Always at the top, shows what the plugin contains at a glance:
 
 | Component | Count |
 |-----------|-------|
-| Commands | 11 |
+| Skills | 16 |
 | Hooks | 1 |
-| Skills | 6 |
-| Agents | 6 |
+| Agents | 10 |
 ```
 
 - Only list component types that exist
 - Update counts when adding new components
 
-### Grouping Commands/Skills/Agents
+### Grouping Skills/Agents
 
 Never use a single flat table for all items. Group by category with H3 headings:
 
 ```markdown
-## Commands
+## Skills
 
 ### Session Handover
 
-| Command | Description |
-|---------|-------------|
-| `/quiver:handover` | ... |
-| `/quiver:load-handover` | ... |
+| Skill | Description |
+|-------|-------------|
+| `/handover` | ... |
+| `/load-handover` | ... |
 
 ### Git
 
-| Command | Description |
-|---------|-------------|
-| `/quiver:commit` | ... |
+| Skill | Description |
+|-------|-------------|
+| `/commit` | ... |
+
+### Internal References
+
+| Skill | Description |
+|-------|-------------|
+| `code-navigation` | ... |
 ```
+
+Slash-invocable skills are listed by their `/<name>` invocation. Reference-only skills (used by other skills or agents, never invoked by a slash menu) live in a final "Internal References" subsection and are listed by their bare name.
 
 ### Hooks Table
 
@@ -90,25 +96,12 @@ Group agents by role. Current categories:
 | `agent-name` | ... |
 ```
 
-### Skills Categories
-
-Group by domain:
-
-```markdown
-## Skills
-
-### Category Name
-
-| Skill | Description |
-|-------|-------------|
-| `skill-name` | ... |
-```
-
 ## Checklist — When Updating README
 
-- [ ] Component inventory counts match actual files
-- [ ] All commands in `commands/` are listed
+- [ ] Component inventory counts match actual files (`ls -d skills/*/ | wc -l`, agent count from `agents/**/*.md`)
+- [ ] All slash-invocable skills (skills with frontmatter that are not reference-only) are listed under `## Skills`
+- [ ] All reference-only skills are listed under the `### Internal References` subsection
 - [ ] All hooks in `hooks/hooks.json` are listed
-- [ ] Commands/skills/agents are grouped by category, not flat
+- [ ] Skills/agents are grouped by category, not flat
 - [ ] Descriptions are concise (one line)
 - [ ] No placeholder entries for components that have shipped
