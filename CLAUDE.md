@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # Quiver
 
-Session continuity, agent orchestration, and development workflows plugin for Claude Code. Saves and restores conversation context across sessions.
+Composable development lifecycle plugin for AI coding CLIs. Expert tools for every development moment -- independently useful, optionally combined.
 Dependencies: `bash`, `claude` CLI.
 
 ## Architecture
@@ -24,6 +24,15 @@ Dependencies: `bash`, `claude` CLI.
 - **SYNC contract** — The 8 handover section headings are defined in two places that must stay identical: `skills/handover/SKILL.md:96` (the marker comment) plus the headings at lines 99-129, and `hooks/scripts/pre-compact-handover.sh:25`. Both files contain a `SYNC:` comment pointing to the other. If you change headings, update both and verify line numbers in the comments.
 
 ## Development Standards
+
+### Feature Admission Test
+
+Every proposed feature must pass both conditions before design begins:
+
+1. **Standalone:** It must be useful when invoked in isolation, without any other Quiver skill having been run.
+2. **Composable:** It must accept input from other skills and/or produce output that other skills can consume.
+
+If a feature only works inside a pipeline (requires prior skill X to have run), redesign it to accept equivalent input from any source. If it produces no output that other skills can use and accepts no input from them, it is a utility -- still valid, but verify it belongs in Quiver rather than in the user's project.
 
 ### Adding a Skill
 

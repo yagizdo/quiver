@@ -5,13 +5,13 @@
     "email": "dokumaciyago@gmail.com"
   },
   "metadata": {
-    "description": "Session continuity, agent orchestration, and development workflows for Claude Code. Saves and restores conversation context across sessions."
+    "description": "Composable development lifecycle -- brainstorm, plan, execute, review, and hand over from idea to merged PR"
   },
   "plugins": [
     {
       "name": "quiver",
       "source": "./",
-      "description": "Session continuity, agent orchestration, and development workflows for Claude Code",
+      "description": "Composable development lifecycle -- brainstorm, plan, execute, review, and hand over from idea to merged PR",
       "author": {
         "name": "Yilmaz Yagiz Dokumaci"
       },
