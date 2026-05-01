@@ -2,15 +2,11 @@
 
 [![Version](https://img.shields.io/badge/version-1.8.1-blue)](https://github.com/yagizdo/quiver/releases)
 
-Quiver is a plugin for AI coding CLIs that brings multi-agent code review, end-to-end workflow orchestration, and session continuity -- carry your plans, decisions, and review findings from idea to PR without re-explaining context between sessions.
-
-## What is Quiver?
-
-Quiver coordinates multi-step development workflows and session continuity for your AI coding CLI. You use it to brainstorm feature ideas, produce research-backed implementation plans, execute those plans with continuous testing and incremental commits, and run a suite of specialized agents that review the resulting code for logic bugs, security gaps, architectural drift, and weak test coverage before merging. When work spans sessions, Quiver saves a handover with decisions, blockers, and next steps so you resume exactly where you left off -- no re-investigation, no lost context.
+Quiver is a development lifecycle plugin for AI coding CLIs -- purpose-built skills for brainstorming, planning, execution, code review, and session handover, plus 10 specialized review agents that run in parallel.
 
 ## Typical workflow
 
-A normal feature cycle in Quiver chains the skills below. Each one is self-contained, so skip or substitute steps as needed.
+A normal feature cycle chains these skills. Each one is self-contained and works on its own -- skip steps, reorder them, or use just the ones you need.
 
 1. `/brainstorm` -- turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
 2. `/plan` -- research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
@@ -41,15 +37,13 @@ Then try `/brainstorm` in any session.
 
 Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor".
 
-### Gemini CLI, OpenAI Codex CLI, Antigravity
-
-Planned in sequential follow-up branches.
-
-## Cursor notes
-
 - The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
 - `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
 - If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
+
+### Gemini CLI, OpenAI Codex CLI, Antigravity
+
+Planned in sequential follow-up branches.
 
 ## Components
 

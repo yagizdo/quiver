@@ -1,7 +1,7 @@
 {
   "name": "quiver",
   "version": "1.8.1",
-  "description": "Session continuity, agent orchestration, and development workflows for Claude Code",
+  "description": "Composable development lifecycle -- brainstorm, plan, execute, review, and hand over from idea to merged PR",
   "author": {
     "name": "Yilmaz Yagiz Dokumaci"
   },
