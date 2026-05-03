@@ -1,0 +1,19 @@
+{
+  "name": "quiver-marketplace",
+  "interface": {
+    "displayName": "Quiver"
+  },
+  "plugins": [
+    {
+      "name": "quiver",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
