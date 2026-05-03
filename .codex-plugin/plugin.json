@@ -8,9 +8,9 @@
   "homepage": "https://github.com/yagizdo/quiver",
   "repository": "https://github.com/yagizdo/quiver",
   "license": "MIT",
-  "skills": "../skills/",
-  "hooks": "../hooks/hooks-codex.json",
-  "rules": "./rules/",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-codex.json",
+  "rules": "./.codex-plugin/rules/",
   "mcpServers": {
     "context7": {
       "type": "http",
