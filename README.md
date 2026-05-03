@@ -41,7 +41,20 @@ Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Ad
 - `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
 - If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
 
-### Gemini CLI, OpenAI Codex CLI, Antigravity
+### OpenAI Codex CLI
+
+```text
+codex plugin marketplace add yagizdo/quiver
+```
+
+Then try `/brainstorm` in any session.
+
+- The handover auto-save hook maps to Codex's `Stop` event with a 10-minute cooldown. For on-demand handovers, use `/handover` directly.
+- `AskUserQuestion` is polyfilled as numbered text prompts -- reply with the option number.
+- Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches up to 10 agents in parallel this way.
+- The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
+
+### Gemini CLI, Antigravity
 
 Planned in sequential follow-up branches.
 
