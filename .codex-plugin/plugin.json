@@ -11,12 +11,7 @@
   "skills": "./skills/",
   "hooks": "./hooks/hooks-codex.json",
   "rules": "./.codex-plugin/rules/",
-  "mcpServers": {
-    "context7": {
-      "type": "http",
-      "url": "https://mcp.context7.com/mcp"
-    }
-  },
+  "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
     "displayName": "Quiver",
     "shortDescription": "Composable development lifecycle -- brainstorm, plan, execute, review, and hand over",
