@@ -9,7 +9,7 @@ HANDOVER_DIR="${PROJECT_DIR}/.claude/handovers"
 
 # Guard: skip if a handover was saved in the last 10 minutes (600 seconds).
 if [[ -d "$HANDOVER_DIR" ]]; then
-  LAST_HANDOVER=$(ls -1t "${HANDOVER_DIR}"/*.md 2>/dev/null | head -1)
+  LAST_HANDOVER=$(ls -1t "${HANDOVER_DIR}"/*.md 2>/dev/null | head -1 || true)
   if [[ -n "$LAST_HANDOVER" ]]; then
     if [[ "$(uname)" == "Darwin" ]]; then
       LAST_MOD=$(stat -f %m "$LAST_HANDOVER" 2>/dev/null || echo 0)
