@@ -1,6 +1,6 @@
 {
   "name": "quiver",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Composable development lifecycle -- brainstorm, plan, execute, review, and hand over from idea to merged PR",
   "mcpServers": {
     "context7": {
