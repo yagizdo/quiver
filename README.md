@@ -54,9 +54,18 @@ Then try `/brainstorm` in any session.
 - Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches up to 10 agents in parallel this way.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
-### Gemini CLI, Antigravity
+### Gemini CLI
 
-Planned in sequential follow-up branches.
+```text
+gemini extensions install quiver
+```
+
+Then try `/brainstorm` in any session.
+
+- `ask_user` is native on Gemini CLI -- interactive prompts render with full fidelity.
+- The handover auto-save hook maps to Gemini CLI's `PreCompress` event. Unlike Codex's Stop event, no cooldown guard is needed -- PreCompress fires only before history compression.
+- Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches up to 10 agents this way.
+- The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
 ## Components
 
