@@ -2,19 +2,19 @@
 
 [![Version](https://img.shields.io/badge/version-1.9.1-blue)](https://github.com/yagizdo/quiver/releases)
 
-Quiver is a development lifecycle plugin for AI coding CLIs -- purpose-built skills for brainstorming, planning, execution, code review, and session handover, plus 10 specialized review agents that run in parallel.
+Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skills for brainstorming, planning, execution, code review, and session handover, plus 10 specialized review agents that run in parallel.
 
 ## Typical workflow
 
-A normal feature cycle chains these skills. Each one is self-contained and works on its own -- skip steps, reorder them, or use just the ones you need.
+A normal feature cycle chains these skills. Each one is self-contained and works on its own. Skip steps, reorder them, or use just the ones you need.
 
-1. `/brainstorm` -- turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
-2. `/plan` -- research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
-3. `/work` -- execute the plan task-by-task with continuous testing, branch setup, and incremental commits.
-4. `/commit` -- generate a Conventional Commits message from staged changes and commit (optionally pushing).
-5. `/create-pr` -- open a GitHub pull request with an auto-generated title and description from the branch diff.
-6. `/review` -- dispatch specialized review agents in parallel (logic, architecture, security, tests, devex, waste) and synthesize findings into one report.
-7. `/handover` -- save an 8-section summary of the session so the next session resumes with full context.
+1. `/brainstorm`: turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
+2. `/plan`: research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
+3. `/work`: execute the plan task-by-task with continuous testing, branch setup, and incremental commits.
+4. `/commit`: generate a Conventional Commits message from staged changes and commit (optionally pushing).
+5. `/create-pr`: open a GitHub pull request with an auto-generated title and description from the branch diff.
+6. `/review`: dispatch specialized review agents in parallel (logic, architecture, security, tests, devex, waste) and synthesize findings into one report.
+7. `/handover`: save an 8-section summary of the session so the next session resumes with full context.
 
 ## Installation
 
@@ -50,7 +50,7 @@ codex plugin marketplace add yagizdo/quiver
 Then try `/brainstorm` in any session.
 
 - The handover auto-save hook maps to Codex's `Stop` event with a 10-minute cooldown. For on-demand handovers, use `/handover` directly.
-- `AskUserQuestion` is polyfilled as numbered text prompts -- reply with the option number.
+- `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
 - Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches up to 10 agents in parallel this way.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
@@ -62,8 +62,8 @@ gemini extensions install quiver
 
 Then try `/brainstorm` in any session.
 
-- `ask_user` is native on Gemini CLI -- interactive prompts render with full fidelity.
-- The handover auto-save hook maps to Gemini CLI's `PreCompress` event. Unlike Codex's Stop event, no cooldown guard is needed -- PreCompress fires only before history compression.
+- `ask_user` is native on Gemini CLI: interactive prompts render with full fidelity.
+- The handover auto-save hook maps to Gemini CLI's `PreCompress` event. Unlike Codex's Stop event, no cooldown guard is needed: PreCompress fires only before history compression.
 - Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches up to 10 agents this way.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
@@ -126,9 +126,9 @@ Then try `/brainstorm` in any session.
 
 > `--with-codex` requires the `codex` CLI installed (`npm install -g @openai/codex`, >= 0.123.0) and authenticated (`codex login`). When the flag is set but the CLI is missing or not authenticated, the Codex agent is skipped with a one-line note and the review proceeds with Claude agents only. Codex findings carry a `(codex-code-reviewer)` source prefix in the synthesized report; when both Claude and Codex flag the same line, the existing `Flagged by:` consensus annotation kicks in.
 >
-> **Model selection:** Quiver does not pass `--model` to the codex CLI -- whichever model your local codex is configured to use (set in `~/.codex/config.toml`, CLI default, or env override) is the model that will run the review. If your auth method or plan does not have access to a given model, change your local codex configuration; Quiver will not override it.
+> **Model selection:** Quiver does not pass `--model` to the codex CLI: whichever model your local codex is configured to use (set in `~/.codex/config.toml`, CLI default, or env override) is the model that will run the review. If your auth method or plan does not have access to a given model, change your local codex configuration; Quiver will not override it.
 
-**Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review -- no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
+**Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review: no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
 
 ### Git
 
@@ -154,7 +154,7 @@ Then try `/brainstorm` in any session.
 | Skill | Description | When to use |
 |-------|-------------|-------------|
 | `/brainstorm` | Explores ideas, compares approaches, and produces a validated spec before planning | When you have a vague idea and need to pin down scope, constraints, and approach before coding |
-| `/plan` | Creates a structured implementation plan with parallel agent research before coding | When scope is clear but the work breakdown and research are not -- produces a step-by-step plan |
+| `/plan` | Creates a structured implementation plan with parallel agent research before coding | When scope is clear but the work breakdown and research are not: produces a step-by-step plan |
 | `/work` | Executes a work plan or specification systematically with continuous testing and incremental commits | When a plan file is ready and you want hands-off task-by-task execution with tests and commits |
 
 ### Maintenance
@@ -169,7 +169,7 @@ These skills back the slash-invocable skills above. They are not invoked directl
 
 | Skill | Description |
 |-------|-------------|
-| `code-navigation` | LSP-first code navigation with grep fallback -- guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
+| `code-navigation` | LSP-first code navigation with grep fallback: guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
 | `orchestrate-agents` | Discover agents, plan an optimal team, and coordinate parallel or sequential execution |
 | `visual-companion` | Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options when topics are better understood visually |
 
@@ -196,7 +196,7 @@ These skills back the slash-invocable skills above. They are not invoked directl
 | `security-audit` (`quiver:security-audit`) | Concrete exploit paths for web, API, and mobile surfaces |
 | `test-reviewer` (`quiver:test-reviewer`) | Tests that pass without proving the code works |
 | `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Confusing error messages, hidden debugging paths, brittle UX for humans and agents |
-| `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed. Uses whatever model your local codex is configured for -- Quiver does not override `--model` |
+| `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed. Uses whatever model your local codex is configured for: Quiver does not override `--model` |
 
 <!-- agents:review-end -->
 
@@ -216,8 +216,8 @@ These skills back the slash-invocable skills above. They are not invoked directl
 This plugin includes a [Context7](https://context7.com) MCP server for real-time library documentation lookups. It starts automatically when the plugin is enabled (configured in `plugin.json` under `mcpServers`). No authentication required.
 
 **Tools provided:**
-- `resolve-library-id` -- Find library ID for a framework/package
-- `query-docs` -- Get documentation for a specific library
+- `resolve-library-id`: Find library ID for a framework/package
+- `query-docs`: Get documentation for a specific library
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
