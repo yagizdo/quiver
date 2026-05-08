@@ -102,6 +102,27 @@ MAX_SSE_CLIENTS = 20
 MAX_EVENTS_SIZE = 1_000_000  # 1MB
 
 
+def _find_latest_html(directory):
+    try:
+        candidates = []
+        for name in os.listdir(directory):
+            if not (name.endswith('.html') or name.endswith('.htm')):
+                continue
+            full = os.path.join(directory, name)
+            if not os.path.isfile(full):
+                continue
+            try:
+                candidates.append((os.path.getmtime(full), full))
+            except OSError:
+                pass
+        if not candidates:
+            return None
+        candidates.sort(reverse=True)
+        return candidates[0][1]
+    except OSError:
+        return None
+
+
 def register_sse_client():
     with sse_lock:
         if len(sse_clients) >= MAX_SSE_CLIENTS:
@@ -163,14 +184,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         if not os.path.isfile(filepath):
-            # Root request with no index.html: serve a waiting page that
-            # subscribes to SSE and auto-reloads the moment the first HTML
-            # fragment lands. Avoids the "URL announced -> user opens ->
-            # 404" race when the agent has not written content yet.
+            # Root request with no explicit index.html: serve the most recently
+            # modified HTML file in the dir, or a waiting page if none exists.
+            # This keeps a single browser tab on `/` continuously useful as the
+            # agent writes new versioned files (layout-v1.html, layout-v2.html);
+            # SSE reload pulls the newest file each time without manual
+            # navigation. Specific paths still 404 so broken links stay visible.
             if is_root_request:
-                return self._serve_waiting_page()
-            self.send_error(404)
-            return
+                latest = _find_latest_html(serve_dir)
+                if latest is None:
+                    return self._serve_waiting_page()
+                filepath = latest
+            else:
+                self.send_error(404)
+                return
         MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
         if os.path.getsize(filepath) > MAX_FILE_SIZE:
             self.send_error(413, "File too large")
