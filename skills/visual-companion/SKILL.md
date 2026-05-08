@@ -150,9 +150,10 @@ Each line is a JSON object appended by the server. The agent reads this file to 
 
 ## 5. Cleaning Up
 
-The server self-terminates in two cases:
-- **Idle timeout:** No HTTP requests for 30 minutes.
+The server self-terminates in three cases:
+- **Idle timeout:** No real HTTP activity (page loads, click events, agent updates) for 30 minutes. SSE keepalives and auto-reconnects do NOT reset this timer -- if they did, an open browser tab would keep the server alive forever through any network blip.
 - **Owner PID death:** The `--owner-pid` process no longer exists (checked every 0.5s).
+- **Max lifetime:** 8 hours since startup, regardless of activity. Override with `--max-lifetime <seconds>`; set to 0 to disable.
 
 To stop manually:
 ```
@@ -190,3 +191,4 @@ cp <temp-dir>/final-layout.html docs/brainstorms/YYYY-MM-DD-<name>-mockups/
 - This is the only Quiver skill that ships a runtime executable (`server.py`); never assume skill dirs are prompt-only.
 - Stopping the server depends on the PID file; if the temp dir is deleted before the kill, manual `pkill -f server.py` is needed.
 - Root request (`/` or `/index.html`) on an empty serve dir returns a built-in "waiting" landing page that subscribes to SSE; this lets the agent announce the URL before any HTML exists. Specific paths (e.g. `/foo.html`) still 404 when missing -- do not rely on the landing page to mask broken links.
+- The 8h hard ceiling and SSE-immune idle timer exist because a server was once found alive 29 days after start. Browser SSE auto-reconnects (WiFi switch / sleep / VPN) used to reset the idle timer indefinitely. Do not "simplify" `log_request` back to unconditional reset; do not remove `--max-lifetime`.

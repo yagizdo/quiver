@@ -137,7 +137,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_request(self, code='-', size='-'):
         global last_request_time
-        last_request_time = time.time()
+        # SSE traffic must NOT reset the idle timer. EventSource auto-reconnects
+        # on every network blip (WiFi switch, VPN, sleep/wake), so counting SSE
+        # requests as activity makes the idle timeout effectively unreachable
+        # while a browser tab is open -- a server was found alive 29 days after
+        # start because of this. Real user/agent activity (HTML GET, POST
+        # /event, DELETE /events) still resets the timer below.
+        if self.path != '/sse':
+            last_request_time = time.time()
 
     def do_GET(self):
         path = self.path.lstrip('/')
@@ -325,7 +332,7 @@ class ThreadingServer(ThreadingMixIn, HTTPServer):
 # Directory polling thread
 # ---------------------------------------------------------------------------
 
-def poll_directory(directory, owner_pid, server):
+def poll_directory(directory, owner_pid, server, max_lifetime):
     snapshot = {}
     for name in os.listdir(directory):
         full = os.path.join(directory, name)
@@ -335,8 +342,17 @@ def poll_directory(directory, owner_pid, server):
             except OSError:
                 pass
 
+    start_time = time.time()
     while True:
         time.sleep(POLL_INTERVAL)
+
+        # Hard lifetime ceiling -- final safety net regardless of idle/owner state.
+        if max_lifetime > 0 and time.time() - start_time > max_lifetime:
+            sys.stderr.write("visual-companion: shutting down (max lifetime {}s reached)\n".format(int(max_lifetime)))
+            if _cleanup_fn:
+                _cleanup_fn()
+            threading.Thread(target=server.shutdown, daemon=True).start()
+            return
 
         # Idle timeout
         if time.time() - last_request_time > IDLE_TIMEOUT:
@@ -397,6 +413,9 @@ def main():
     parser.add_argument('--dir', required=True, help='Directory to serve HTML from')
     parser.add_argument('--owner-pid', type=int, default=None, help='Parent process PID for lifecycle tracking')
     parser.add_argument('--verbose', action='store_true', help='Enable HTTP request logging to stderr')
+    parser.add_argument('--max-lifetime', type=float, default=28800,
+                        help='Hard ceiling on server lifetime in seconds (default: 28800 = 8h). '
+                             'Server exits no matter what once exceeded. Set to 0 to disable.')
     args = parser.parse_args()
 
     global verbose
@@ -433,7 +452,7 @@ def main():
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     # Start polling thread
-    t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid, server), daemon=True)
+    t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid, server, args.max_lifetime), daemon=True)
     t.start()
 
     url = info['url']
