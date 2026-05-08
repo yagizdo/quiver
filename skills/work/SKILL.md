@@ -2,7 +2,6 @@
 name: work
 description: "Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR. Use when you have a plan file, spec, or task list ready to execute."
 argument-hint: "<plan file path or task description>"
-disable-model-invocation: true
 ---
 
 # Gather Context

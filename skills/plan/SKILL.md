@@ -2,7 +2,6 @@
 name: plan
 description: Create a structured implementation plan with parallel agent research before coding.
 argument-hint: "<task description>"
-disable-model-invocation: true
 ---
 
 # Gather Context
