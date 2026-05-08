@@ -51,7 +51,7 @@ A question about a UI topic is not automatically a visual question. "Should we u
    - If the loop completes with no output, the server failed to launch. Do NOT announce a URL. Inspect `<temp-dir>/.vc-meta/` and the background-process output, fix the underlying issue, and retry step 2.
 
 4. Tell the user (only after step 3 prints a URL):
-   > Visual companion running at {url}. It auto-refreshes when I update content.
+   > Visual companion running at {url}. Open it now -- you'll see a "waiting" page until I push the first visual, then it refreshes automatically.
 
 ## 3. The Loop
 
@@ -189,3 +189,4 @@ cp <temp-dir>/final-layout.html docs/brainstorms/YYYY-MM-DD-<name>-mockups/
 **Known gotchas:**
 - This is the only Quiver skill that ships a runtime executable (`server.py`); never assume skill dirs are prompt-only.
 - Stopping the server depends on the PID file; if the temp dir is deleted before the kill, manual `pkill -f server.py` is needed.
+- Root request (`/` or `/index.html`) on an empty serve dir returns a built-in "waiting" landing page that subscribes to SSE; this lets the agent announce the URL before any HTML exists. Specific paths (e.g. `/foo.html`) still 404 when missing -- do not rely on the landing page to mask broken links.

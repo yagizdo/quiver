@@ -143,6 +143,7 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.lstrip('/')
         if path == 'sse':
             return self._handle_sse()
+        is_root_request = not path or path == 'index.html'
         if not path:
             path = 'index.html'
         # Block access to .vc-meta directory
@@ -155,6 +156,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         if not os.path.isfile(filepath):
+            # Root request with no index.html: serve a waiting page that
+            # subscribes to SSE and auto-reloads the moment the first HTML
+            # fragment lands. Avoids the "URL announced -> user opens ->
+            # 404" race when the agent has not written content yet.
+            if is_root_request:
+                return self._serve_waiting_page()
             self.send_error(404)
             return
         MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -236,6 +243,29 @@ class Handler(BaseHTTPRequestHandler):
                 pass  # nothing to truncate
         self.send_response(204)
         self.end_headers()
+
+    def _serve_waiting_page(self):
+        body = (
+            '<div style="display:flex;align-items:center;justify-content:center;'
+            'height:100vh;font-family:system-ui;color:#666;text-align:center">'
+            '<div><h1 style="font-size:1.25rem;margin-bottom:0.5rem">'
+            'Visual companion ready</h1>'
+            '<p>Waiting for the first visual to arrive. This page will refresh '
+            'automatically.</p></div></div>'
+        )
+        wrapped = (
+            '<!DOCTYPE html>\n<html lang="en">\n<head>\n'
+            '<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+            '<style>\n' + FRAME_CSS + '\n</style>\n'
+            '</head>\n<body>\n' + body + '\n' + CLIENT_JS + '\n</body>\n</html>'
+        ).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(wrapped)))
+        self.end_headers()
+        self.wfile.write(wrapped)
 
     def _process_html(self, raw):
         text = raw.decode('utf-8', errors='replace')
