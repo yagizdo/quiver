@@ -102,6 +102,27 @@ MAX_SSE_CLIENTS = 20
 MAX_EVENTS_SIZE = 1_000_000  # 1MB
 
 
+def _find_latest_html(directory):
+    try:
+        candidates = []
+        for name in os.listdir(directory):
+            if not (name.endswith('.html') or name.endswith('.htm')):
+                continue
+            full = os.path.join(directory, name)
+            if not os.path.isfile(full):
+                continue
+            try:
+                candidates.append((os.path.getmtime(full), full))
+            except OSError:
+                pass
+        if not candidates:
+            return None
+        candidates.sort(reverse=True)
+        return candidates[0][1]
+    except OSError:
+        return None
+
+
 def register_sse_client():
     with sse_lock:
         if len(sse_clients) >= MAX_SSE_CLIENTS:
@@ -137,12 +158,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_request(self, code='-', size='-'):
         global last_request_time
-        last_request_time = time.time()
+        # SSE traffic must NOT reset the idle timer. EventSource auto-reconnects
+        # on every network blip (WiFi switch, VPN, sleep/wake), so counting SSE
+        # requests as activity makes the idle timeout effectively unreachable
+        # while a browser tab is open -- a server was found alive 29 days after
+        # start because of this. Real user/agent activity (HTML GET, POST
+        # /event, DELETE /events) still resets the timer below.
+        if self.path != '/sse':
+            last_request_time = time.time()
 
     def do_GET(self):
         path = self.path.lstrip('/')
         if path == 'sse':
             return self._handle_sse()
+        is_root_request = not path or path == 'index.html'
         if not path:
             path = 'index.html'
         # Block access to .vc-meta directory
@@ -155,8 +184,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         if not os.path.isfile(filepath):
-            self.send_error(404)
-            return
+            # Root request with no explicit index.html: serve the most recently
+            # modified HTML file in the dir, or a waiting page if none exists.
+            # This keeps a single browser tab on `/` continuously useful as the
+            # agent writes new versioned files (layout-v1.html, layout-v2.html);
+            # SSE reload pulls the newest file each time without manual
+            # navigation. Specific paths still 404 so broken links stay visible.
+            if is_root_request:
+                latest = _find_latest_html(serve_dir)
+                if latest is None:
+                    return self._serve_waiting_page()
+                filepath = latest
+            else:
+                self.send_error(404)
+                return
         MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
         if os.path.getsize(filepath) > MAX_FILE_SIZE:
             self.send_error(413, "File too large")
@@ -237,6 +278,29 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.end_headers()
 
+    def _serve_waiting_page(self):
+        body = (
+            '<div style="display:flex;align-items:center;justify-content:center;'
+            'height:100vh;font-family:system-ui;color:#666;text-align:center">'
+            '<div><h1 style="font-size:1.25rem;margin-bottom:0.5rem">'
+            'Visual companion ready</h1>'
+            '<p>Waiting for the first visual to arrive. This page will refresh '
+            'automatically.</p></div></div>'
+        )
+        wrapped = (
+            '<!DOCTYPE html>\n<html lang="en">\n<head>\n'
+            '<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+            '<style>\n' + FRAME_CSS + '\n</style>\n'
+            '</head>\n<body>\n' + body + '\n' + CLIENT_JS + '\n</body>\n</html>'
+        ).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(wrapped)))
+        self.end_headers()
+        self.wfile.write(wrapped)
+
     def _process_html(self, raw):
         text = raw.decode('utf-8', errors='replace')
         prefix = text[:256].strip().lower()
@@ -295,7 +359,7 @@ class ThreadingServer(ThreadingMixIn, HTTPServer):
 # Directory polling thread
 # ---------------------------------------------------------------------------
 
-def poll_directory(directory, owner_pid, server):
+def poll_directory(directory, owner_pid, server, max_lifetime):
     snapshot = {}
     for name in os.listdir(directory):
         full = os.path.join(directory, name)
@@ -305,8 +369,17 @@ def poll_directory(directory, owner_pid, server):
             except OSError:
                 pass
 
+    start_time = time.time()
     while True:
         time.sleep(POLL_INTERVAL)
+
+        # Hard lifetime ceiling -- final safety net regardless of idle/owner state.
+        if max_lifetime > 0 and time.time() - start_time > max_lifetime:
+            sys.stderr.write("visual-companion: shutting down (max lifetime {}s reached)\n".format(int(max_lifetime)))
+            if _cleanup_fn:
+                _cleanup_fn()
+            threading.Thread(target=server.shutdown, daemon=True).start()
+            return
 
         # Idle timeout
         if time.time() - last_request_time > IDLE_TIMEOUT:
@@ -367,6 +440,9 @@ def main():
     parser.add_argument('--dir', required=True, help='Directory to serve HTML from')
     parser.add_argument('--owner-pid', type=int, default=None, help='Parent process PID for lifecycle tracking')
     parser.add_argument('--verbose', action='store_true', help='Enable HTTP request logging to stderr')
+    parser.add_argument('--max-lifetime', type=float, default=28800,
+                        help='Hard ceiling on server lifetime in seconds (default: 28800 = 8h). '
+                             'Server exits no matter what once exceeded. Set to 0 to disable.')
     args = parser.parse_args()
 
     global verbose
@@ -403,7 +479,7 @@ def main():
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     # Start polling thread
-    t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid, server), daemon=True)
+    t = threading.Thread(target=poll_directory, args=(serve_dir, args.owner_pid, server, args.max_lifetime), daemon=True)
     t.start()
 
     url = info['url']

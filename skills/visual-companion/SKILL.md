@@ -51,15 +51,15 @@ A question about a UI topic is not automatically a visual question. "Should we u
    - If the loop completes with no output, the server failed to launch. Do NOT announce a URL. Inspect `<temp-dir>/.vc-meta/` and the background-process output, fix the underlying issue, and retry step 2.
 
 4. Tell the user (only after step 3 prints a URL):
-   > Visual companion running at {url}. It auto-refreshes when I update content.
+   > Visual companion running at {url}. Open it now -- you'll see a "waiting" page until I push the first visual, then it refreshes automatically.
 
 ## 3. The Loop
 
 For each visual step in the brainstorm:
 
 1. **Write an HTML fragment** to `<temp-dir>` with a semantic filename (e.g., `layout-options.html`). Write body content only -- the server wraps fragments automatically.
-2. **Never reuse filenames.** Each screen gets a fresh file. For iterations, append a version suffix: `layout-options-v2.html`.
-3. **Browser auto-reloads** via SSE when a new or changed `.html` file is detected. No manual refresh needed.
+2. **Never reuse filenames.** Each screen gets a fresh file. For iterations, append a version suffix: `layout-options-v2.html`. Older files stay on disk so the agent can copy them out at the end of the session.
+3. **Browser stays on `/` and auto-shows the newest file.** The server routes the root URL to the most recently modified `.html` file in the temp dir; SSE reload triggers whenever any HTML file changes. The user opens the URL once and never has to navigate manually -- each new file replaces the previous view automatically.
 
 ### Pick ONE input mode per step
 
@@ -150,9 +150,10 @@ Each line is a JSON object appended by the server. The agent reads this file to 
 
 ## 5. Cleaning Up
 
-The server self-terminates in two cases:
-- **Idle timeout:** No HTTP requests for 30 minutes.
+The server self-terminates in three cases:
+- **Idle timeout:** No real HTTP activity (page loads, click events, agent updates) for 30 minutes. SSE keepalives and auto-reconnects do NOT reset this timer -- if they did, an open browser tab would keep the server alive forever through any network blip.
 - **Owner PID death:** The `--owner-pid` process no longer exists (checked every 0.5s).
+- **Max lifetime:** 8 hours since startup, regardless of activity. Override with `--max-lifetime <seconds>`; set to 0 to disable.
 
 To stop manually:
 ```
@@ -189,3 +190,5 @@ cp <temp-dir>/final-layout.html docs/brainstorms/YYYY-MM-DD-<name>-mockups/
 **Known gotchas:**
 - This is the only Quiver skill that ships a runtime executable (`server.py`); never assume skill dirs are prompt-only.
 - Stopping the server depends on the PID file; if the temp dir is deleted before the kill, manual `pkill -f server.py` is needed.
+- Root request (`/` or `/index.html`) routes to the most recently modified HTML file in the serve dir; if none exists, it returns a built-in "waiting" landing page that subscribes to SSE. Both responses inject the SSE client, so the browser auto-reloads when the agent writes or updates any HTML. Specific paths (e.g. `/foo.html`) still 404 when missing -- do not rely on root routing to mask broken links.
+- The 8h hard ceiling and SSE-immune idle timer exist because a server was once found alive 29 days after start. Browser SSE auto-reconnects (WiFi switch / sleep / VPN) used to reset the idle timer indefinitely. Do not "simplify" `log_request` back to unconditional reset; do not remove `--max-lifetime`.
