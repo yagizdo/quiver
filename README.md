@@ -72,8 +72,8 @@ Then try `/brainstorm` in any session.
 | Component | Count |
 |-----------|-------|
 | Hooks | 1 |
-| Skills | 16 |
-| Agents | 10 |
+| Skills | 17 |
+| Agents | 11 |
 
 ## Skills
 
@@ -96,6 +96,7 @@ Then try `/brainstorm` in any session.
 | Skill | Description | When to use |
 |-------|-------------|-------------|
 | `/review` | Dispatches specialized review agents in parallel and synthesizes their findings into one report | Before merging a PR, or whenever you want multi-agent code review of a branch or PR URL |
+| `/report-check` | Analyze a review report for quality -- detects noise, false positives, and overkill suggestions | After a review, to audit the report before acting on findings |
 
 **Diff source** (pick one):
 ```
@@ -197,6 +198,7 @@ These skills back the slash-invocable skills above. They are not invoked directl
 | `test-reviewer` (`quiver:test-reviewer`) | Tests that pass without proving the code works |
 | `developer-experience-auditor` (`quiver:developer-experience-auditor`) | Confusing error messages, hidden debugging paths, brittle UX for humans and agents |
 | `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed. Uses whatever model your local codex is configured for: Quiver does not override `--model` |
+| `report-checker` (`quiver:report-checker`) | Independent quality auditor for review reports -- detects noise, false positives, overkill, and findings that exist to appear thorough |
 
 <!-- agents:review-end -->
 

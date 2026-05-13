@@ -359,7 +359,40 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. -->
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. Step 3.5 below may modify findings (remove, downgrade, rewrite) before Step 4 saves the report. -->
+
+## Step 3.5 -- Report Quality Check
+
+After synthesis, dispatch the `report-checker` agent for an independent quality audit. This step catches noise, false positives, and proportionality issues that survive the Step 3 filters.
+
+1. **Dispatch.** Spawn `quiver:report-checker` with:
+   - The full synthesized report (the markdown string from Step 3)
+   - The original diff (same diff passed to agents in Step 2)
+   - Do NOT pass individual agent outputs -- the checker evaluates the report as a reader would.
+
+2. **Handle results:**
+   - **Zero issues:** Print `Quality check passed -- report is ready.` Proceed to Step 4.
+   - **Issues found:** Apply the recommended actions:
+     - REMOVE: Delete the finding from the report.
+     - DOWNGRADE: Change the finding's severity and move it to the correct section.
+     - REWRITE: Replace the finding's recommendation text with the corrected version.
+   - After applying fixes, recalculate:
+     - Findings overview counts in `## Review Context`
+     - Severity section contents (move downgraded findings, remove deleted ones)
+     - Recommended Fix Order table (remove entries for deleted/downgraded findings)
+     - Verdict line (recompute based on remaining finding severities)
+   - Print: `Quality check: {N} issues found and fixed.`
+
+3. **Retry (max 1).** Re-dispatch `report-checker` with the corrected report.
+   - **Zero issues on retry:** Proceed to Step 4.
+   - **Issues remain on retry:** Proceed to Step 4 anyway. Do NOT retry again. Append a `## Quality Check Notes` section to the end of the report (before Verdict) listing the unresolved items with their QA IDs and descriptions.
+   - Print: `Quality check: {N} items remain after correction. Proceeding with the report.`
+
+4. The max iteration count (1 retry after initial check) is a hard limit. This prevents infinite correction loops. The same discipline that applies to the report-checker agent applies here: if the report is good enough after one correction pass, stop.
+
+**Status messages (plain language, no rule codes):**
+- Before dispatch: `Running quality check on the review report...`
+- These messages are user-facing and are fully covered by the plain-language scan in Step 4b.
 
 ## Step 4 -- Save Review Report
 
