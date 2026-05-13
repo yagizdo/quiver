@@ -1,6 +1,6 @@
 # Quiver
 
-[![Version](https://img.shields.io/badge/version-1.9.2-blue)](https://github.com/yagizdo/quiver/releases)
+[![Version](https://img.shields.io/badge/version-1.9.3-blue)](https://github.com/yagizdo/quiver/releases)
 
 Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skills for brainstorming, planning, execution, code review, and session handover, plus 10 specialized review agents that run in parallel.
 
