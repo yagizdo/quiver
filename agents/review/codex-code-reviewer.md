@@ -140,6 +140,7 @@ timeout 600 codex exec \
   --sandbox read-only \
   --skip-git-repo-check \
   --ephemeral \
+  -a never \
   --output-schema "$SCHEMA_FILE" \
   --output-last-message "$RESULT_FILE" \
   - < "$PROMPT_FILE" 2>"$STDERR_FILE"
