@@ -373,6 +373,7 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
 
 2. **Handle results:**
    - **Zero issues:** Print `Quality check passed -- report is ready.` Proceed to Step 4.
+   <!-- SYNC: The apply-fixes procedure below (REMOVE/DOWNGRADE/REWRITE actions + recalculation steps) is duplicated in skills/report-check/SKILL.md Step 4 "Apply fixes" block. Keep both in sync. -->
    - **Issues found:** Apply the recommended actions:
      - REMOVE: Delete the finding from the report.
      - DOWNGRADE: Change the finding's severity and move it to the correct section.

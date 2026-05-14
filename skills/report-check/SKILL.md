@@ -118,6 +118,7 @@ Buttons:
 
 Handle each option:
 
+<!-- SYNC: The apply-fixes procedure below (REMOVE/DOWNGRADE/REWRITE actions + recalculation steps) is duplicated in skills/review/SKILL.md Step 3.5 "Handle results" block. Keep both in sync. -->
 **Apply fixes:**
 1. For each issue with action REMOVE: delete the finding from the report file.
 2. For each issue with action DOWNGRADE: change the finding's severity and move it to the correct severity section.
