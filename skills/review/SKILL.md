@@ -196,6 +196,7 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
 - **`codex-code-reviewer`**: Only dispatched when `$ARGUMENTS` contains `--with-codex` AND the `codex` CLI is detected on PATH. This agent is a transport adapter that delegates the review to OpenAI Codex via the `codex` CLI; the actual reviewing is performed by Codex, not Claude. The Codex agent runs in parallel with all qualifying Claude review agents, providing cross-model "third eye" coverage. The CLI presence check is a Bash tool call the orchestrator performs at dispatch time (`command -v codex >/dev/null 2>&1 && echo PRESENT || echo MISSING`); do not place this check inside a `!` block in this command file (R3 forbids logic-bearing pipes in shell blocks). Skip with notes otherwise:
   > Skipping codex-code-reviewer: --with-codex flag not provided.
   > Skipping codex-code-reviewer: codex CLI not found on PATH. Install with `npm install -g @openai/codex` (>= 0.123.0) or run `/codex:setup` from the openai/codex-plugin-cc plugin.
+- **`report-checker`**: Never dispatched in Step 2. This agent is a post-synthesis quality gate, dispatched only in Step 3.5 after the report is assembled. Skip silently during agent discovery.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -359,7 +360,41 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. -->
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. Step 3.5 below may modify findings (remove, downgrade, rewrite) before Step 4 saves the report. -->
+
+## Step 3.5 -- Report Quality Check
+
+After synthesis, dispatch the `report-checker` agent for an independent quality audit. This step catches noise, false positives, and proportionality issues that survive the Step 3 filters.
+
+1. **Dispatch.** Spawn `quiver:report-checker` with:
+   - The full synthesized report (the markdown string from Step 3)
+   - The original diff (same diff passed to agents in Step 2)
+   - Do NOT pass individual agent outputs -- the checker evaluates the report as a reader would.
+
+2. **Handle results:**
+   - **Zero issues:** Print `Quality check passed -- report is ready.` Proceed to Step 4.
+   <!-- SYNC: The apply-fixes procedure below (REMOVE/DOWNGRADE/REWRITE actions + recalculation steps) is duplicated in skills/report-check/SKILL.md Step 4 "Apply fixes" block. Keep both in sync. -->
+   - **Issues found:** Apply the recommended actions:
+     - REMOVE: Delete the finding from the report.
+     - DOWNGRADE: Change the finding's severity and move it to the correct section.
+     - REWRITE: Replace the finding's recommendation text with the corrected version.
+   - After applying fixes, recalculate:
+     - Findings overview counts in `## Review Context`
+     - Severity section contents (move downgraded findings, remove deleted ones)
+     - Recommended Fix Order table (remove entries for deleted/downgraded findings)
+     - Verdict line (recompute based on remaining finding severities)
+   - Print: `Quality check: {N} issues found and fixed.`
+
+3. **Retry (max 1).** Re-dispatch `report-checker` with the corrected report.
+   - **Zero issues on retry:** Proceed to Step 4.
+   - **Issues remain on retry:** Proceed to Step 4 anyway. Do NOT retry again. Append a `## Quality Check Notes` section to the end of the report (before Verdict) listing the unresolved items with their QA IDs and descriptions.
+   - Print: `Quality check: {N} items remain after correction. Proceeding with the report.`
+
+4. The max iteration count (1 retry after initial check) is a hard limit. This prevents infinite correction loops. The same discipline that applies to the report-checker agent applies here: if the report is good enough after one correction pass, stop.
+
+**Status messages (plain language, no rule codes):**
+- Before dispatch: `Running quality check on the review report...`
+- These messages are user-facing and are fully covered by the plain-language scan in Step 4b.
 
 ## Step 4 -- Save Review Report
 

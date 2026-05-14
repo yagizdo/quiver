@@ -20,6 +20,7 @@
     "./agents/review/test-reviewer.md",
     "./agents/review/stress-tester.md",
     "./agents/review/codex-code-reviewer.md",
+    "./agents/review/report-checker.md",
     "./agents/research/best-practices-researcher.md",
     "./agents/research/project-context-analyst.md"
   ],
