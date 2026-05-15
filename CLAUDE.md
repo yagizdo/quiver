@@ -10,8 +10,8 @@ Dependencies: `bash`, `claude` CLI.
 ## Architecture
 
 - **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/skill/agent registration, and MCP servers.
-- **`skills/`** — 16 skill directories (each contains `SKILL.md`). Each `SKILL.md` carries YAML front-matter (`name`, `description`) and is a self-contained prompt; the `name` field doubles as the slash invocation (`/handover`, `/review`, etc.). **Exception:** `visual-companion` also contains `server.py`, a runtime executable -- this is the only skill with non-prompt code.
-- **`agents/`** — 10 agent definitions organized by category (`review/`, `research/`). Agents are persona prompts spawned as subagents.
+- **`skills/`** — 18 skill directories (each contains `SKILL.md`). Each `SKILL.md` carries YAML front-matter (`name`, `description`) and is a self-contained prompt; the `name` field doubles as the slash invocation (`/handover`, `/review`, etc.). **Exception:** `visual-companion` also contains `server.py`, a runtime executable -- this is the only skill with non-prompt code.
+- **`agents/`** — 16 agent definitions organized by category (`review/`, `research/`, `debug/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Currently one hook: PreCompact (fires before context compaction).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
 - **Rules** — `.claude/rules/` contains `skill-rules.md` (hard rules and learned lessons for skills, formerly `command-rules.md`), `review-agent-rules.md`, `cli-overlay-rules.md`, and `readme-structure.md`.
