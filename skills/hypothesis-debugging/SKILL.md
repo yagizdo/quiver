@@ -1,5 +1,5 @@
 ---
-name: debug
+name: hypothesis-debugging
 description: "Hypothesis-first debugging -- collects symptoms, generates and tests hypotheses with conditional agent dispatch, falls back to adaptive exploration, and proposes reviewed fixes."
 argument-hint: "<bug description, error message, or 'help me debug X'>"
 ---
@@ -35,7 +35,7 @@ Proceed to Step 0.5. Git-dependent features (regression-finder agent, recent cha
 ## Step 0.5 -- Input Validation
 
 If the argument is empty and the conversation has no prior bug context:
-> Usage: `/debug <bug description, error message, or 'help me debug X'>`
+> Usage: `/hypothesis-debugging <bug description, error message, or 'help me debug X'>`
 >
 > Provide an error message, log snippet, bug description, or just describe what's going wrong.
 
@@ -201,7 +201,7 @@ If user selects "None": stop with a summary of the root cause.
 
 ## Test Plan
 
-**Trigger:** `/debug <description>` (and `/quiver:debug`)
+**Trigger:** `/hypothesis-debugging <description>` (and `/quiver:hypothesis-debugging`)
 
 **Setup:**
 - Any git repository with source code.

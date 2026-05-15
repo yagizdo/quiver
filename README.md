@@ -6,7 +6,7 @@ Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skill
 
 ## Typical workflow
 
-A normal feature cycle chains these skills. Each one is self-contained and works on its own. Skip steps, reorder them, or use just the ones you need. If you hit a bug at any point, run `/debug` to investigate it systematically.
+A normal feature cycle chains these skills. Each one is self-contained and works on its own. Skip steps, reorder them, or use just the ones you need. If you hit a bug at any point, run `/hypothesis-debugging` to investigate it systematically.
 
 1. `/brainstorm`: turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
 2. `/plan`: research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
@@ -135,7 +135,7 @@ Then try `/brainstorm` in any session.
 
 | Skill | Description | When to use |
 |-------|-------------|-------------|
-| `/debug` | Hypothesis-first debugging with conditional agent dispatch and mandatory fix review | When you have a bug and want systematic investigation: provide error messages, logs, or a description and the skill traces root cause and proposes fixes |
+| `/hypothesis-debugging` | Hypothesis-first debugging with conditional agent dispatch and mandatory fix review | When you have a bug and want systematic investigation: provide error messages, logs, or a description and the skill traces root cause and proposes fixes |
 
 ### Git
 
