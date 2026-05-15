@@ -2,11 +2,11 @@
 
 [![Version](https://img.shields.io/badge/version-1.9.3-blue)](https://github.com/yagizdo/quiver/releases)
 
-Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skills for brainstorming, planning, execution, code review, and session handover, plus 10 specialized review agents that run in parallel.
+Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skills for brainstorming, planning, execution, debugging, code review, and session handover, plus specialized agents for review and debugging.
 
 ## Typical workflow
 
-A normal feature cycle chains these skills. Each one is self-contained and works on its own. Skip steps, reorder them, or use just the ones you need.
+A normal feature cycle chains these skills. Each one is self-contained and works on its own. Skip steps, reorder them, or use just the ones you need. If you hit a bug at any point, run `/debug` to investigate it systematically.
 
 1. `/brainstorm`: turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
 2. `/plan`: research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
@@ -72,8 +72,8 @@ Then try `/brainstorm` in any session.
 | Component | Count |
 |-----------|-------|
 | Hooks | 1 |
-| Skills | 17 |
-| Agents | 11 |
+| Skills | 18 |
+| Agents | 16 |
 
 ## Skills
 
@@ -130,6 +130,12 @@ Then try `/brainstorm` in any session.
 > **Model selection:** Quiver does not pass `--model` to the codex CLI: whichever model your local codex is configured to use (set in `~/.codex/config.toml`, CLI default, or env override) is the model that will run the review. If your auth method or plan does not have access to a given model, change your local codex configuration; Quiver will not override it.
 
 **Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review: no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
+
+### Debugging
+
+| Skill | Description | When to use |
+|-------|-------------|-------------|
+| `/debug` | Hypothesis-first debugging with conditional agent dispatch and mandatory fix review | When you have a bug and want systematic investigation: provide error messages, logs, or a description and the skill traces root cause and proposes fixes |
 
 ### Git
 
@@ -211,6 +217,19 @@ These skills back the slash-invocable skills above. They are not invoked directl
 | `project-context-analyst` (`quiver:project-context-analyst`) | Prior decisions, past bugs, and churn patterns in this area of the codebase |
 
 <!-- agents:research-end -->
+
+### Debug
+<!-- agents:debug-start -->
+
+| Agent | What it does |
+|-------|--------------|
+| `code-tracer` (`quiver:code-tracer`) | Traces execution paths across files to find where behavior diverges from expectation |
+| `log-analyzer` (`quiver:log-analyzer`) | Parses log dumps and stack traces to extract error patterns and map them to source code |
+| `regression-finder` (`quiver:regression-finder`) | Analyzes git history to find which commit introduced a bug |
+| `environment-checker` (`quiver:environment-checker`) | Checks dependency versions, config files, and environment setup for mismatches |
+| `fix-reviewer` (`quiver:fix-reviewer`) | Reviews every proposed fix for overengineering, workarounds, and architectural consistency |
+
+<!-- agents:debug-end -->
 <!-- agents-end -->
 
 ## External Dependencies
