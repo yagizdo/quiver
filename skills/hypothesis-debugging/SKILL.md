@@ -47,7 +47,7 @@ If the argument is present: use it as the initial bug description and proceed to
 
 Gather all available context about the bug:
 
-1. **Parse user input.** Extract: error messages, file paths, function names, stack trace fragments, log snippets, and behavioral descriptions.
+1. **Parse user input.** Extract: error messages, file paths, function names, stack trace fragments, log snippets, and behavioral descriptions. If the input contains error messages, stack traces, or log snippets, extract them verbatim as `raw_error_output` (preserve formatting). If no structured error output is present, note `raw_error_output: none`.
 
 2. **Search the codebase.** Based on extracted keywords:
    - Search for error strings, function names, and file references in source files.
@@ -110,6 +110,9 @@ Dispatch qualifying agents in parallel (multiple Agent tool calls in a single re
 - The specific hypothesis being tested
 - Relevant file paths from Step 1
 - User's original bug description
+- Symptom summary from Step 1.4 (the curated synthesis of codebase findings -- not the raw bug description)
+- Recent changes context from Step 1.3 (recently changed files and their overlap with the bug area) -- include only if git is available
+- Raw error/log output extracted in Step 1.1 (verbatim stack traces, error messages, log snippets) -- include only if present
 - `lsp_available` flag (detect once using the Code Navigation Strategy detection flow from `skills/code-navigation/SKILL.md`; cache for the session)
 
 For simple single-file checks: handle directly without agent dispatch. Read the file, inspect the relevant code, and evaluate the hypothesis.
