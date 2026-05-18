@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Explore ideas, compare approaches, and produce a validated spec before planning.
+description: "Explore ideas, compare approaches, and produce a validated spec before planning. Use when the user describes what to build, asks how to approach something, proposes a new feature or design change, or needs to explore options before implementation."
 argument-hint: "<idea or feature description>"
 ---
 
