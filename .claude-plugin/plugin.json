@@ -27,7 +27,8 @@
     "./agents/debug/log-analyzer.md",
     "./agents/debug/regression-finder.md",
     "./agents/debug/environment-checker.md",
-    "./agents/debug/fix-reviewer.md"
+    "./agents/debug/fix-reviewer.md",
+    "./agents/workflow/plan-reviewer.md"
   ],
   "mcpServers": {
     "context7": {

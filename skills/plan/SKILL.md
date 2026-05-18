@@ -288,16 +288,94 @@ review_iteration: 1  # increments for each fix plan targeting the same review
 - Add a verification criterion (e.g., "flutter analyze passes clean")
 - These criteria become the Definition of Done -- the work skill uses them to determine when the review-fix cycle is COMPLETE and to prevent infinite re-review loops
 
-## Step 6 -- Plan Self-Review
+## Step 6 -- Plan Guard: Inline Validation
 
-After drafting the plan, review it before presenting to the user. This is an internal check -- do not show it as a separate section to the user.
+After drafting the plan, run these 6 checks before presenting to the user. This is an internal quality gate -- do not show it as a separate section to the user.
 
-1. **Spec coverage:** If the task originated from a brainstorm spec or review report, skim each requirement. Can you point to a task that implements it? Add missing tasks.
-2. **Placeholder scan:** Search for "TBD", "TODO", "implement later", vague steps without file paths or code. Fix them.
-3. **Naming consistency:** Do function names, type names, and variable names match across tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug in the plan.
-4. **Test coverage:** Does every task that produces testable behavior have a corresponding test step? If the project has tests, missing test steps are plan gaps.
+### Check 1: Placeholder scan
 
-Fix issues inline. No need to re-review after fixes -- just fix and move on.
+Search the plan for: "TBD", "TODO", "implement later", "fill in details", "add appropriate", "handle edge cases", "similar to Task N", raw `{...}` template text, and steps without file paths or expected outcomes. Replace every match with concrete content. (FIX)
+
+### Check 2: Naming consistency
+
+Extract all symbol names (functions, types, variables, file names) from every task. Flag any symbol appearing in 2+ tasks with different spellings. Normalize to the first-used spelling. (FIX)
+
+### Check 3: Spec coverage (bidirectional)
+
+If the plan has a brainstorm spec reference (Context section referencing `docs/brainstorms/*.md`) or a review source (frontmatter `review_source`), read the source and verify:
+- **Forward:** each spec requirement maps to at least one plan task. Add a task for any gap. (ADD)
+- **Reverse:** each plan task maps to a spec requirement or explicit infrastructure need. Flag tasks that do not trace back. (NOTE -- potential scope creep)
+
+### Check 4: Task granularity
+
+Flag tasks that: modify more than 3 files, have more than 5 sub-steps, lack an expected outcome, or reference no file paths. (NOTE)
+
+### Check 5: Reference validity
+
+Probe file paths mentioned in the plan:
+- **Modify/Delete** targets must exist on disk. (FIX if missing)
+- **Create** targets must NOT exist on disk. (NOTE if collision)
+- Internal cross-references ("as defined in Task N") must resolve to an actual task. (FIX if dangling)
+
+### Check 6: File map completeness
+
+If the plan has a "File Map" section: every map entry must appear in at least one task, and every task file must appear in the map. (FIX for orphans, ADD for missing entries)
+
+### Action routing
+
+After running all 6 checks:
+- **FIX:** auto-fix by editing the plan content inline.
+- **ADD:** draft and insert missing content (tasks, acceptance criteria, file map entries).
+- **REORDER:** move affected tasks to satisfy dependency ordering.
+- **NOTE:** accumulate silently. If any NOTE findings exist, insert a `### Plan Guard Notes` subsection in the plan's Context section before the user sees the plan.
+
+After applying fixes, proceed to Step 6.5. No re-run of checks. The human review gate (Step 7) is the convergence anchor.
+
+## Step 6.5 -- Plan Guard: Agent Semantic Review
+
+**Skip conditions (check in order -- if any match, proceed directly to Step 7):**
+1. Complexity is **Light** (assessed in Step 1).
+2. This is a **review-fix plan** (detected in Step 1 via review report reference).
+
+If neither skip condition matches, dispatch the plan-reviewer agent:
+
+### Agent dispatch
+
+Spawn a single `quiver:plan-reviewer` agent with a self-contained prompt containing:
+
+```
+Agent(
+  subagent_type="quiver:plan-reviewer",
+  description="Semantic review of implementation plan",
+  prompt="Review this implementation plan for logical coherence, dependency ordering,
+  coverage completeness, and spec alignment.
+
+  ## Plan
+
+  {full plan content with Step 6 fixes already applied}
+
+  ## Source Specification
+
+  {spec content if available from the plan's Context section or spec_source frontmatter,
+   otherwise: 'No source specification provided.'}
+
+  ## Project Context
+
+  {relevant directory listings for file paths mentioned in the plan}
+
+  Report findings using the action taxonomy: FIX, ADD, REORDER, NOTE.
+  If zero findings, state that explicitly.",
+)
+```
+
+### Post-agent flow
+
+1. Parse the agent's structured findings.
+2. **Zero findings** -- proceed to Step 7.
+3. **Findings exist** -- apply edits:
+   - **FIX/ADD/REORDER:** edit the plan content inline.
+   - **NOTE:** append to the `### Plan Guard Notes` subsection in the plan's Context section (create it if it does not exist from Step 6).
+4. Do NOT re-dispatch the agent. One pass only. Proceed to Step 7.
 
 ## Step 7 -- Review Gate
 
@@ -389,6 +467,10 @@ After saving the plan file:
 - [ ] Review-fix detection produces frontmatter with `review_source` and `review_iteration`.
 - [ ] No raw `{placeholder}` strings remain in the saved plan.
 - [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
+- [ ] Step 6 runs 6 inline checks (placeholder, naming, spec coverage, granularity, reference validity, file map) on every plan.
+- [ ] Step 6.5 dispatches `plan-reviewer` agent only for Standard/Deep non-review-fix plans.
+- [ ] Light plans and review-fix plans skip Step 6.5 entirely.
+- [ ] Plan Guard Notes subsection appears in the plan's Context section only when NOTE findings exist.
 
 **Known gotchas:**
 - The Explore agent prompt embeds the full Code Navigation Strategy block; updates to that block must keep the skill body in sync with `skills/code-navigation/SKILL.md`.

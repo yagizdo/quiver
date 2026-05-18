@@ -73,7 +73,7 @@ Then try `/brainstorm` in any session.
 |-----------|-------|
 | Hooks | 1 |
 | Skills | 18 |
-| Agents | 16 |
+| Agents | 17 |
 
 ## Skills
 
@@ -230,6 +230,15 @@ These skills back the slash-invocable skills above. They are not invoked directl
 | `fix-reviewer` (`quiver:fix-reviewer`) | Reviews every proposed fix for overengineering, workarounds, and architectural consistency |
 
 <!-- agents:debug-end -->
+
+### Workflow
+<!-- agents:workflow-start -->
+
+| Agent | What it does |
+|-------|--------------|
+| `plan-reviewer` (`quiver:plan-reviewer`) | Reviews implementation plans for logical coherence, dependency ordering, coverage completeness, and spec alignment |
+
+<!-- agents:workflow-end -->
 <!-- agents-end -->
 
 ## External Dependencies
