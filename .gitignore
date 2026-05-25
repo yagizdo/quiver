@@ -53,5 +53,8 @@ marketing/
 # Claude Code Plugin files
 docs/
 
+# Reports
+.claude/reports/
+
 # Git worktrees
 .worktrees/
