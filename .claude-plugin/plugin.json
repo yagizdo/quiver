@@ -21,6 +21,7 @@
     "./agents/review/stress-tester.md",
     "./agents/review/codex-code-reviewer.md",
     "./agents/review/report-checker.md",
+    "./agents/review/senior-reviewer.md",
     "./agents/research/best-practices-researcher.md",
     "./agents/research/project-context-analyst.md",
     "./agents/debug/code-tracer.md",
