@@ -193,9 +193,10 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
   > Skipping test-reviewer: no application code or scripts changed.
 - **`stress-tester`**: Only dispatched when the diff contains at least one `SCRIPT` or `CODE` file. Constructs failure scenarios via assumption stress, composition fracture, and cascade chains. Receives depth calibration context: diff manifest file types + detected risk signals. Skip when all files are `PROMPT`, `DOCS`, or `CONFIG-MANIFEST`:
   > Skipping stress-tester: no application code or scripts changed.
-- **`codex-code-reviewer`**: Only dispatched when `$ARGUMENTS` contains `--with-codex` AND the `codex` CLI is detected on PATH. This agent is a transport adapter that delegates the review to OpenAI Codex via the `codex` CLI; the actual reviewing is performed by Codex, not Claude. The Codex agent runs in parallel with all qualifying Claude review agents, providing cross-model "third eye" coverage. The CLI presence check is a Bash tool call the orchestrator performs at dispatch time (`command -v codex >/dev/null 2>&1 && echo PRESENT || echo MISSING`); do not place this check inside a `!` block in this command file (R3 forbids logic-bearing pipes in shell blocks). Skip with notes otherwise:
+- **`codex-code-reviewer`**: Only dispatched when ALL three conditions are met: (1) `$ARGUMENTS` contains `--with-codex`, (2) the `codex` CLI is detected on PATH, and (3) the diff is 2000 lines or fewer. This agent is a transport adapter that delegates the review to OpenAI Codex via the `codex` CLI; the actual reviewing is performed by Codex, not Claude. The Codex agent runs in parallel with all qualifying Claude review agents, providing cross-model "third eye" coverage. The CLI presence check is a Bash tool call the orchestrator performs at dispatch time (`command -v codex >/dev/null 2>&1 && echo PRESENT || echo MISSING`); do not place this check inside a `!` block in this command file (R3 forbids logic-bearing pipes in shell blocks). The diff line count is already available from the diff captured in Step 1 (`wc -l` on the diff output). Skip with notes otherwise:
   > Skipping codex-code-reviewer: --with-codex flag not provided.
   > Skipping codex-code-reviewer: codex CLI not found on PATH. Install with `npm install -g @openai/codex` (>= 0.123.0) or run `/codex:setup` from the openai/codex-plugin-cc plugin.
+  > Skipping codex-code-reviewer: diff exceeds 2000 lines ({actual_count} lines). Codex review is skipped for large diffs to avoid excessive token consumption and timeouts.
 - **`report-checker`**: Never dispatched in Step 2. This agent is a post-synthesis quality gate, dispatched only in Step 3.5 after the report is assembled. Skip silently during agent discovery.
 - **`senior-reviewer`**: Never dispatched in Step 2. This agent is a post-quality-check senior review, dispatched only in Step 3.75 after report-checker completes. Skip silently during agent discovery.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
@@ -315,6 +316,7 @@ One paragraph: what the PR does, overall risk, top-line recommendation.
 
 ## Agents Dispatched
 {list each discovered agent and its verdict}
+{if any agents were skipped with a reason (e.g., codex-code-reviewer skipped due to diff size or missing CLI), list them here with the skip reason so the user knows why coverage was reduced}
 
 ## What's Working Well
 {2-5 bullet points highlighting positive aspects of the changes. Each item is one sentence, no severity ratings. Omit this section entirely if the diff has no notable strengths -- do not fabricate praise.}
@@ -460,6 +462,7 @@ Evaluate in order:
    - One-line verdict
    - Counts per severity
    - Which agents ran and their individual verdicts
+   - If any agents were skipped for a non-trivial reason (diff too large for Codex, CLI not found, etc.), include a one-line note per skipped agent explaining why. Do NOT list agents skipped because their file-type gate did not match (those are routine and expected). Only mention skips that reduced coverage the user explicitly requested (e.g., `--with-codex` was passed but Codex was skipped).
    - Path to the saved report file
 4. **Pre-print scan (mandatory gate).** Before printing the drafted summary, run the scan defined in the "Status Messages: Plain Language Required" section against the draft. The summary is a live chat-stream message and is fully covered by the plain-language rule -- it is not exempt because it appears at the end of the run. If the draft contains any rule code, hash prefix, bare commit SHA, or internal invariant name, rewrite it using the translation table and re-scan. Only print the summary after the scan passes.
 5. Do **not** print the full review in the terminal unless `--terminal` was used.
@@ -596,6 +599,7 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 - [ ] Re-review mode produces a `Delta` line and `Scope: Delta-only` in the saved report's `## Review Context`.
 - [ ] Report path defaults to `.claude/reports/` and respects `--output`/`--set-output`/saved preference, with path validation rejecting absolute paths and `..` segments.
 - [ ] `--with-codex` is silently skipped when the `codex` CLI is missing (does not error).
+- [ ] `--with-codex` is silently skipped when the diff exceeds 2000 lines (skip note shows actual line count).
 - [ ] No internal jargon (rule codes, hashes, invariant names) appears in the terminal summary; report file content may include them.
 
 **Known gotchas:**
