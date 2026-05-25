@@ -197,6 +197,7 @@ Apply dispatch rules based on the Diff Manifest from Step 1.5:
   > Skipping codex-code-reviewer: --with-codex flag not provided.
   > Skipping codex-code-reviewer: codex CLI not found on PATH. Install with `npm install -g @openai/codex` (>= 0.123.0) or run `/codex:setup` from the openai/codex-plugin-cc plugin.
 - **`report-checker`**: Never dispatched in Step 2. This agent is a post-synthesis quality gate, dispatched only in Step 3.5 after the report is assembled. Skip silently during agent discovery.
+- **`senior-reviewer`**: Never dispatched in Step 2. This agent is a post-quality-check senior review, dispatched only in Step 3.75 after report-checker completes. Skip silently during agent discovery.
 - **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
@@ -339,6 +340,9 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 
 {For findings flagged by 2+ agents, include the annotation: "Flagged by: agent1, agent2"}
 
+## Senior Assessment
+{If senior-reviewer ran: team lead's overall assessment, meta-review observations, and any finding modifications with justification. Omit this section entirely if senior-reviewer did not run or returned no assessment.}
+
 ## Recommended Fix Order
 {Prioritized action plan for findings of Medium severity or above. Omit this section if 0-2 findings qualify.}
 
@@ -360,7 +364,7 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 [Unified verdict] -- [severity counts] -- [one-line justification]
 ```
 
-<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order) are additive and do not affect Phase 4c parsing. Step 3.5 below may modify findings (remove, downgrade, rewrite) before Step 4 saves the report. -->
+<!-- SYNC: This report format is parsed by skills/work/SKILL.md:316 Phase 4c (review finding verification). If you change the report structure (section headings, finding format), update the verification parsing logic there. New sections (What's Working Well, Recommended Fix Order, Senior Assessment) are additive and do not affect Phase 4c parsing. Step 3.5 and Step 3.75 below may modify findings (remove, downgrade, rewrite, promote, add) before Step 4 saves the report. -->
 
 ## Step 3.5 -- Report Quality Check
 
@@ -395,6 +399,42 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
 **Status messages (plain language, no rule codes):**
 - Before dispatch: `Running quality check on the review report...`
 - These messages are user-facing and are fully covered by the plain-language scan in Step 4b.
+
+## Step 3.75 -- Senior Review
+
+After the quality check, dispatch the `senior-reviewer` agent for a pragmatic senior developer assessment. This step provides the "team lead final verdict" -- evaluating both the code and the other agents' findings through a senior developer lens.
+
+1. **Dispatch.** Spawn `quiver:senior-reviewer` with:
+   - The full synthesized report (post-quality-check -- with report-checker fixes applied)
+   - The original diff (same diff passed to agents in Step 2)
+   - The Diff Manifest from Step 1.5
+   - Pipeline mode context: "You are running inside the /review pipeline. Run Phase 0-4 (your own independent code review) on the diff first, then run Phase 5 (Meta-Review) on the synthesized report. The report has already been quality-checked by report-checker -- findings that were removed are out of scope. Do not attempt to recover or reference them."
+   - Language context: detected languages from the Diff Manifest file extensions
+   - Do NOT pass --quick flag in pipeline mode. Always run full analysis (Phase 0-4 + Phase 5).
+
+2. **Handle results:**
+   - **Zero modifications, zero new findings:** Print `Senior review passed -- no changes to report.` Proceed to Step 4.
+   <!-- SYNC: The apply-fixes procedure below (REMOVE/DOWNGRADE/REWRITE/PROMOTE/ADD actions + recalculation steps) is a superset of the procedure in Step 3.5 and skills/report-check/SKILL.md Step 4. PROMOTE and ADD are unique to Step 3.75. Keep the shared actions (REMOVE/DOWNGRADE/REWRITE) and recalculation steps in sync across all three locations. -->
+   - **Modifications or new findings:** Apply the recommended actions:
+     - REMOVE: Delete the finding from the report.
+     - DOWNGRADE: Change the finding's severity and move it to the correct section.
+     - REWRITE: Replace the finding's recommendation text with the corrected version.
+     - PROMOTE: Upgrade the finding's severity and move it to the correct section. The senior-reviewer must provide justification for promotion.
+     - ADD: Insert a new finding into the appropriate severity section. New findings from senior-reviewer use the prefix SR (SR1, SR2, etc.) to distinguish them from original agent findings. The senior-reviewer must cite the file and line for each added finding.
+   - After applying fixes, recalculate:
+     - Findings overview counts in `## Review Context`
+     - Severity section contents (move promoted/downgraded findings, remove deleted ones, insert added ones)
+     - Recommended Fix Order table (update entries for promoted/downgraded findings, add entries for new findings, remove deleted ones)
+     - Verdict line (recompute based on remaining finding severities)
+   - Print: `Senior review: {N} modifications, {M} new findings.`
+
+3. **Senior Assessment section.** If the senior-reviewer produced an overall assessment, insert a `## Senior Assessment` section in the report after `## Findings` and before `## Recommended Fix Order`. This section contains the team lead's summary and any meta-review observations. Omit this section if the senior-reviewer returned no assessment text.
+
+4. **No retry.** Unlike report-checker, the senior-reviewer does NOT get a retry. One pass only. Proceed to Step 4.
+
+**Status messages (plain language, no rule codes):**
+- Before dispatch: `Running senior developer review (independent code review + meta-review of findings)...`
+- After completion: `Senior review complete.` or `Senior review: {N} modifications, {M} new findings.`
 
 ## Step 4 -- Save Review Report
 
