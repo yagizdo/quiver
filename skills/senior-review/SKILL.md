@@ -66,7 +66,12 @@ Parse `$ARGUMENTS`:
 
 If source was set from Step 1 (PR number or URL), skip to Step 3.
 
-Otherwise, use `AskUserQuestion`:
+If source is unset, infer from conversation context before prompting:
+- User's message mentions current changes, uncommitted work, a fix they just made, or asks to review "this" without specifying a PR --> source = `uncommitted`. If uncommitted diff is empty, fall back to `branch`.
+- User's message mentions a branch, branch diff, or comparing against main/master --> source = `branch`.
+- If intent is clear from context, skip the prompt and go to Step 3.
+
+Only if intent cannot be inferred, use `AskUserQuestion`:
 
 > What would you like me to review?
 
@@ -112,9 +117,10 @@ If empty, print:
 **Stop here.**
 
 **Pull Request:**
-Use the `gh` CLI to fetch the PR diff:
+Use the Bash tool to fetch the PR diff at runtime (do NOT use a `!` shell block -- the PR number is only known after argument parsing):
+
 ```
-!`gh pr diff {pr_number_or_url} 2>&1`
+gh pr diff <pr_number_or_url> 2>&1
 ```
 
 If `gh` is not available or the command fails, print:
