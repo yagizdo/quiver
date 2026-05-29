@@ -35,9 +35,10 @@ A question about a UI topic is not automatically a visual question. "Should we u
 
 2. Start the visual companion server in the background:
    ```
-   python3 <skill-dir>/server.py --dir <temp-dir> --owner-pid $$ &
+   python3 <skill-dir>/server.py --dir <temp-dir> &
    ```
    `<skill-dir>` is resolved by the invoking agent to the absolute path of `skills/visual-companion/`.
+   Do NOT pass `--owner-pid` -- in the Bash tool context, `$$` resolves to the ephemeral shell PID that dies immediately, causing the server to self-terminate within seconds. The server already has idle timeout (30 min) and max lifetime (8h) for cleanup.
 
 3. **Wait for the server to become ready before announcing its URL.** The `&` in step 2 returns immediately; the Python process still needs to import modules, bind the port, and write `server-info.json`. Announcing the URL before this finishes is the #1 cause of "localhost opened but link unreachable" failures. Probe until both `server-info.json` exists and the port accepts TCP connections:
    ```
@@ -51,7 +52,12 @@ A question about a UI topic is not automatically a visual question. "Should we u
    - If the loop completes with no output, the server failed to launch. Do NOT announce a URL. Inspect `<temp-dir>/.vc-meta/` and the background-process output, fix the underlying issue, and retry step 2.
 
 4. Tell the user (only after step 3 prints a URL):
-   > Visual companion running at {url}. Open it now -- you'll see a "waiting" page until I push the first visual, then it refreshes automatically.
+   > Visual companion running at {url}. Open it in your browser.
+
+5. **Push an initial HTML page immediately.** Do NOT enter the question flow while the browser shows the "waiting" page -- the user sees a broken-looking screen and loses confidence. Write a context-setting HTML fragment to `<temp-dir>` right now, before any `AskUserQuestion` call. The content depends on the session:
+   - For brainstorm sessions: a brief "session overview" card showing the topic and what is coming next.
+   - For other sessions: a simple title card with the session purpose.
+   The server's SSE auto-reload will push this to the browser. Confirm the browser shows your content before proceeding.
 
 ## 3. The Loop
 
@@ -68,6 +74,10 @@ A step is either **browser-answered** or **terminal-answered**. Do not do both i
 **Mode A -- Browser-answered (the cards ARE the question):**
 
 Use when the whole point is "pick one of these visual options."
+
+**Pre-write checklist (mandatory before every Mode A HTML write):**
+- Every selectable visual element MUST have a `data-choice="<value>"` attribute. The client JS ignores elements without it -- styled cards that look clickable but lack `data-choice` are a silent bug (clicks vanish, user sees nothing happen).
+- Do NOT use `AskUserQuestion` in Mode A. The browser click IS the answer.
 
 1. Clear stale selections first so old clicks do not leak into the new question:
    ```
@@ -150,10 +160,11 @@ Each line is a JSON object appended by the server. The agent reads this file to 
 
 ## 5. Cleaning Up
 
-The server self-terminates in three cases:
+The server self-terminates in two cases:
 - **Idle timeout:** No real HTTP activity (page loads, click events, agent updates) for 30 minutes. SSE keepalives and auto-reconnects do NOT reset this timer -- if they did, an open browser tab would keep the server alive forever through any network blip.
-- **Owner PID death:** The `--owner-pid` process no longer exists (checked every 0.5s).
 - **Max lifetime:** 8 hours since startup, regardless of activity. Override with `--max-lifetime <seconds>`; set to 0 to disable.
+
+Note: `--owner-pid` exists in server.py but is NOT used in the startup template above. In the Bash tool context, `$$` resolves to an ephemeral shell PID that dies immediately, making the owner-PID mechanism unreliable. The idle timeout and max lifetime are sufficient.
 
 To stop manually:
 ```
