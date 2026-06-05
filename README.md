@@ -13,7 +13,7 @@ A normal feature cycle chains these skills. Each one is self-contained and works
 3. `/work`: execute the plan task-by-task with continuous testing, branch setup, and incremental commits.
 4. `/commit`: generate a Conventional Commits message from staged changes and commit (optionally pushing).
 5. `/create-pr`: open a GitHub pull request with an auto-generated title and description from the branch diff.
-6. `/review`: dispatch specialized review agents in parallel (logic, architecture, security, tests, devex, waste) and synthesize findings into one report.
+6. `/review`: dispatch review agents to check code quality, security, and architecture, then synthesize findings into one report. Runs 5 agents by default; `--deep` for the full pipeline.
 7. `/handover`: save an 8-section summary of the session so the next session resumes with full context.
 
 ## Installation
@@ -51,7 +51,7 @@ Then try `/brainstorm` in any session.
 
 - The handover auto-save hook maps to Codex's `Stop` event with a 10-minute cooldown. For on-demand handovers, use `/handover` directly.
 - `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
-- Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches up to 10 agents in parallel this way.
+- Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
 ### Gemini CLI
@@ -64,7 +64,7 @@ Then try `/brainstorm` in any session.
 
 - `ask_user` is native on Gemini CLI: interactive prompts render with full fidelity.
 - The handover auto-save hook maps to Gemini CLI's `PreCompress` event. Unlike Codex's Stop event, no cooldown guard is needed: PreCompress fires only before history compression.
-- Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches up to 10 agents this way.
+- Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
 ## Components
@@ -95,24 +95,27 @@ Then try `/brainstorm` in any session.
 
 | Skill | Description | When to use |
 |-------|-------------|-------------|
-| `/review` | Dispatches specialized review agents in parallel and synthesizes their findings into one report | Before merging a PR, or whenever you want multi-agent code review of a branch or PR URL |
+| `/review` | Dispatches review agents and synthesizes findings into one report. Default fast mode (5 agents); `--deep` for full pipeline | Before merging a PR, or whenever you want multi-agent code review |
 | `/senior-review` | Pragmatic senior developer review -- evaluates structure, quality, risks, and conventions through a team lead lens | Quick sanity check on a diff, or standalone code review with a senior developer perspective |
 | `/report-check` | Analyze a review report for quality -- detects noise, false positives, and overkill suggestions | After a review, to audit the report before acting on findings |
 
 **Diff source** (pick one):
 ```
-/review                              # Review current branch (prompts for base)
-/review --base main                  # Review against a specific base branch
+/review                              # Fast review of current branch (5 agents, prompts for base)
+/review --base main                  # Fast review against a specific base branch
+/review --deep                       # Full pipeline: all agents + quality check + senior review
+/review --deep --base main           # Deep review against a specific base
 /review <PR-URL>                     # Review a pull/merge request by URL
 ```
 
 **Output flags** (combine with any diff source above):
 ```
+--deep                               # Full pipeline with all agents, quality check, and senior review
 --terminal                           # Print full report in terminal instead of saving
 --output ./reports/                  # Save report to a custom path (one-time)
 --set-output ./reports/              # Save report to a custom path and remember it as default
 --comment-pr                         # Post the review as a PR comment (opt-in)
---with-codex                         # Also dispatch a Codex-backed reviewer in parallel
+--with-codex                         # Also dispatch a Codex-backed reviewer in parallel (requires --deep)
 ```
 
 **Examples:**
@@ -121,7 +124,8 @@ Then try `/brainstorm` in any session.
 /review --base main --output ./tmp/   # Review against main, save to ./tmp/
 /review --set-output ./reports/      # Set default save path for future reviews
 /review <PR-URL> --comment-pr        # Review a PR and post the report as a comment
-/review --with-codex                 # Run the standard review plus Codex (cross-model coverage)
+/review --deep --with-codex          # Deep review plus Codex (cross-model coverage)
+/review --deep <PR-URL> --comment-pr # Deep review a PR and post the report as a comment
 ```
 
 > When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.

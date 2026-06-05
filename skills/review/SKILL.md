@@ -1,7 +1,7 @@
 ---
 name: review
-description: Run a multi-agent code review (code quality + security audit + architecture analysis) with synthesized findings. Pass --with-codex for cross-model coverage via the OpenAI Codex CLI.
-argument-hint: "[PR/MR URL | --base <branch>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
+description: Run a multi-agent code review. Default fast mode (5 agents); pass --deep for full pipeline (all agents + quality check + senior review). Pass --with-codex for cross-model coverage.
+argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 disable-model-invocation: true
 ---
 
@@ -30,6 +30,19 @@ You are a review orchestrator. Your job is to determine the correct diff source,
 If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
 Print: `> No git repository detected. /review requires a git repo.`
 **Stop here.**
+
+## Step 0.5 -- Detect Review Depth
+
+Parse `$ARGUMENTS` for the `--deep` flag:
+
+1. If `$ARGUMENTS` contains `--deep`, set `review_mode = deep`. Strip `--deep` from `$ARGUMENTS` before passing to subsequent steps.
+2. Otherwise, set `review_mode = fast`.
+
+This flag affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
+
+Announce the mode:
+- Fast: `Running review (5 core agents)...`
+- Deep: `Running deep review (full agent pipeline)...`
 
 ## Step 1 -- Determine Review Mode
 
@@ -175,7 +188,26 @@ For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missin
 
 ### 2b -- Conditional Dispatch
 
-Apply dispatch rules based on the Diff Manifest from Step 1.5:
+Apply dispatch rules based on the Diff Manifest from Step 1.5.
+
+### Review depth dispatch
+
+**If `review_mode = fast`:** Dispatch only these 5 agents:
+- **`waste-detector`**: Always dispatched (same as deep mode).
+- **`security-audit`**: Only when diff contains `SCRIPT`, `CODE`, or `CONFIG-APP` files (same gate as deep mode). In fast mode, receives additional context: "FAST MODE CHECK: For state management and interactive flows, verify every user-initiated process has a guaranteed termination path (timeout, cancel handler, forced cleanup). Missing exit conditions on partial user actions create livelock -- flag as High."
+- **`logic-reviewer`**: Only when diff contains `SCRIPT` or `CODE` files (same gate as deep mode).
+- **`best-practices-researcher`**: Only when diff contains `SCRIPT` or `CODE` files (same gate as deep mode). Include changed file list with detected languages/frameworks in the prompt.
+- **`project-context-analyst`**: Always dispatched (same as deep mode). No scope restriction in fast mode -- the agent uses its full methodology to search git history and codebase for constraints that affect the diff. Scoping this agent reduces its effectiveness because it misses constraint forms not explicitly listed in the prompt.
+
+All other agents are skipped in fast mode. Do not print skip notes for agents excluded by mode -- only print skip notes for agents excluded by their file-type gate within the active set (e.g., if fast mode is active and the diff has no CODE files, print the security-audit skip note).
+
+**`--with-codex` in fast mode:** `codex-code-reviewer` is a deep-mode-only agent. If `--with-codex` is passed with fast mode, print:
+> `--with-codex` requires `--deep` mode. Run `/review --deep --with-codex` for Codex coverage.
+Then continue the fast review without Codex.
+
+**If `review_mode = deep`:** Use the existing dispatch rules below (unchanged).
+
+### Deep mode dispatch rules
 
 - **`waste-detector`**: Always dispatched. Evaluates every changed file for unnecessary additions, redundancy with existing codebase, dead paths, and over-engineering.
 - **`project-context-analyst`**: Always dispatched. Searches git history, project memory, and docs for institutional knowledge relevant to the changed files. Provides context that informs other agents' findings.
@@ -211,7 +243,7 @@ Each agent receives (in this order):
 5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
-8. **LSP availability** (for waste-detector, architecture-strategist, and stress-tester): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
+8. **LSP availability** (for waste-detector, architecture-strategist, stress-tester, and project-context-analyst): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
 9. **Scope discipline**: Aspirational improvements, stylistic preferences, "could be better" suggestions, and theoretical hardening are out of scope. Flag only concrete demonstrable problems with code that is wrong, unsafe, or broken as written. If the code works correctly as written and you would not fix it yourself, do not flag it. Zero findings is a correct and expected result on clean code. (This clause applies on every review. Re-review mode adds additional delta-specific scope on top of this general lock.)
 
 ### Adding future agents
@@ -221,7 +253,42 @@ Each agent receives (in this order):
 
 ## Step 3 -- Synthesize Findings
 
-After **all** agents return, merge their outputs into a single unified report. Follow these rules:
+After **all** agents return, merge their outputs into a single unified report.
+
+### Synthesis mode
+
+**If `review_mode = fast`:** Use the simplified synthesis rules below. **If `review_mode = deep`:** Use the full synthesis rules (items 0-8 with subsumption and proportional floor).
+
+### Fast mode synthesis
+
+With 5 agents, the finding volume is low enough to skip the heavy-duty noise reduction designed for 10+ agent output.
+
+0. **Filter on substance, not citation form.** Same as deep mode item 0 -- correct citations rather than discard findings.
+1. **Deduplicate.** If 2+ agents flag the same issue, keep the more detailed finding and note both agents. No consensus tracking (5 agents rarely produce 3+ consensus).
+2. **Unified severity.** Same scale and definitions as deep mode (Critical/High/Medium/Low).
+3. **Tag source.** Same format: `[ID] [SEVERITY] (agent-name) file:line -- title`.
+4. **Filter false positives.** Apply 4 filters only:
+   - Prompt-vs-code confusion (agent treats prompt text as executable code)
+   - Out-of-scope findings (references code not changed in diff)
+   - Phantom citations (graduated check with recovery -- same as deep mode item 4 sub-items a/b/c)
+   - Severity inflation (hypothetical scenario -> downgrade to Low)
+5. **Unified verdict.** Same rules as deep mode.
+6. **Identify strengths.** Same rules as deep mode.
+7. **Compute fix order.** Same rules as deep mode.
+8. **Populate findings overview.** Same format as deep mode.
+
+**Skipped in fast mode:**
+- Subsumption (parent-child merging) -- finding volume too low to need it
+- Proportional severity floor (Profile A/B/C) -- designed for 10-agent output volumes
+- Consensus tracking with severity upgrade -- 5 agents rarely produce 3+ consensus given non-overlapping scopes
+- Contradictions filter -- rare with 5 non-overlapping agents
+- Aspirational refactoring filter -- agents' discipline rules already suppress this
+- Subjective style filter -- same
+- Misapplied doc lookups filter -- best-practices-researcher already handles this internally
+
+### Deep mode synthesis
+
+Follow these rules:
 
 **0. Filter on substance, not citation form.** When a finding's underlying observation is verifiable in the codebase but its citation is malformed (wrong line number, off-by-N, points to a blank line or unrelated content), **correct the citation rather than discard the finding**. Use grep or file search to locate the described content; if found, update the `file:line` reference and keep the finding. Only discard as a phantom citation when the described content does not appear anywhere in the cited file (true fabrication). Do not use citation-format filters to drop findings whose underlying defects you have verified to exist. The phantom-citation filter (item 4 below) exists to suppress hallucinations, not to dismiss substantive observations on a technicality. This rule applies to every agent's output but is most relevant for external transport adapters like `codex-code-reviewer`, where line-number drift between diff hunk position and absolute file line is a common LLM error.
 
@@ -303,7 +370,7 @@ The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filt
 
 ## Review Context
 - **Branch**: {current branch name}
-- **Mode**: {branch diff | PR | uncommitted}
+- **Mode**: {branch diff | PR | uncommitted} ({fast | deep})
 - **Iteration**: {1 if first review, N if re-review}
 - **Previous report**: {path or "N/A"}
 - **Scope**: {Full diff | Delta-only (changes since previous review)}
@@ -315,8 +382,9 @@ The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filt
 One paragraph: what the PR does, overall risk, top-line recommendation.
 
 ## Agents Dispatched
-{list each discovered agent and its verdict}
-{if any agents were skipped with a reason (e.g., codex-code-reviewer skipped due to diff size or missing CLI), list them here with the skip reason so the user knows why coverage was reduced}
+{list each dispatched agent and its verdict}
+{In fast mode: note that this was a fast review with 5 core agents. Do NOT list every skipped deep-mode agent -- only note agents skipped within the active set due to file-type gates.}
+{In deep mode: list all discovered agents including those skipped with reasons, same as current behavior.}
 
 ## What's Working Well
 {2-5 bullet points highlighting positive aspects of the changes. Each item is one sentence, no severity ratings. Omit this section entirely if the diff has no notable strengths -- do not fabricate praise.}
@@ -370,6 +438,8 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 
 ## Step 3.5 -- Report Quality Check
 
+**If `review_mode = fast`:** Skip this step entirely. The report-checker is designed to catch noise from 10+ agents; with 5 focused agents and simplified synthesis, the noise level does not justify an additional agent spawn. Proceed directly to Step 3.75.
+
 After synthesis, dispatch the `report-checker` agent for an independent quality audit. This step catches noise, false positives, and proportionality issues that survive the Step 3 filters.
 
 1. **Dispatch.** Spawn `quiver:report-checker` with:
@@ -403,6 +473,8 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
 - These messages are user-facing and are fully covered by the plain-language scan in Step 4b.
 
 ## Step 3.75 -- Senior Review
+
+**If `review_mode = fast`:** Skip this step entirely. The senior meta-review adds most value when synthesizing findings from many agents. With a 5-agent fast review, the orchestrator's synthesis is sufficient. Proceed directly to Step 4.
 
 After the quality check, dispatch the `senior-reviewer` agent for a pragmatic senior developer assessment. This step provides the "team lead final verdict" -- evaluating both the code and the other agents' findings through a senior developer lens.
 
@@ -464,6 +536,7 @@ Evaluate in order:
    - Which agents ran and their individual verdicts
    - If any agents were skipped for a non-trivial reason (diff too large for Codex, CLI not found, etc.), include a one-line note per skipped agent explaining why. Do NOT list agents skipped because their file-type gate did not match (those are routine and expected). Only mention skips that reduced coverage the user explicitly requested (e.g., `--with-codex` was passed but Codex was skipped).
    - Path to the saved report file
+   - **Fast mode coverage advisory** (only when `review_mode = fast`): If the Diff Manifest shows 3+ `CODE`/`SCRIPT` files changed, OR the diff adds new enum cases/tiers/configuration levels, OR the diff contains UI state management code, append: `Fast review (5 agents). For full coverage including failure scenario analysis and cross-agent validation, run with --deep.` Omit the advisory on small/isolated diffs where fast mode coverage is sufficient.
 4. **Pre-print scan (mandatory gate).** Before printing the drafted summary, run the scan defined in the "Status Messages: Plain Language Required" section against the draft. The summary is a live chat-stream message and is fully covered by the plain-language rule -- it is not exempt because it appears at the end of the run. If the draft contains any rule code, hash prefix, bare commit SHA, or internal invariant name, rewrite it using the translation table and re-scan. Only print the summary after the scan passes.
 5. Do **not** print the full review in the terminal unless `--terminal` was used.
 
@@ -572,12 +645,14 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 - **Don't** hardcode platform tokens, repository URLs, or API endpoints -- rely on `gh`/`glab` CLIs which manage their own authentication.
 - **Don't** retry or error out if PR comment posting fails -- warn and move on.
 - **Don't** narrate your work to the user using internal rule codes, SHA hashes, or invariant names -- every chat-stream status line must follow the "Status Messages: Plain Language Required" section above. The saved report body is the only place rule codes belong.
+- **Don't** dispatch deep-mode-only agents in fast mode -- the mode gate in Step 2b is the source of truth for which agents run.
+- **Don't** promote `--with-codex` usage when in fast mode -- print the "requires --deep" note and continue.
 
 ---
 
 ## Test Plan
 
-**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
+**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
 
 **Setup:**
 - Current directory is a git repo with at least one diff source (PR URL, branch ahead of base, or uncommitted changes).
@@ -592,6 +667,9 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 5. Skill synthesizes findings (deduplicate, subsumption, severity normalization, false-positive filters, proportional floor) and writes `review-<timestamp>.md` to the configured output directory; with `--terminal`, prints inline instead.
 6. Skill optionally posts the report as a PR comment when `--comment-pr` is set or the user opts in interactively.
 7. All chat-stream output passes the Status-Messages plain-language gate (no rule codes, hashes, or invariant names in user-facing text).
+8. Fast mode (default) dispatches exactly 5 agents, runs simplified synthesis, skips Steps 3.5 and 3.75.
+9. Deep mode (`--deep`) dispatches all qualifying agents and runs full synthesis pipeline including report-checker and senior-reviewer.
+10. `--with-codex` without `--deep` prints a guidance note and continues fast review without Codex.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/review`.
@@ -601,6 +679,12 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 - [ ] `--with-codex` is silently skipped when the `codex` CLI is missing (does not error).
 - [ ] `--with-codex` is silently skipped when the diff exceeds 2000 lines (skip note shows actual line count).
 - [ ] No internal jargon (rule codes, hashes, invariant names) appears in the terminal summary; report file content may include them.
+- [ ] `/review` (no flags) dispatches at most 5 agents (logic-reviewer, security-audit, waste-detector, best-practices-researcher, project-context-analyst).
+- [ ] `/review --deep` dispatches all qualifying agents (same as pre-optimization behavior).
+- [ ] `/review --with-codex` (without --deep) prints "--with-codex requires --deep" note and proceeds.
+- [ ] Fast mode report includes `(fast)` in the Mode line of Review Context.
+- [ ] Fast mode report's Agents Dispatched section does not list deep-mode-only agents as skipped.
+- [ ] Deep mode report includes `(deep)` in the Mode line of Review Context.
 
 **Known gotchas:**
 - Bitbucket/Azure DevOps PR URLs fall back to Mode 2 because there is no diff CLI; PR commenting also skips on those platforms with a manual-paste hint.
