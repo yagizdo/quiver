@@ -95,24 +95,27 @@ Then try `/brainstorm` in any session.
 
 | Skill | Description | When to use |
 |-------|-------------|-------------|
-| `/review` | Dispatches specialized review agents in parallel and synthesizes their findings into one report | Before merging a PR, or whenever you want multi-agent code review of a branch or PR URL |
+| `/review` | Dispatches review agents and synthesizes findings into one report. Default fast mode (4 agents); `--deep` for full pipeline | Before merging a PR, or whenever you want multi-agent code review |
 | `/senior-review` | Pragmatic senior developer review -- evaluates structure, quality, risks, and conventions through a team lead lens | Quick sanity check on a diff, or standalone code review with a senior developer perspective |
 | `/report-check` | Analyze a review report for quality -- detects noise, false positives, and overkill suggestions | After a review, to audit the report before acting on findings |
 
 **Diff source** (pick one):
 ```
-/review                              # Review current branch (prompts for base)
-/review --base main                  # Review against a specific base branch
+/review                              # Fast review of current branch (4 agents, prompts for base)
+/review --base main                  # Fast review against a specific base branch
+/review --deep                       # Full pipeline: all agents + quality check + senior review
+/review --deep --base main           # Deep review against a specific base
 /review <PR-URL>                     # Review a pull/merge request by URL
 ```
 
 **Output flags** (combine with any diff source above):
 ```
+--deep                               # Full pipeline with all agents, quality check, and senior review
 --terminal                           # Print full report in terminal instead of saving
 --output ./reports/                  # Save report to a custom path (one-time)
 --set-output ./reports/              # Save report to a custom path and remember it as default
 --comment-pr                         # Post the review as a PR comment (opt-in)
---with-codex                         # Also dispatch a Codex-backed reviewer in parallel
+--with-codex                         # Also dispatch a Codex-backed reviewer in parallel (requires --deep)
 ```
 
 **Examples:**
@@ -121,7 +124,8 @@ Then try `/brainstorm` in any session.
 /review --base main --output ./tmp/   # Review against main, save to ./tmp/
 /review --set-output ./reports/      # Set default save path for future reviews
 /review <PR-URL> --comment-pr        # Review a PR and post the report as a comment
-/review --with-codex                 # Run the standard review plus Codex (cross-model coverage)
+/review --deep --with-codex          # Deep review plus Codex (cross-model coverage)
+/review --deep <PR-URL> --comment-pr # Deep review a PR and post the report as a comment
 ```
 
 > When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.
