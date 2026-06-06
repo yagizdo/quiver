@@ -151,9 +151,13 @@ Include risk signals if present: new dependencies, auth changes, secrets handlin
 
 ---
 
-## Step 1.75 -- LSP Detection
+## Step 1.75 -- Navigation Detection
 
-Before dispatching agents, detect LSP availability once. Follow the detection flow from the `code-navigation` skill:
+Before dispatching agents, detect navigation capabilities once.
+
+**CodeGraph:** Check if `.codegraph/` exists at project root. Set `codegraph_available` to `true` or `false`. No user prompt.
+
+**LSP:** Follow the detection flow from the `code-navigation` skill:
 
 1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_declined` or `lsp_confirmed` is found, use the cached value and skip to step 4.
 2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
@@ -164,7 +168,7 @@ Before dispatching agents, detect LSP availability once. Follow the detection fl
 
    - If user accepts: provide installation instructions, re-probe, cache `lsp_confirmed` in project memory.
    - If user declines: cache `lsp_declined` in project memory.
-4. Set `lsp_available` to `true` or `false`. Pass this flag to agents that search the broader codebase (waste-detector, architecture-strategist) in Step 2.
+4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to agents that search the broader codebase (waste-detector, architecture-strategist, stress-tester, and project-context-analyst) in Step 2.
 
 ---
 
@@ -243,7 +247,7 @@ Each agent receives (in this order):
 5. The **full diff** from Step 1. For re-reviews, also include the delta diff (`git diff {previous_head_sha}...HEAD`).
 6. **File scope reminder**: "Review ALL file types in the diff regardless of language or type -- shell scripts, config files, CI configs, and build scripts deserve the same scrutiny as application source code."
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
-8. **LSP availability** (for waste-detector, architecture-strategist, stress-tester, and project-context-analyst): `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from LSP-first navigation. Other agents are diff-scoped and do not need this flag.
+8. **Navigation availability** (for waste-detector, architecture-strategist, stress-tester, and project-context-analyst): `codegraph_available: {true|false}` and `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from CodeGraph/LSP-first navigation. Other agents are diff-scoped and do not need these flags.
 9. **Scope discipline**: Aspirational improvements, stylistic preferences, "could be better" suggestions, and theoretical hardening are out of scope. Flag only concrete demonstrable problems with code that is wrong, unsafe, or broken as written. If the code works correctly as written and you would not fix it yourself, do not flag it. Zero findings is a correct and expected result on clean code. (This clause applies on every review. Re-review mode adds additional delta-specific scope on top of this general lock.)
 
 ### Adding future agents
@@ -662,7 +666,7 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 **Expected behavior:**
 1. Skill picks the first matching review mode (PR/MR URL, branch diff, uncommitted) and announces it.
 2. Skill builds the Diff Manifest (Step 1.5) classifying every changed file (`PROMPT`, `SCRIPT`, `CONFIG-APP`, `CONFIG-MANIFEST`, `CODE`, `DOCS`).
-3. Skill runs LSP detection (Step 1.75) and dispatches all qualifying agents in a single response (parallel) with the agent context including Diff Manifest, scope reminders, and `lsp_available`.
+3. Skill runs navigation detection (Step 1.75) and dispatches all qualifying agents in a single response (parallel) with the agent context including Diff Manifest, scope reminders, `codegraph_available`, and `lsp_available`.
 4. Skill detects existing review reports for the same branch and switches to re-review mode with delta-only scope when a previous report is found.
 5. Skill synthesizes findings (deduplicate, subsumption, severity normalization, false-positive filters, proportional floor) and writes `review-<timestamp>.md` to the configured output directory; with `--terminal`, prints inline instead.
 6. Skill optionally posts the report as a PR comment when `--comment-pr` is set or the user opts in interactively.

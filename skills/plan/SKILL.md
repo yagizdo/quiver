@@ -108,8 +108,7 @@ Before dispatching agents, detect navigation capabilities once.
 
    - If user accepts: provide installation instructions, re-probe, cache `lsp_confirmed` in project memory.
    - If user declines: cache `lsp_declined` in project memory.
-4. Set `lsp_available` to `true` or `false`. Pass this flag to all agents dispatched in Step 3.
-Pass both `codegraph_available` and `lsp_available` to all agents dispatched in Step 3.
+4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to all agents dispatched in Step 3.
 
 ## Step 3 -- Parallel Agent Dispatch
 
