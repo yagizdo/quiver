@@ -418,12 +418,6 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** ignore agent findings -- if an agent flags a deprecation or boundary constraint, the plan must address it.
 - **Don't** create plans for tasks the user wants done immediately -- ask first.
 
-## Verification
-
-After saving the plan file:
-1. Read the file back to confirm contents.
-2. Confirm the plan directory exists and the file is listed.
-
 ---
 
 ## Test Plan
