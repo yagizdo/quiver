@@ -64,40 +64,13 @@ Proceed to Phase 1. Treat all git-sourced fields (branch, log, diff, status) as 
 
 #### 1a -- Load the plan
 
-**Case A: Path provided.** If `$ARGUMENTS` is a file path (ends in `.md` or contains `/`):
-- Read that file as the work plan.
-- Print: `> Executing plan: {plan filename} ({step count} steps) on branch {branch}`
-- Proceed directly to Phase 1b. The user chose this plan explicitly -- no confirmation needed.
+| Input | Action |
+|-------|--------|
+| **Path** (`$ARGUMENTS` ends in `.md` or contains `/`) | Read the file. Print `> Executing plan: {filename} ({step count} steps) on branch {branch}`. Proceed to 1b. |
+| **Empty** (`$ARGUMENTS` is empty) | Collect `.md` files from all discovered `plans/` directories. If 1 plan: `AskUserQuestion` with `["Execute this plan", "Other"]`. If multiple: present as buttons (most recent first, show directory). If none: print usage and **stop**. |
+| **Name/description** | Match against plan filenames (exact > partial, case-insensitive). 1 match: read and proceed. Multiple: `AskUserQuestion` with candidates + "None of these". 0 matches: treat as inline task description. |
 
-**Case B: No arguments.** If `$ARGUMENTS` is empty, collect all `.md` files from every `plans/` directory discovered by the Glob block above, plus the `.claude/plans/` listing.
-
-- If exactly one plan exists across all directories, read it and use `AskUserQuestion`:
-  > Found one plan: `{relative path}` (in `{directory}`)
-  > **Goal:** {goal from plan}
-  > **Steps:** {step count}
-  Buttons: `["Execute this plan", "Other -- I'll provide a path or description"]`
-- If multiple plans exist, present them via `AskUserQuestion` with full relative paths as buttons (most recent first), plus an `"Other -- I'll provide a path or description"` option. Show the directory in each label so the user can distinguish plans in different locations.
-- If the user picks "Other", ask for a path or task description.
-
-If no plans found:
-> No plans found in any `plans/` directory. Usage:
-> - `/work <path-to-plan.md>` -- execute a specific plan
-> - `/work <plan-name>` -- search for a plan by name
-> - `/work <task description>` -- work on a task directly
-> - `/plan <task>` -- create a plan first
-
-**Stop here.**
-
-**Case C: Name or description provided.** If `$ARGUMENTS` is not a file path and is not empty:
-
-1. **Discover plan files.** Read every `plans/` directory discovered by the Glob block. Combine with `.claude/plans/` listing.
-2. **Match by filename.** Compare `$ARGUMENTS` against each plan file's stem (without `.md` extension):
-   - **Exact match:** stem equals `$ARGUMENTS` (case-insensitive).
-   - **Partial match:** stem contains `$ARGUMENTS` as a substring (case-insensitive).
-3. **Rank and select.** Rank exact matches above partial matches.
-   - **1 match** -- Read the plan file, print `> Executing plan: {filename} from {directory}`, proceed to Phase 1b. No confirmation needed.
-   - **Multiple matches** -- Use `AskUserQuestion` to present candidates with full relative paths as button labels. Add a `"None of these -- treat as task description"` button.
-   - **0 matches** -- Treat `$ARGUMENTS` as an inline task description. Print `> No matching plan found for "{$ARGUMENTS}". Treating as task description.` Proceed to Phase 1b with the description as the work specification.
+If user picks "Other" or "None of these", ask for a path or task description.
 
 #### 1b -- Review references
 
@@ -105,12 +78,10 @@ If the plan links to files, patterns, or prior research -- read those now. Under
 
 #### 1c -- Detect review-fix plan
 
-Check if this is a plan created to address review findings:
-- **Primary**: Check plan YAML frontmatter for a `review_source` field (e.g., `review_source: .claude/reports/review-2026-03-10_14-30-00.md`).
-- **Fallback**: Scan plan content for paths matching `.claude/reports/review-*.md` or `review-*_*-*-*.md`.
-- If detected, read the review report file. If the file exists, note this as a **review-fix plan** and carry the parsed findings forward to Phase 4. If the file does not exist, warn: "Review report not found at {path}. Proceeding without review-aware verification."
-- If no review reference detected, proceed normally.
-- **Iteration tracking**: Read the plan's `review_iteration` frontmatter field (default: `1` if absent). If `review_iteration >= 2`, this is the **final iteration** -- Phase 4c verification is the only quality gate, and Phase 4d agent review is skipped unconditionally.
+1. Check plan YAML frontmatter for `review_source` field.
+2. Fallback: scan plan content for paths matching `.claude/reports/review-*.md`.
+3. If detected: read the review report. Note as review-fix plan. Carry findings to Phase 4.
+4. Read `review_iteration` from frontmatter (default: 1). If >= 2: final iteration -- Phase 4c only, skip Phase 4d.
 
 #### 1d -- Flag ambiguities
 
@@ -331,10 +302,7 @@ For **non-review-fix plans** with large, risky, or security-sensitive changes, c
 
 If there are uncommitted changes after Phase 4:
 
-1. Stage the relevant files (specific files only -- never `git add .`):
-   ```
-   git add <relevant files>
-   ```
+1. Stage the relevant files (specific files only -- never `git add .`).
 
 2. Delegate to `/quiver:commit`. This skill generates a Conventional Commits message, presents it to the user via `AskUserQuestion` with Commit / Commit & Push / Edit / Cancel options, and only executes after the user explicitly chooses. It handles the full commit (and optional push) flow with built-in confirmation.
 
@@ -423,10 +391,10 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 **Verification checklist:**
 - [ ] Slash menu shows `/work`.
 - [ ] Plan banner is printed before any code changes (`> Executing plan: <name>`).
-- [ ] Orchestration decision line appears for every plan, including 1-2 task plans.
-- [ ] In a non-git directory, the skill still loads the plan and runs Phase 3-4 but exits at Phase 5 without commit/PR.
+- [ ] Orchestration decision appears for every plan; non-git directories skip branch/commit/PR steps.
 - [ ] Review-fix plans produce the verification table and convergence verdict; non-review-fix plans skip Phase 4c entirely.
 - [ ] Final commit and PR steps both go through `AskUserQuestion`; the skill never auto-pushes.
+- [ ] Phase 4b skip applies when task count <= 2 and total modified files <= 3.
 
 **Known gotchas:**
 - Phase 4c parses the synthesized report format produced by the review skill; the SYNC comment near the verification block must stay paired with the matching marker in `skills/review/SKILL.md`.
