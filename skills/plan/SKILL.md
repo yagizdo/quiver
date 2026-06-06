@@ -54,12 +54,7 @@ Otherwise:
    > Which authentication approach should the plan target?
    Buttons: `["OAuth2 (Google, GitHub)", "Email/password", "Magic links", "SSO/SAML", "Other (I'll describe)"]`
 
-   **Rules for clarifying questions:**
-   - Use `AskUserQuestion` with action buttons -- never ask clarifying questions as plain text.
-   - Derive button options from the codebase context and task domain -- do not use generic placeholders.
-   - Always include an "Other" free-text option as the last button.
-   - Ask at most ONE clarifying question. If the task is clear enough to proceed, skip this step.
-   - If the user picks "Other", accept their free-text response and continue.
+   **Rules:** Use `AskUserQuestion` with codebase-derived buttons (never plain text). Include "Other" as last option. At most ONE question -- skip if task is clear.
 
 4. **Assess complexity:**
 
@@ -250,14 +245,7 @@ If the Explore agent found an existing test framework, structure each task follo
 
 Not every task requires TDD (e.g., config changes, docs, migrations). Apply it to tasks that produce testable behavior.
 
-**No placeholders rule:**
-Every step must contain actionable content. These are plan failures -- never write them:
-- "TBD", "TODO", "implement later", "fill in details"
-- "Add appropriate error handling" / "add validation" / "handle edge cases"
-- "Write tests for the above" (without actual test code or at minimum the test scenario description)
-- "Similar to Task N" (repeat the relevant details -- the implementer may read tasks out of order)
-- Steps that describe what to do without showing how (include code blocks, commands, or exact file paths)
-- References to types, functions, or methods not defined in any task (if a step calls `processItems()`, some task must define it)
+**No placeholders rule:** Every step must have actionable content. Never write: "TBD"/"TODO"/"implement later", "add appropriate handling"/"handle edge cases", "similar to Task N" (repeat details), "write tests" without scenarios, steps without file paths or expected outcomes, references to undefined symbols.
 
 **Language rule:** Always write plan documents in English, regardless of the conversation language. Only write in another language if the user explicitly requests it.
 
@@ -460,10 +448,10 @@ After saving the plan file:
 - [ ] Review-fix detection produces frontmatter with `review_source` and `review_iteration`.
 - [ ] No raw `{placeholder}` strings remain in the saved plan.
 - [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
-- [ ] Step 6 runs 6 inline checks (placeholder, naming, spec coverage, granularity, reference validity, file map) on every plan.
-- [ ] Step 6.5 dispatches `plan-reviewer` agent only for Standard/Deep non-review-fix plans.
-- [ ] Light plans and review-fix plans skip Step 6.5 entirely.
+- [ ] Agent dispatch and Plan Guard checks execute correctly for Standard/Deep plans.
+- [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
 - [ ] Plan Guard Notes subsection appears in the plan's Context section only when NOTE findings exist.
+- [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
 
 **Known gotchas:**
 - The Explore agent prompt references the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`; updates to that block must stay in sync.
