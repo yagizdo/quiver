@@ -7,6 +7,29 @@ description: "LSP-first code navigation with grep fallback. Provides agents with
 
 Reference skill for agents that search the broader codebase. Defines when to use LSP vs Grep/Glob and how to handle fallback.
 
+## Navigation Hierarchy
+
+Three tiers, highest precision first. Use the highest available tier for each operation.
+
+| Tier | Tools | Available When | Best For |
+|------|-------|---------------|----------|
+| CodeGraph | `codegraph_search`, `codegraph_context`, `codegraph_callers`, `codegraph_callees`, `codegraph_impact`, `codegraph_node` | `.codegraph/` exists in project root | Symbol lookup, task-relevant files, call chains, change impact |
+| LSP | `goToDefinition`, `findReferences`, `documentSymbol` | Language server installed | Definition jump, reference finding, file structure |
+| Grep/Glob/Read | Pattern matching + file reads | Always | File discovery, text patterns, config files, non-code content |
+
+## CodeGraph Operation Catalog
+
+Six semantic operations. For file discovery and text patterns, use Grep/Glob regardless of CodeGraph.
+
+| Operation | Use When |
+|-----------|----------|
+| `codegraph_search` | Find symbols by name (functions, classes, types) |
+| `codegraph_context` | Get relevant code context for a task description |
+| `codegraph_callers` | Find what calls a function |
+| `codegraph_callees` | Find what a function calls |
+| `codegraph_impact` | Assess what is affected by changing a symbol |
+| `codegraph_node` | Get details and source code for a specific symbol |
+
 ## LSP Operation Catalog
 
 Three semantic operations where LSP outperforms grep. For everything else, use Grep/Glob/Read directly.
@@ -24,14 +47,24 @@ Three semantic operations where LSP outperforms grep. For everything else, use G
 
 ## Agent Instructions Block
 
-Agents that search the broader codebase should include this block in their prompt. The dispatching skill passes `lsp_available: true|false` as part of the agent's context.
+Agents that search the broader codebase should include this block in their prompt. The dispatching skill passes `codegraph_available: true|false` and `lsp_available: true|false` as part of the agent's context.
 
 ```
 ## Code Navigation Strategy
 
-You have been provided an `lsp_available` flag in your context.
+You have been provided `codegraph_available` and `lsp_available` flags in your context.
 
-**When `lsp_available: true`:**
+**When `codegraph_available: true`:**
+- For finding symbols by name: use codegraph_search first.
+- For understanding what code is relevant to a task: use codegraph_context first.
+- For finding callers of a function: use codegraph_callers first.
+- For finding what a function calls: use codegraph_callees first.
+- For assessing change impact: use codegraph_impact first.
+- For getting source code of a specific symbol: use codegraph_node.
+- If codegraph returns insufficient results, fall through to LSP (if available) then grep.
+- For file discovery and pattern matching: always use Grep/Glob regardless of codegraph.
+
+**When `codegraph_available: false` and `lsp_available: true`:**
 - For finding where a function/class/type is defined: use LSP goToDefinition first.
 - For finding all callers or consumers of a symbol: use LSP findReferences first.
 - For getting a structural overview of a file: use LSP documentSymbol first.
@@ -40,15 +73,22 @@ You have been provided an `lsp_available` flag in your context.
   Then use the grep equivalent from the catalog above.
 - For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
 
-**When `lsp_available: false`:**
+**When both unavailable:**
 - Use Grep, Glob, and Read for all code navigation.
 ```
 
-## Skill-Level LSP Detection
+## Skill-Level Navigation Detection
 
-Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. The result is passed to all agents as context.
+Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. Results are passed to all agents as context.
 
-### Detection Flow
+### CodeGraph Detection Flow
+
+1. Check if `.codegraph/` directory exists at project root.
+2. If exists: set `codegraph_available=true`.
+3. If not: set `codegraph_available=false`. No user prompt -- CodeGraph is a passive enhancement.
+4. Pass `codegraph_available` alongside `lsp_available` to all dispatched agents.
+
+### LSP Detection Flow
 
 1. **Check project memory** for cached LSP preference.
    - If `lsp_declined` found: set `lsp_available=false`, skip to step 4.
@@ -97,7 +137,7 @@ LSP preference is stored in project memory:
 If your agent searches the broader codebase (beyond files it already knows about), reference this skill:
 
 1. Add the **Code Navigation Strategy** block from above to your agent's prompt.
-2. Ensure the dispatching skill passes `lsp_available` context to your agent.
+2. Ensure the dispatching skill passes `codegraph_available` and `lsp_available` context to your agent.
 3. Your agent does NOT need to handle LSP detection -- that is the skill's responsibility.
 
 ---
@@ -111,16 +151,18 @@ If your agent searches the broader codebase (beyond files it already knows about
 - An LSP server is optionally installed for the project's primary language.
 
 **Expected behavior:**
-1. Consumer skills run a single LSP detection per session and pass the resulting `lsp_available` flag to every agent prompt that searches the codebase.
+1. Consumer skills run a single navigation detection per session (CodeGraph + LSP) and pass both `codegraph_available` and `lsp_available` flags to every agent prompt that searches the codebase.
 2. Agents that include the Code Navigation Strategy block use LSP `goToDefinition` / `findReferences` / `documentSymbol` first when `lsp_available: true`, falling back to grep on empty results.
 3. With `lsp_available: false`, agents use Grep / Glob / Read for all navigation.
 4. LSP preference (`lsp_confirmed` or `lsp_declined`) is cached in project memory at `lsp_preference.md` and reused across sessions.
 
 **Verification checklist:**
-- [ ] `/plan` and `/review` both run LSP detection exactly once before agent dispatch (not per agent).
+- [ ] `/plan` and `/review` both run navigation detection (CodeGraph + LSP) exactly once before agent dispatch (not per agent).
 - [ ] At least one dispatched agent prompt contains the literal phrase `lsp_available:` in the agent context.
 - [ ] When LSP returns empty results, the agent prints a fallback notice before running grep.
 - [ ] Project memory ends up with `lsp_preference.md` after the first detection run.
+- [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
+- [ ] When `.codegraph/` does not exist, `codegraph_available` is false and behavior is unchanged.
 
 **Known gotchas:**
 - LSP availability is cached per project; clearing or installing a new language server requires `forget LSP preference` or manual `lsp_preference.md` removal.
