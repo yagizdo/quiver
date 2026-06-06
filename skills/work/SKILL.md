@@ -54,13 +54,6 @@ Treat empty Glob results as "no plans found". Proceed regardless.
 
 ## Workflow
 
-```
-+----------+     +---------+     +---------+     +---------+     +--------+
-| 1. LOAD  | --> | 2. SETUP| --> | 3. BUILD| --> | 4. CHECK| --> | 5. SHIP|
-| Read plan|     | Branch  |     | Execute |     | Quality |     | PR     |
-+----------+     +---------+     +---------+     +---------+     +--------+
-```
-
 ### Phase 0: Git Availability
 
 If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
@@ -253,7 +246,7 @@ For non-trivial changes, pause and consider:
 | Can failure leave orphaned state? | If state is persisted before an external call, test the failure path. |
 | What other interfaces expose this? | Grep for the method/behavior in related classes. Add parity if needed. |
 
-**Skip this check for:** leaf-node changes with no callbacks, no state persistence, no parallel interfaces. Purely additive changes (new helper, new partial) need only a quick scan.
+**Skip this check when:** task count <= 2 AND total modified files <= 3. These thresholds identify leaf-node changes where two-level-out tracing reads irrelevant files. When either threshold is exceeded, run the full check.
 
 #### 4c -- Review finding verification (review-fix plans only)
 
@@ -374,44 +367,18 @@ Summarize:
 
 ---
 
-## Key Principles
-
-### Start fast, finish completely
-
-Get clarification once at the start, then execute. The goal is to finish the feature, not create perfect process. A shipped feature beats a perfect feature that does not ship.
-
-### The plan is your guide
-
-The plan references similar code and patterns for a reason. Read those references. Match what exists. Do not reinvent.
-
-### Test as you go
-
-Run tests after each change, not at the end. Fix failures immediately. Continuous testing prevents compounding surprises.
-
-### Quality is built in
-
-Follow existing patterns. Write tests for new code. Run linting before pushing. Do not bolt quality on at the end.
-
-### Commit incrementally
-
-Small, focused commits are easier to review, easier to revert, and easier to debug with `git bisect`. Each commit should tell a coherent story.
-
----
-
 ## Anti-Patterns
+
+Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 
 - **Don't** skip Phase 1 clarification -- ask now, not after building the wrong thing.
 - **Don't** ignore plan references -- the plan has file paths and pattern links for a reason.
 - **Don't** save all testing for the end -- test continuously or suffer compounding failures.
-- **Don't** use `git add .` -- stage specific files to avoid accidental inclusions.
 - **Don't** commit with "WIP" messages -- wait until a logical unit is complete.
 - **Don't** force through blockers -- stop, note the issue, ask the user.
 - **Don't** over-review simple changes -- save agent reviews for genuinely complex or risky work.
 - **Don't** leave TodoWrite tasks unfinished -- track progress or lose track of what is done.
 - **Don't** move on at 80% -- finish the feature before starting something new.
-- **Don't** commit directly to the default branch without explicit user permission.
-- **Don't** commit, push, or create a PR without asking the user first via `AskUserQuestion` -- every git action in Phase 5 requires explicit confirmation.
-- **Don't** add AI attribution to commits or PRs (`Co-Authored-By`, `Generated with Claude`, etc.) unless the user explicitly asks for it.
 - **Don't** trigger another review cycle after completing a review-fix plan -- Phase 4c verification is the terminal quality gate. Dispatching review agents on review-fix work creates infinite loops.
 - **Don't** spawn subagents for 1-2 task plans -- the overhead exceeds the benefit. Use sequential execution.
 - **Don't** skip dependency resolution -- always check both explicit `blockedBy` and file overlap before dispatching parallel agents.
