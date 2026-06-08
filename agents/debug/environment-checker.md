@@ -6,22 +6,10 @@ model: inherit
 
 <examples>
 <example>
-Context: The application works locally but fails in another environment
-user: "The app works locally but fails in staging"
-assistant: "I'll check for environment-specific differences: dependency version mismatches between lockfiles, missing config values, and build settings that could differ between local and staging."
-<commentary>"The app works locally but fails in staging." Check manifests, configs, and build settings for environment-specific divergence.</commentary>
-</example>
-<example>
 Context: A feature broke after a dependency update
 user: "After running npm install, feature X broke"
 assistant: "I'll compare the current lockfile against recent changes to find which dependency version shifted, then check whether a breaking change is documented for that version bump."
 <commentary>"After running npm install, feature X broke." Lockfile diff analysis and breaking change check.</commentary>
-</example>
-<example>
-Context: An error mentions a missing module or configuration value
-user: "Error says 'missing module' but I thought it was installed"
-assistant: "I'll verify the module is listed in the manifest, check the lockfile for its actual installed version, and cross-reference the import path in the source code with the module's actual export structure."
-<commentary>"Error mentions a missing module/config value." Verify manifest, lockfile, and source-code references align.</commentary>
 </example>
 </examples>
 
@@ -97,6 +85,4 @@ One sentence: whether the environment is likely the root cause.
 ## Anti-Patterns
 
 - Don't flag optional/development dependencies unless the hypothesis specifically involves them
-- Don't report version differences without explaining why the difference matters
-- Don't assume a config file's purpose from its name -- read it
 - Don't run `npm install`, `pip install`, or similar commands -- read-only investigation

@@ -66,10 +66,7 @@ Parse `$ARGUMENTS`:
 
 If source was set from Step 1 (PR number or URL), skip to Step 3.
 
-If source is unset, infer from conversation context before prompting:
-- User's message mentions current changes, uncommitted work, a fix they just made, or asks to review "this" without specifying a PR --> source = `uncommitted`. If uncommitted diff is empty, fall back to `branch`.
-- User's message mentions a branch, branch diff, or comparing against main/master --> source = `branch`.
-- If intent is clear from context, skip the prompt and go to Step 3.
+If source is unset, infer from context: "this"/"my changes"/"just made" --> `uncommitted`; "branch"/"vs main" --> `branch`. If clear, skip prompt.
 
 Only if intent cannot be inferred, use `AskUserQuestion`:
 
@@ -87,73 +84,19 @@ If user selects "Pull Request" and no PR number was provided, ask:
 
 ## Step 3 -- Diff Gathering
 
-Gather the diff based on selected source:
+| Source | Command | Notes |
+|--------|---------|-------|
+| `uncommitted` | `git diff` + `git diff --staged` | Combine both; stop if both empty: "No uncommitted changes found." |
+| `branch` | `git rev-parse --verify main` then `git diff main...HEAD` | Fall back to `master` if `main` missing; stop if empty: "No changes found between current branch and base branch." |
+| `pr` | `gh pr diff <pr_number_or_url>` via Bash tool (not `!` block) | Stop if `gh` fails: "Could not fetch PR diff. Ensure `gh` CLI is installed and authenticated." |
 
-**Uncommitted changes:**
-```
-!`git diff 2>/dev/null || echo "NO_DIFF"`
-```
-```
-!`git diff --staged 2>/dev/null || echo "NO_DIFF"`
-```
-
-Combine both outputs. If both are empty, print:
-> No uncommitted changes found.
-**Stop here.**
-
-**Branch diff:**
-Determine the base branch:
-```
-!`git rev-parse --verify main 2>/dev/null || echo "NO_MAIN"`
-```
-
-Use `main` if it exists, otherwise `master`. Then gather:
-```
-!`git diff main...HEAD 2>/dev/null || echo "NO_DIFF"`
-```
-
-If empty, print:
-> No changes found between current branch and base branch.
-**Stop here.**
-
-**Pull Request:**
-Use the Bash tool to fetch the PR diff at runtime (do NOT use a `!` shell block -- the PR number is only known after argument parsing):
-
-```
-gh pr diff <pr_number_or_url> 2>&1
-```
-
-If `gh` is not available or the command fails, print:
-> Could not fetch PR diff. Ensure `gh` CLI is installed and authenticated.
-**Stop here.**
-
-Also gather the changed file list:
-```
-!`git diff --name-only main...HEAD 2>/dev/null || echo "NO_FILES"`
-```
-
-(For PR source, use `gh pr diff --name-only` if available, otherwise parse the diff headers.)
+Also gather the file list: `git diff --name-only main...HEAD` (for PR source, use `gh pr diff --name-only` or parse diff headers).
 
 ---
 
 ## Step 4 -- Language Detection
 
-Scan changed file extensions from the file list gathered in Step 3.
-
-| Extensions | Primary Language |
-|---|---|
-| `.swift` | Swift/iOS |
-| `.dart` | Flutter/Dart |
-| `.ts`, `.tsx` | TypeScript/React |
-| `.py` | Python |
-| `.kt` | Kotlin/Android |
-| `.js`, `.jsx` | JavaScript/React |
-| `.go` | Go |
-| `.rs` | Rust |
-
-If multiple languages detected, note all of them. The agent handles mixed diffs gracefully.
-
-If no recognized extensions, set language to `unknown`.
+Language detection is handled by the senior-reviewer agent.
 
 ---
 
@@ -161,16 +104,7 @@ If no recognized extensions, set language to `unknown`.
 
 If mode is `quick`, skip this step entirely.
 
-For the detected primary language/framework, query context7 MCP for current conventions:
-
-- **Swift/iOS:** Query for SwiftUI or UIKit conventions based on imports in the diff
-- **Flutter/Dart:** Query for Flutter widget patterns and Dart idioms
-- **TypeScript/React:** Query for React hooks rules and TypeScript strict mode patterns
-- **Other languages:** Query for the framework detected from imports
-
-Limit to one query for the primary language. Do not query for every language in a mixed diff.
-
-If context7 is unavailable or returns no results, proceed without it -- the agent has built-in criteria.
+For the detected primary language, query context7 for current conventions. One query, primary language only. Skip if quick mode or context7 unavailable.
 
 ---
 
@@ -207,33 +141,23 @@ Buttons:
 
 **Trigger:** `/senior-review` (and `/quiver:senior-review`)
 
-**Setup:**
-- Current directory is a git repo with changes (uncommitted or on a branch).
-- `gh` CLI available for PR mode testing.
+**Setup:** Git repo with uncommitted changes or a branch diff; `gh` CLI available for PR mode.
 
 **Expected behavior:**
 1. Shell blocks gather git context without errors.
-2. `--quick` flag is parsed and sets mode before diff gathering.
-3. `#NNN` argument triggers PR mode directly without source selection prompt.
-4. Empty arguments with no context prints usage and stops.
-5. Diff source selection offers three buttons via AskUserQuestion.
-6. Language detection maps file extensions correctly.
-7. Context7 lookup runs in full mode, skipped in quick mode.
-8. Agent dispatch includes all required context items in order.
-9. Pipeline context is never passed in standalone mode (Phase 5 stays inactive).
-10. Save report option writes with correct timestamp filename format.
+2. `--quick` sets mode and skips context7; `#NNN`/PR URL triggers PR mode directly.
+3. Empty arguments with no context prints usage and stops.
+4. Diff source selection shows three buttons via AskUserQuestion.
+5. Agent dispatch includes all required context items; no pipeline context passed.
+6. Save report writes with correct timestamp filename format.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/senior-review`.
-- [ ] `--quick` mode skips context7 lookup and runs single-pass.
-- [ ] PR mode works with `#123` syntax and full URL syntax.
-- [ ] No shell logic in `!` blocks (no `$()`, no `if/else`, no variable assignment).
-- [ ] All shell blocks exit 0 even when targets do not exist.
+- [ ] `--quick` skips context7 and runs single-pass; `#123` and full URL both trigger PR mode.
+- [ ] No shell logic in `!` blocks; all shell blocks exit 0.
 - [ ] AskUserQuestion used for diff source selection and post-review action.
-- [ ] Agent dispatch does NOT include pipeline context.
-- [ ] Report save path uses correct timestamp format.
+- [ ] Agent dispatch does NOT include pipeline context; report path uses correct timestamp format.
 
 **Known gotchas:**
-- `gh pr diff` requires authentication. If `gh` fails, the skill stops with a clear message rather than proceeding with an empty diff.
-- Context7 MCP may be unavailable in some environments. The skill degrades gracefully -- the agent has built-in per-language criteria.
-- The `--quick` flag must be stripped from arguments before PR number parsing to avoid misinterpretation.
+- `gh pr diff` requires authentication; skill stops with a clear message on failure rather than continuing with an empty diff.
+- Context7 may be unavailable; skill degrades gracefully. Strip `--quick` before PR number parsing to avoid misinterpretation.

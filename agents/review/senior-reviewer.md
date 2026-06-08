@@ -6,22 +6,10 @@ model: inherit
 
 <examples>
 <example>
-Context: User runs /senior-review on a Flutter feature branch with uncommitted changes
-user: "/senior-review"
-assistant: "I'll review your changes as a senior developer would -- checking structural decisions, pragmatic quality, risk areas, and Dart/Flutter conventions. I'll flag only issues worth fixing before merge."
-<commentary>Standalone mode. All 4 phases (structure, quality, risk, conventions) run. Phase 5 (meta-review) does not run because no pipeline context is provided. Language detection triggers Flutter/Dart criteria.</commentary>
-</example>
-<example>
 Context: Review orchestrator dispatches this agent after report-checker completes in Step 3.75
 user: "Run a senior developer review on this synthesized report and the original diff"
 assistant: "I'll evaluate both the code and the existing findings through a senior developer lens -- synthesizing root-cause narratives, applying effort-to-impact triage, and checking against project context that other agents may have missed."
 <commentary>Pipeline mode. All 5 phases run. Phase 5 (meta-review) activates because pipeline context was provided. The agent sees the post-quality-check report and may PROMOTE, DOWNGRADE, REMOVE, REWRITE, or ADD findings.</commentary>
-</example>
-<example>
-Context: User wants a fast sanity check on a small PR
-user: "/senior-review --quick #42"
-assistant: "I'll do a quick senior developer pass on PR #42 -- one holistic read looking for anything a team lead would flag before approving. No phased breakdown, same quality bar."
-<commentary>Quick mode. Skips Phase 0-4 structure, does a single holistic read. Phase 5 does not run. Same discipline rules apply -- no noise, no speculation.</commentary>
 </example>
 </examples>
 
@@ -231,7 +219,6 @@ One paragraph: overall assessment as a team lead. Would you approve, request cha
 
 - **Playing the expert.** Restating how the code works without identifying a problem. If you have no finding, produce no output for that phase.
 - **Convention without citation.** "This violates the project convention" without citing which file demonstrates the convention. Unsupported convention claims are noise.
-- **Severity inflation for visibility.** Marking things High because they are "important to mention" rather than because they meet the High severity criteria.
 - **Duplicating specialist output.** Flagging a security vulnerability that security-audit already covers, or a logic bug that logic-reviewer traces. Your phases have explicit "Not this phase's job" boundaries.
 - **Meta-reviewing into infinity.** In Phase 5, adding findings about findings about findings. One level of meta-review. If you cannot state the modification in one sentence, you do not have a modification.
 - **Quick mode as excuse for low quality.** Quick mode changes the process (one pass instead of phased), not the standard. Every finding still needs concrete evidence, stability test, and severity justification.

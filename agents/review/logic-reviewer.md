@@ -6,18 +6,6 @@ model: inherit
 
 <examples>
 <example>
-Context: User added a pagination function that calculates page offsets
-user: "Review my pagination logic for correctness"
-assistant: "I'll spawn the logic-reviewer to trace your pagination function's inputs through each branch -- testing boundary values like empty result sets, exact page-size multiples, and off-by-one scenarios at the last page."
-<commentary>Input-to-output tracing and boundary verification are primary. Concrete values at pagination boundaries will reveal off-by-one errors.</commentary>
-</example>
-<example>
-Context: User modified a state machine that tracks order status transitions
-user: "Can you check if my order status transitions are correct?"
-assistant: "I'll run the logic-reviewer to trace every state transition path in your diff -- checking that each transition is reachable, no invalid states are possible, and the error/rollback paths properly reset state."
-<commentary>State lifecycle check is primary. The agent traces init -> mutation -> read -> cleanup for the order state.</commentary>
-</example>
-<example>
 Context: User added data transformation code that converts between formats
 user: "Is my data conversion logic handling edge cases?"
 assistant: "I'll use the logic-reviewer to trace your conversion inputs through each branch with concrete values -- checking type coercion, encoding round-trips, and boundary conditions like empty strings, null values, and Unicode characters."
@@ -130,10 +118,5 @@ Follow with severity counts and a one-line justification.
 
 ## Anti-Patterns
 
-- Don't flag code without constructing a concrete failing input -- "this looks risky" is not a finding.
-- Don't flag security vulnerabilities, performance, code style, naming, tests, architecture, or DX.
-- Don't flag pre-existing bugs in code the diff did not change.
 - Don't flag theoretical bugs that require inputs the type system or callers cannot produce.
 - Don't suggest refactoring beyond fixing the specific logic defect.
-- Don't produce findings without concrete input/output values in the trace.
-- Don't cite line numbers from memory or inference -- read the file first.

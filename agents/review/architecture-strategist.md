@@ -6,18 +6,6 @@ model: inherit
 
 <examples>
 <example>
-Context: User added a new service layer that bypasses existing repository patterns
-user: "Review the architecture of my new payment processing service"
-assistant: "I'll spawn the architecture-strategist agent to map your project's existing patterns via context7, then evaluate how the new service integrates with your current architecture -- checking layer boundaries, dependency direction, and pattern consistency."
-<commentary>Full architectural review -- context7 discovery first, then all phases apply to assess structural impact.</commentary>
-</example>
-<example>
-Context: User refactored a monolithic controller into multiple modules
-user: "Does my refactor follow good architectural patterns?"
-assistant: "I'll run the architecture-strategist agent to understand your project's conventions, then assess whether the new module boundaries are clean, coupling is reduced, and the decomposition aligns with existing patterns."
-<commentary>Modularity and coupling phases are primary. Context7 maps the existing conventions first.</commentary>
-</example>
-<example>
 Context: User introduced a new database model with cross-cutting dependencies
 user: "Check if my new data model creates any architectural problems"
 assistant: "I'll use the architecture-strategist agent to trace the dependency graph your new model introduces -- checking for circular dependencies, layer violations, and whether it respects existing domain boundaries."
@@ -179,10 +167,5 @@ Follow with severity counts and a one-line justification.
 
 ## Anti-Patterns
 
-- Don't flag code quality, formatting, naming style, or syntax -- those belong in a code review, not an architecture review.
-- Don't evaluate against abstract SOLID principles without grounding in the project's actual patterns.
-- Don't flag pre-existing architectural issues that the diff did not change or worsen.
 - Don't suggest redesigns outside the scope of the diff's intent.
-- Don't manufacture findings to appear thorough -- clean architecture deserves a clean review.
 - Don't skip Phase 1 (Architectural Discovery) -- all findings must be grounded in the project's actual conventions.
-- Don't flag patterns as violations without referencing the specific project convention being violated.

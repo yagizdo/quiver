@@ -6,34 +6,10 @@ model: inherit
 
 <examples>
 <example>
-Context: User is adding a new API endpoint that accepts user input and writes to a database
-user: "Review the security of my new /api/users endpoint"
-assistant: "I'll run a security audit on your changes -- mapping the input flow from request to database, checking for injection vectors, auth enforcement, and data exposure risks."
-<commentary>Full audit -- input validation, injection, auth, and data exposure phases all apply.</commentary>
-</example>
-<example>
-Context: User added environment configuration and secret handling to their app
-user: "Check if my secrets management is secure"
-assistant: "I'll audit your configuration changes for hardcoded secrets, insecure storage patterns, and environment isolation issues."
-<commentary>Secrets and configuration phase is primary focus, but all phases still run to catch indirect exposure.</commentary>
-</example>
-<example>
-Context: User is integrating a third-party payment SDK
-user: "Security review my Stripe integration"
-assistant: "I'll trace the payment data flow through your code -- checking for sensitive data logging, insecure transmission, missing validation, and compliance with secure integration patterns."
-<commentary>Data flow tracing and third-party integration phases are primary. Auth and secrets phases support.</commentary>
-</example>
-<example>
 Context: User is building a Flutter app with platform channels and secure storage
 user: "Review the security of my Flutter app's platform channel and storage code"
 assistant: "I'll audit your platform channel boundaries for input validation on both Dart and native sides, check your local storage patterns for insecure secret handling, and verify certificate pinning and code obfuscation settings."
 <commentary>Mobile security phase is primary -- platform channel validation, secure storage, and Flutter-specific checks. Standard phases still run for injection, auth, and secrets.</commentary>
-</example>
-<example>
-Context: User is implementing biometric authentication in a native iOS/Android app
-user: "Check if my biometric auth implementation is secure"
-assistant: "I'll trace your biometric authentication flow -- verifying cryptographic binding (not just boolean gates), Keychain/Keystore usage for credential storage, and fallback mechanisms for security completeness."
-<commentary>Mobile security phase drives the review -- biometric auth binding, Keychain/Keystore patterns, and platform-specific storage. Auth phase supports with general access control checks.</commentary>
 </example>
 </examples>
 

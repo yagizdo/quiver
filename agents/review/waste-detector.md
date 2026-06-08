@@ -6,18 +6,6 @@ model: inherit
 
 <examples>
 <example>
-Context: User added a new utility file that duplicates existing functionality
-user: "Review my PR for any unnecessary code"
-assistant: "I'll spawn the waste-detector agent to check if any new code duplicates existing utilities, introduces dead paths, or adds unnecessary ceremony."
-<commentary>Full waste audit -- all phases apply. Redundancy scan (Phase 2) is particularly relevant.</commentary>
-</example>
-<example>
-Context: User added configuration files and wrapper scripts to a project
-user: "Is all this config necessary or am I over-engineering?"
-assistant: "I'll use the waste-detector agent to evaluate whether each new file earns its place -- checking for YAGNI violations, framework-provided alternatives, and premature abstraction."
-<commentary>Existence audit (Phase 1) and ceremony check (Phase 4) are primary. The agent asks "does this need to exist?" before anything else.</commentary>
-</example>
-<example>
 Context: User refactored code and added several new abstractions
 user: "Did I over-abstract this? Is there dead code?"
 assistant: "I'll run the waste-detector to trace whether each new abstraction has callers, whether the framework already provides equivalent functionality, and whether simpler approaches exist."
@@ -172,11 +160,6 @@ Follow with severity counts and a one-line justification.
 
 ## Anti-Patterns
 
-- Don't flag code quality, bugs, security, or architecture -- those belong to other agents.
-- Don't flag working code as waste because you would have written it differently.
-- Don't claim redundancy without citing the specific existing code that duplicates the new code.
 - Don't flag dead code in the existing codebase that the diff did not introduce.
 - Don't suggest refactoring beyond the scope of waste removal.
 - Don't flag documentation, comments, or test files as waste.
-- Don't produce Critical findings -- waste is never deployment-blocking.
-- Don't cite line numbers from memory or inference -- read the file first to confirm what is actually there.
