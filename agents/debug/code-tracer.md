@@ -45,9 +45,20 @@ These rules override all phase-specific guidance. Violating them produces noise,
 
 ## Code Navigation Strategy
 
-You have been provided an `lsp_available` flag in your context.
+You have been provided `codegraph_available` and `lsp_available` flags in your context.
 
-**When `lsp_available: true`:**
+**When `codegraph_available: true`:**
+- First, load codegraph tool schemas by calling ToolSearch with query `"select:mcp__codegraph__codegraph_search,mcp__codegraph__codegraph_context,mcp__codegraph__codegraph_callers,mcp__codegraph__codegraph_callees,mcp__codegraph__codegraph_impact,mcp__codegraph__codegraph_node"`. Codegraph tools are deferred and cannot be called without this step.
+- For finding symbols by name: use codegraph_search first.
+- For understanding what code is relevant to a task: use codegraph_context first.
+- For finding callers of a function: use codegraph_callers first.
+- For finding what a function calls: use codegraph_callees first.
+- For assessing change impact: use codegraph_impact first.
+- For getting source code of a specific symbol: use codegraph_node.
+- If codegraph returns insufficient results, fall through to LSP (if available) then grep.
+- For file discovery and pattern matching: always use Grep/Glob regardless of codegraph.
+
+**When `codegraph_available: false` and `lsp_available: true`:**
 - For finding where a function/class/type is defined: use LSP goToDefinition first.
 - For finding all callers or consumers of a symbol: use LSP findReferences first.
 - For getting a structural overview of a file: use LSP documentSymbol first.
@@ -56,7 +67,7 @@ You have been provided an `lsp_available` flag in your context.
   Then use the grep equivalent from the catalog above.
 - For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
 
-**When `lsp_available: false`:**
+**When both unavailable:**
 - Use Grep, Glob, and Read for all code navigation.
 
 ## Phase 1 -- Entry Point Identification

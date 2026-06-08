@@ -160,8 +160,10 @@ Agent(
 ```
 
 - **Tools:** Read-only (Glob, Grep, Read, LSP -- no Edit, Write, Agent)
-- **Best for:** Codebase search, file discovery, code understanding, dependency mapping
-- **When to use:** Any subtask that only needs to READ and REPORT. Never for tasks that modify files.
+- **Best for:** Non-codebase read tasks: checking if a specific config file exists, reading raw log output, grep-only operations with no benefit from codegraph
+- **When to use:** Only when the task is pure file I/O with no need for semantic code understanding. For any task that involves finding, mapping, or understanding source code, use `quiver:code-navigator` instead (see rule below).
+
+> **Hard rule -- codebase exploration:** Always use `quiver:code-navigator` instead of `Explore` for any task that involves finding, understanding, or mapping source code. `Explore` ignores codegraph semantic tools even when codegraph is available and falls back to grep for everything. `quiver:code-navigator` loads codegraph schemas first, uses semantic search, and falls back to grep only when needed -- fewer tokens, higher precision.
 
 ### Plan
 
@@ -195,8 +197,8 @@ Agent(
 
 | Need | Agent Type | Recommended Frontmatter Model |
 |------|-----------|-------------------------------|
-| Find files matching a pattern | `Explore` | `haiku` |
-| Understand how a module works | `Explore` | `haiku` or `sonnet` |
+| Find files matching a pattern in source code | `quiver:code-navigator` | `inherit` |
+| Understand how a module works | `quiver:code-navigator` | `inherit` |
 | Run shell commands or git operations | `general-purpose` | inherit |
 | Design before implementing | `Plan` | inherit or `opus` |
 | Write or modify code | `general-purpose` | inherit |
@@ -263,7 +265,8 @@ flowchart TD
     D -->|Yes| C
     D -->|No| E
 
-    E -->|Read/search only| F[Explore]
+    E -->|Codebase exploration| F[quiver:code-navigator]
+    E -->|Non-codebase read only| G[Explore]
     E -->|Planning/design| H[Plan]
     E -->|Write/modify code or shell commands| I[general-purpose]
 ```
@@ -304,7 +307,7 @@ When creating custom agents (via frontmatter `model` field), choose the right mo
 ```
 Plan:
   Step 1: quiver:waste-detector -- Audit current branch diff (parallel: yes)
-  Step 2: Explore -- Find untested code paths (parallel: yes)
+  Step 2: quiver:code-navigator -- Find untested code paths (parallel: yes)
   Step 3: general-purpose -- Implement fixes from review findings (depends on: step 1, 2)
   Step 4: general-purpose -- Run test suite to verify fixes (depends on: step 3)
 ```
@@ -338,14 +341,14 @@ Agent(
 )
 
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Find untested code",
   prompt="Find all source files in src/ that do NOT have a corresponding test file in tests/ or __tests__/. List each untested file with its line count. Ignore index files and type definitions.",
   run_in_background=true
 )
 
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Check for TODOs",
   prompt="Find all TODO, FIXME, HACK, and XXX comments in the codebase. For each, report: file path, line number, the comment text, and how old it is (git blame the line). Sort by age, oldest first.",
   run_in_background=true
@@ -366,7 +369,7 @@ flowchart LR
 ```
 # Step 1: Research (synchronous -- blocks until done)
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Analyze current auth implementation",
   prompt="Analyze the authentication system in this codebase. Find: 1) All auth-related files (models, middleware, controllers), 2) Which auth library/strategy is used, 3) How sessions are managed, 4) Any existing tests for auth. Report file paths and a summary of each component's role."
 )
@@ -400,9 +403,9 @@ Research phase in parallel, then a single implementation step that uses all resu
 ```mermaid
 flowchart TB
     subgraph PARALLEL[Phase 1: Research - parallel]
-        S1[Find files<br/>Explore]
-        S2[Check tests<br/>Explore]
-        S3[Read docs<br/>Explore]
+        S1[Find files<br/>code-navigator]
+        S2[Check tests<br/>code-navigator]
+        S3[Read docs<br/>code-navigator]
     end
 
     subgraph SEQUENTIAL[Phase 2: Act - sequential]
@@ -419,21 +422,21 @@ flowchart TB
 ```
 # Phase 1: Parallel research (all launch simultaneously)
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Find payment-related files",
   prompt="Find all files related to payment processing in this codebase. Include models, services, controllers, and config. For each file, report: path, line count, and a one-line summary of its purpose.",
   run_in_background=true
 )
 
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Check payment test coverage",
   prompt="Find all test files related to payment processing. For each, list: path, number of test cases, and what aspects of payment they test. Identify any payment flows that have NO test coverage.",
   run_in_background=true
 )
 
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Analyze payment error handling",
   prompt="In all payment-related files, analyze error handling patterns. Report: 1) Which errors are caught and handled, 2) Which error paths have no handling, 3) Whether failed payments are logged/tracked, 4) Whether users get meaningful error messages.",
   run_in_background=true
@@ -498,7 +501,7 @@ Agent(
 
 # After all workers complete, verify consistency
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Verify refactoring consistency",
   prompt="Check the authentication refactoring for consistency: 1) Does app/models/concerns/authenticatable.rb exist and define the expected methods? 2) Does user.rb include the concern? 3) Does sessions_controller use the concern's interface correctly? 4) Do all tests reference the correct method signatures? Report any mismatches between the interfaces."
 )
@@ -510,21 +513,21 @@ Start with a fast, cheap scan, then go deeper only where needed.
 
 ```mermaid
 flowchart TD
-    S1[Scan: Explore<br/>Quick overview] -->|identifies hotspots| S2[Deep dive: Explore<br/>Analyze hotspots only]
+    S1[Scan: code-navigator<br/>Quick overview] -->|identifies hotspots| S2[Deep dive: code-navigator<br/>Analyze hotspots only]
     S2 -->|finds issues| S3[Fix: general-purpose<br/>Targeted fixes]
 ```
 
 ```
 # Step 1: Fast broad scan
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Quick security scan",
   prompt="Do a quick scan of the entire codebase for obvious security issues. Check for: hardcoded secrets, SQL string concatenation, unescaped user input in HTML, eval() calls, and exposed debug endpoints. Report ONLY file paths and line numbers -- no detailed analysis yet."
 )
 
 # Step 2: Deep dive only on flagged files (uses Step 1 results)
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Deep security analysis of flagged files",
   prompt="Perform a detailed security analysis of these specific files flagged in the quick scan: [PASTE STEP 1 FILE LIST]. For each flagged location: 1) Confirm whether it's a real vulnerability or false positive, 2) Assess severity (critical/high/medium/low), 3) Describe the attack vector, 4) Suggest the specific fix. Ignore all other files."
 )
@@ -554,7 +557,7 @@ Status: completed | partial | failed
 
 Results:
   - Step 1: quiver:waste-detector -- Found 3 critical, 5 warning issues (success)
-  - Step 2: Explore -- Identified 12 untested files (success)
+  - Step 2: quiver:code-navigator -- Identified 12 untested files (success)
   - Step 3: general-purpose -- Implemented fixes for 3 critical issues (success)
   - Step 4: general-purpose -- All 47 tests passing, 0 lint errors (success)
 
@@ -620,7 +623,7 @@ For sequential pipeline steps, also include:
 | Agent type not found | Report which agent was missing. List available agents. Suggest `/quiver:create-agent` or a built-in fallback. |
 | Agent fails or times out | Retry once with the same parameters. If it fails again, log the error and continue with remaining steps. |
 | Agent returns empty/useless result | Do NOT retry the same prompt. Rephrase with more specific instructions, narrower scope, or a different agent type. |
-| Parallel agents produce conflicting edits | Detect file conflicts before reporting. If two agents edited the same file, use a final `Explore` agent to check consistency. |
+| Parallel agents produce conflicting edits | Detect file conflicts before reporting. If two agents edited the same file, use a final `quiver:code-navigator` agent to check consistency. |
 | All agents fail | Report `Status: failed` with per-step error details. Suggest the user run the subtasks manually. |
 
 ### Common Pitfalls
@@ -694,7 +697,7 @@ When running parallel agents that modify files, explicitly state which files eac
 
 ### Spawn a Subagent (Synchronous)
 ```
-Agent(subagent_type="Explore", description="Find auth files", prompt="...")
+Agent(subagent_type="quiver:code-navigator", description="Find auth files", prompt="...")
 ```
 
 ### Spawn a Subagent (Background/Parallel)
@@ -719,15 +722,15 @@ Agent(subagent_type="general-purpose", description="Experimental refactor", prom
 
 ### Parallel Fan-Out
 ```
-Agent(subagent_type="Explore", description="Task A", prompt="...", run_in_background=true)
-Agent(subagent_type="Explore", description="Task B", prompt="...", run_in_background=true)
-Agent(subagent_type="Explore", description="Task C", prompt="...", run_in_background=true)
+Agent(subagent_type="quiver:code-navigator", description="Task A", prompt="...", run_in_background=true)
+Agent(subagent_type="quiver:code-navigator", description="Task B", prompt="...", run_in_background=true)
+Agent(subagent_type="quiver:code-navigator", description="Task C", prompt="...", run_in_background=true)
 # All three run simultaneously
 ```
 
 ### Sequential Pipeline
 ```
-result1 = Agent(subagent_type="Explore", description="Research", prompt="...")
+result1 = Agent(subagent_type="quiver:code-navigator", description="Research", prompt="...")
 result2 = Agent(subagent_type="Plan", description="Design", prompt="Based on: [result1]...")
 Agent(subagent_type="general-purpose", description="Implement", prompt="Follow plan: [result2]...")
 ```

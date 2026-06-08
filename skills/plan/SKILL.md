@@ -60,9 +60,9 @@ Otherwise:
 
 | Complexity | Signals | Agents to Dispatch |
 |------------|---------|-------------------|
-| **Light** | 1-3 files, single layer, well-understood | Explore |
-| **Standard** | 3-10 files, 2+ layers, moderate unknowns | Explore + best-practices-researcher |
-| **Deep** | 10+ files, architectural impact, security/auth/payments, unfamiliar domain | Explore + best-practices-researcher + architecture-strategist |
+| **Light** | 1-3 files, single layer, well-understood | code-navigator |
+| **Standard** | 3-10 files, 2+ layers, moderate unknowns | code-navigator + best-practices-researcher |
+| **Deep** | 10+ files, architectural impact, security/auth/payments, unfamiliar domain | code-navigator + best-practices-researcher + architecture-strategist |
 
 If the task is trivial (single file, obvious change), use `AskUserQuestion`:
 > This task is straightforward enough to implement directly.
@@ -114,22 +114,18 @@ Before dispatching agents, detect navigation capabilities once.
 
 Spawn all qualifying agents simultaneously using multiple Agent tool calls in a single response. Every agent prompt must be **self-contained** -- agents have zero memory of this conversation.
 
-**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the Explore agent to verify file paths and current patterns are still accurate.
+**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the code-navigator agent to verify file paths and current patterns are still accurate.
 
-### Explore Agent (always dispatched)
+### code-navigator Agent (always dispatched)
 
 ```
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Map codebase for planning: {short task summary}",
   prompt="Task: {full task description from Step 1}
 
   codegraph_available: {true|false from Step 2.5}
   lsp_available: {true|false from Step 2.5}
-
-  Include the full Code Navigation Strategy block from `skills/code-navigation/SKILL.md` in this agent prompt, verbatim. The block starts at "## Code Navigation Strategy" and ends before the next `##` heading.
-
-  ---
 
   Search this codebase for all files related to this task. For each file found, report:
   1. File path
@@ -205,7 +201,7 @@ After **all** agents return, merge findings into a unified research brief:
 
 1. **Deduplicate** -- If multiple agents report the same file or pattern, keep the most detailed version.
 2. **Organize:**
-   - **Codebase context** (from Explore): affected files, current patterns, test coverage
+   - **Codebase context** (from code-navigator): affected files, current patterns, test coverage
    - **Best practices** (from best-practices-researcher): recommended approaches, deprecation alerts
    - **Architectural guidance** (from architecture-strategist): structural constraints, where new code belongs
 3. **Flag conflicts** -- If agents disagree (e.g., best practices suggest pattern A but existing architecture uses pattern B), surface both with trade-offs. Do not silently resolve.
@@ -230,12 +226,12 @@ Map out which files will be created, modified, or deleted. This locks in decompo
 **Task granularity:**
 - Each step: 2-10 minutes, independently verifiable
 - Pattern: what to do, which file(s), expected outcome
-- Include exact file paths from Explore findings
+- Include exact file paths from code-navigator findings
 - Incorporate best practices into step design
 - Respect architectural boundaries from architecture-strategist
 
 **TDD task structure (when the project has tests):**
-If the Explore agent found an existing test framework, structure each task following the TDD cycle:
+If the code-navigator agent found an existing test framework, structure each task following the TDD cycle:
 1. Write the failing test (show exact test code)
 2. Run the test -- confirm it fails with the expected error
 3. Write the minimal implementation to make it pass
@@ -251,7 +247,7 @@ Not every task requires TDD (e.g., config changes, docs, migrations). Apply it t
 **Research integration (mandatory):**
 - If best-practices-researcher flagged a deprecation, the plan must avoid the deprecated pattern
 - If architecture-strategist identified boundary constraints, steps must respect them
-- If Explore found existing test patterns, new test steps must follow them
+- If code-navigator found existing test patterns, new test steps must follow them
 - Attribute findings in Context section: "(from best-practices-researcher)", "(from architecture-strategist)"
 
 **Review-fix plan frontmatter (when review-fix context detected in Step 1):**
@@ -447,5 +443,5 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
 
 **Known gotchas:**
-- The Explore agent prompt references the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`; updates to that block must stay in sync.
+- The code-navigator agent (`agents/research/code-navigator.md`) owns the Code Navigation Strategy. When updating the strategy in `skills/code-navigation/SKILL.md`, update the agent file too.
 - `review_iteration` is determined by counting prior plans with the same `review_source` field; if naming conventions drift, the iteration count can desync.

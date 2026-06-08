@@ -1,6 +1,6 @@
 ---
 name: code-navigation
-description: "LSP-first code navigation with grep fallback. Provides agents with a reusable strategy for semantic code exploration -- goToDefinition, findReferences, documentSymbol -- with automatic fallback to grep when LSP is unavailable or returns empty results."
+description: "CodeGraph-first code navigation with LSP and grep fallback. Provides agents with a reusable strategy for semantic code exploration -- codegraph tools when available, LSP goToDefinition/findReferences/documentSymbol otherwise, grep as last resort."
 ---
 
 # Code Navigation
@@ -55,6 +55,7 @@ Agents that search the broader codebase should include this block in their promp
 You have been provided `codegraph_available` and `lsp_available` flags in your context.
 
 **When `codegraph_available: true`:**
+- First, load codegraph tool schemas by calling ToolSearch with query `"select:mcp__codegraph__codegraph_search,mcp__codegraph__codegraph_context,mcp__codegraph__codegraph_callers,mcp__codegraph__codegraph_callees,mcp__codegraph__codegraph_impact,mcp__codegraph__codegraph_node"`. Codegraph tools are deferred and cannot be called without this step.
 - For finding symbols by name: use codegraph_search first.
 - For understanding what code is relevant to a task: use codegraph_context first.
 - For finding callers of a function: use codegraph_callers first.
@@ -79,7 +80,7 @@ You have been provided `codegraph_available` and `lsp_available` flags in your c
 
 ## Skill-Level Navigation Detection
 
-Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. Results are passed to all agents as context.
+Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. Results are passed as `codegraph_available` and `lsp_available` flags to `quiver:code-navigator` and other agents that search the codebase.
 
 ### CodeGraph Detection Flow
 
