@@ -113,7 +113,10 @@ Dispatch qualifying agents in parallel (multiple Agent tool calls in a single re
 - Symptom summary from Step 1.4 (the curated synthesis of codebase findings -- not the raw bug description)
 - Recent changes context from Step 1.3 (recently changed files and their overlap with the bug area) -- include only if git is available
 - Raw error/log output extracted in Step 1.1 (verbatim stack traces, error messages, log snippets) -- include only if present
+- `codegraph_available` flag: check once if `.codegraph/` exists at project root; set `true` or `false`. No user prompt.
 - `lsp_available` flag (detect once using the Code Navigation Strategy detection flow from `skills/code-navigation/SKILL.md`; cache for the session)
+
+Pass both flags to each dispatched agent. Agents that search the codebase (code-tracer, regression-finder, environment-checker) carry the Code Navigation Strategy block and will call ToolSearch to load codegraph tools when `codegraph_available: true`.
 
 For simple single-file checks: handle directly without agent dispatch. Read the file, inspect the relevant code, and evaluate the hypothesis.
 

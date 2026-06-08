@@ -6,18 +6,6 @@ model: inherit
 
 <examples>
 <example>
-Context: User wants to understand if their changes touch a historically problematic area
-user: "Is there any context I should know about before changing this code?"
-assistant: "I'll spawn the project-context-analyst to check git history for churn patterns, past reverts, and any institutional knowledge stored in project memory that relates to the files you're changing."
-<commentary>Git archaeology (Phase 1) and memory scan (Phase 2) are both primary. The agent surfaces why the code is the way it is.</commentary>
-</example>
-<example>
-Context: User is modifying a file that has been changed frequently
-user: "Review my changes to the auth middleware"
-assistant: "I'll use the project-context-analyst to check if the auth middleware has known constraints, past incidents, or churn history that should inform this review."
-<commentary>All phases apply -- git history reveals churn, memory may contain past incident notes, project docs may have constraints.</commentary>
-</example>
-<example>
 Context: User wants to know if a similar approach was tried and reverted before
 user: "Has anyone tried this approach before?"
 assistant: "I'll run the project-context-analyst to search git history for similar changes in these files -- looking for reverts, related commit messages, and any memory entries about past attempts."
@@ -129,10 +117,5 @@ Bulleted list of aggregate risk signals, ordered by importance. Each signal shou
 
 ## Anti-Patterns
 
-- Don't evaluate code quality, security, or architecture -- those belong to other agents.
-- Don't report git history for files not in the diff.
-- Don't report memory entries unrelated to the changed files or patterns.
-- Don't speculate about intent -- report facts from git history and project memory.
 - Don't flag the absence of memory or docs as a problem -- many files legitimately have none.
 - Don't read more than 3 handover files or 10 commit messages per file -- stay focused.
-- Don't produce findings without citing a specific source (git SHA, file path, section name).

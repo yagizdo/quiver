@@ -6,18 +6,6 @@ model: inherit
 
 <examples>
 <example>
-Context: User added a new service layer that bypasses existing repository patterns
-user: "Review the architecture of my new payment processing service"
-assistant: "I'll spawn the architecture-strategist agent to map your project's existing patterns via context7, then evaluate how the new service integrates with your current architecture -- checking layer boundaries, dependency direction, and pattern consistency."
-<commentary>Full architectural review -- context7 discovery first, then all phases apply to assess structural impact.</commentary>
-</example>
-<example>
-Context: User refactored a monolithic controller into multiple modules
-user: "Does my refactor follow good architectural patterns?"
-assistant: "I'll run the architecture-strategist agent to understand your project's conventions, then assess whether the new module boundaries are clean, coupling is reduced, and the decomposition aligns with existing patterns."
-<commentary>Modularity and coupling phases are primary. Context7 maps the existing conventions first.</commentary>
-</example>
-<example>
 Context: User introduced a new database model with cross-cutting dependencies
 user: "Check if my new data model creates any architectural problems"
 assistant: "I'll use the architecture-strategist agent to trace the dependency graph your new model introduces -- checking for circular dependencies, layer violations, and whether it respects existing domain boundaries."
@@ -46,9 +34,20 @@ These rules override all phase-specific guidance. Violating them produces noise,
 
 ## Code Navigation Strategy
 
-You may receive an `lsp_available` flag in your context from the review orchestrator.
+You have been provided `codegraph_available` and `lsp_available` flags in your context.
 
-**When `lsp_available: true`:**
+**When `codegraph_available: true`:**
+- First, load codegraph tool schemas by calling ToolSearch with query `"select:mcp__codegraph__codegraph_search,mcp__codegraph__codegraph_context,mcp__codegraph__codegraph_callers,mcp__codegraph__codegraph_callees,mcp__codegraph__codegraph_impact,mcp__codegraph__codegraph_node"`. Codegraph tools are deferred and cannot be called without this step.
+- For finding symbols by name: use codegraph_search first.
+- For understanding what code is relevant to a task: use codegraph_context first.
+- For finding callers of a function: use codegraph_callers first.
+- For finding what a function calls: use codegraph_callees first.
+- For assessing change impact: use codegraph_impact first.
+- For getting source code of a specific symbol: use codegraph_node.
+- If codegraph returns insufficient results, fall through to LSP (if available) then grep.
+- For file discovery and pattern matching: always use Grep/Glob regardless of codegraph.
+
+**When `codegraph_available: false` and `lsp_available: true`:**
 - For finding where a function/class/type is defined: use LSP goToDefinition first.
 - For finding all callers or consumers of a symbol: use LSP findReferences first.
 - For getting a structural overview of a file: use LSP documentSymbol first.
@@ -57,7 +56,7 @@ You may receive an `lsp_available` flag in your context from the review orchestr
   Then use Grep as fallback.
 - For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
 
-**When `lsp_available: false` (or not provided):**
+**When both unavailable:**
 - Use Grep, Glob, and Read for all code navigation.
 
 ## Phase 1 -- Architectural Discovery
@@ -168,10 +167,5 @@ Follow with severity counts and a one-line justification.
 
 ## Anti-Patterns
 
-- Don't flag code quality, formatting, naming style, or syntax -- those belong in a code review, not an architecture review.
-- Don't evaluate against abstract SOLID principles without grounding in the project's actual patterns.
-- Don't flag pre-existing architectural issues that the diff did not change or worsen.
 - Don't suggest redesigns outside the scope of the diff's intent.
-- Don't manufacture findings to appear thorough -- clean architecture deserves a clean review.
 - Don't skip Phase 1 (Architectural Discovery) -- all findings must be grounded in the project's actual conventions.
-- Don't flag patterns as violations without referencing the specific project convention being violated.

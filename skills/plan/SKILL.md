@@ -54,20 +54,15 @@ Otherwise:
    > Which authentication approach should the plan target?
    Buttons: `["OAuth2 (Google, GitHub)", "Email/password", "Magic links", "SSO/SAML", "Other (I'll describe)"]`
 
-   **Rules for clarifying questions:**
-   - Use `AskUserQuestion` with action buttons -- never ask clarifying questions as plain text.
-   - Derive button options from the codebase context and task domain -- do not use generic placeholders.
-   - Always include an "Other" free-text option as the last button.
-   - Ask at most ONE clarifying question. If the task is clear enough to proceed, skip this step.
-   - If the user picks "Other", accept their free-text response and continue.
+   **Rules:** Use `AskUserQuestion` with codebase-derived buttons (never plain text). Include "Other" as last option. At most ONE question -- skip if task is clear.
 
 4. **Assess complexity:**
 
 | Complexity | Signals | Agents to Dispatch |
 |------------|---------|-------------------|
-| **Light** | 1-3 files, single layer, well-understood | Explore |
-| **Standard** | 3-10 files, 2+ layers, moderate unknowns | Explore + best-practices-researcher |
-| **Deep** | 10+ files, architectural impact, security/auth/payments, unfamiliar domain | Explore + best-practices-researcher + architecture-strategist |
+| **Light** | 1-3 files, single layer, well-understood | code-navigator |
+| **Standard** | 3-10 files, 2+ layers, moderate unknowns | code-navigator + best-practices-researcher |
+| **Deep** | 10+ files, architectural impact, security/auth/payments, unfamiliar domain | code-navigator + best-practices-researcher + architecture-strategist |
 
 If the task is trivial (single file, obvious change), use `AskUserQuestion`:
 > This task is straightforward enough to implement directly.
@@ -96,9 +91,13 @@ Discover available agents before dispatch:
 
 Agent identifiers use `quiver:{name}` for plugin agents, bare `{name}` for project/user agents.
 
-## Step 2.5 -- LSP Detection
+## Step 2.5 -- Navigation Detection
 
-Before dispatching agents, detect LSP availability once. Follow the detection flow from the `code-navigation` skill:
+Before dispatching agents, detect navigation capabilities once.
+
+**CodeGraph:** Check if `.codegraph/` exists at project root. Set `codegraph_available` to `true` or `false`. No user prompt.
+
+**LSP:** Follow the detection flow from the `code-navigation` skill:
 
 1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_declined` or `lsp_confirmed` is found, use the cached value and skip to step 4.
 2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
@@ -109,41 +108,24 @@ Before dispatching agents, detect LSP availability once. Follow the detection fl
 
    - If user accepts: provide installation instructions, re-probe, cache `lsp_confirmed` in project memory.
    - If user declines: cache `lsp_declined` in project memory.
-4. Set `lsp_available` to `true` or `false`. Pass this flag to all agents dispatched in Step 3.
+4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to all agents dispatched in Step 3.
 
 ## Step 3 -- Parallel Agent Dispatch
 
 Spawn all qualifying agents simultaneously using multiple Agent tool calls in a single response. Every agent prompt must be **self-contained** -- agents have zero memory of this conversation.
 
-**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the Explore agent to verify file paths and current patterns are still accurate.
+**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the code-navigator agent to verify file paths and current patterns are still accurate.
 
-### Explore Agent (always dispatched)
+### code-navigator Agent (always dispatched)
 
 ```
 Agent(
-  subagent_type="Explore",
+  subagent_type="quiver:code-navigator",
   description="Map codebase for planning: {short task summary}",
   prompt="Task: {full task description from Step 1}
 
+  codegraph_available: {true|false from Step 2.5}
   lsp_available: {true|false from Step 2.5}
-
-  ## Code Navigation Strategy
-
-  You have been provided an `lsp_available` flag above.
-
-  **When `lsp_available: true`:**
-  - For finding where a function/class/type is defined: use LSP goToDefinition first.
-  - For finding all callers or consumers of a symbol: use LSP findReferences first.
-  - For getting a structural overview of a file: use LSP documentSymbol first.
-  - If LSP returns empty or unhelpful results for any operation, inform the user:
-    'LSP returned no results for {operation} on `{symbol}` -- falling back to grep-based search.'
-    Then use Grep as fallback.
-  - For file discovery and pattern matching: always use Grep/Glob regardless of LSP availability.
-
-  **When `lsp_available: false`:**
-  - Use Grep, Glob, and Read for all code navigation.
-
-  ---
 
   Search this codebase for all files related to this task. For each file found, report:
   1. File path
@@ -219,7 +201,7 @@ After **all** agents return, merge findings into a unified research brief:
 
 1. **Deduplicate** -- If multiple agents report the same file or pattern, keep the most detailed version.
 2. **Organize:**
-   - **Codebase context** (from Explore): affected files, current patterns, test coverage
+   - **Codebase context** (from code-navigator): affected files, current patterns, test coverage
    - **Best practices** (from best-practices-researcher): recommended approaches, deprecation alerts
    - **Architectural guidance** (from architecture-strategist): structural constraints, where new code belongs
 3. **Flag conflicts** -- If agents disagree (e.g., best practices suggest pattern A but existing architecture uses pattern B), surface both with trade-offs. Do not silently resolve.
@@ -244,12 +226,12 @@ Map out which files will be created, modified, or deleted. This locks in decompo
 **Task granularity:**
 - Each step: 2-10 minutes, independently verifiable
 - Pattern: what to do, which file(s), expected outcome
-- Include exact file paths from Explore findings
+- Include exact file paths from code-navigator findings
 - Incorporate best practices into step design
 - Respect architectural boundaries from architecture-strategist
 
 **TDD task structure (when the project has tests):**
-If the Explore agent found an existing test framework, structure each task following the TDD cycle:
+If the code-navigator agent found an existing test framework, structure each task following the TDD cycle:
 1. Write the failing test (show exact test code)
 2. Run the test -- confirm it fails with the expected error
 3. Write the minimal implementation to make it pass
@@ -258,21 +240,14 @@ If the Explore agent found an existing test framework, structure each task follo
 
 Not every task requires TDD (e.g., config changes, docs, migrations). Apply it to tasks that produce testable behavior.
 
-**No placeholders rule:**
-Every step must contain actionable content. These are plan failures -- never write them:
-- "TBD", "TODO", "implement later", "fill in details"
-- "Add appropriate error handling" / "add validation" / "handle edge cases"
-- "Write tests for the above" (without actual test code or at minimum the test scenario description)
-- "Similar to Task N" (repeat the relevant details -- the implementer may read tasks out of order)
-- Steps that describe what to do without showing how (include code blocks, commands, or exact file paths)
-- References to types, functions, or methods not defined in any task (if a step calls `processItems()`, some task must define it)
+**No placeholders rule:** Every step must have actionable content. Never write: "TBD"/"TODO"/"implement later", "add appropriate handling"/"handle edge cases", "similar to Task N" (repeat details), "write tests" without scenarios, steps without file paths or expected outcomes, references to undefined symbols.
 
 **Language rule:** Always write plan documents in English, regardless of the conversation language. Only write in another language if the user explicitly requests it.
 
 **Research integration (mandatory):**
 - If best-practices-researcher flagged a deprecation, the plan must avoid the deprecated pattern
 - If architecture-strategist identified boundary constraints, steps must respect them
-- If Explore found existing test patterns, new test steps must follow them
+- If code-navigator found existing test patterns, new test steps must follow them
 - Attribute findings in Context section: "(from best-practices-researcher)", "(from architecture-strategist)"
 
 **Review-fix plan frontmatter (when review-fix context detected in Step 1):**
@@ -430,18 +405,13 @@ Handle each response:
 
 ## Anti-Patterns
 
-- **Don't** skip the confirmation gate -- always wait for user approval before saving.
+Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
+
 - **Don't** start writing implementation code -- this command plans only.
 - **Don't** run agents sequentially -- always dispatch independent agents in parallel (multiple Agent tool calls in one response).
 - **Don't** send vague prompts to agents -- every prompt must include the full task description, relevant file paths, and expected output format.
 - **Don't** ignore agent findings -- if an agent flags a deprecation or boundary constraint, the plan must address it.
 - **Don't** create plans for tasks the user wants done immediately -- ask first.
-
-## Verification
-
-After saving the plan file:
-1. Read the file back to confirm contents.
-2. Confirm the plan directory exists and the file is listed.
 
 ---
 
@@ -467,11 +437,11 @@ After saving the plan file:
 - [ ] Review-fix detection produces frontmatter with `review_source` and `review_iteration`.
 - [ ] No raw `{placeholder}` strings remain in the saved plan.
 - [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
-- [ ] Step 6 runs 6 inline checks (placeholder, naming, spec coverage, granularity, reference validity, file map) on every plan.
-- [ ] Step 6.5 dispatches `plan-reviewer` agent only for Standard/Deep non-review-fix plans.
-- [ ] Light plans and review-fix plans skip Step 6.5 entirely.
+- [ ] Agent dispatch and Plan Guard checks execute correctly for Standard/Deep plans.
+- [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
 - [ ] Plan Guard Notes subsection appears in the plan's Context section only when NOTE findings exist.
+- [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
 
 **Known gotchas:**
-- The Explore agent prompt embeds the full Code Navigation Strategy block; updates to that block must keep the skill body in sync with `skills/code-navigation/SKILL.md`.
+- The code-navigator agent (`agents/research/code-navigator.md`) owns the Code Navigation Strategy. When updating the strategy in `skills/code-navigation/SKILL.md`, update the agent file too.
 - `review_iteration` is determined by counting prior plans with the same `review_source` field; if naming conventions drift, the iteration count can desync.

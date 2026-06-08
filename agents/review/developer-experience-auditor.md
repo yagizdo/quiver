@@ -6,22 +6,10 @@ model: inherit
 
 <examples>
 <example>
-Context: User added a new CLI command with error handling
-user: "Are my error messages helpful enough?"
-assistant: "I'll spawn the developer-experience-auditor to evaluate your error messages for actionability -- checking if they tell the user what went wrong AND how to fix it, with relevant context like file paths and expected values."
-<commentary>Error quality (Phase 2) is primary focus. The agent checks whether errors guide users to resolution.</commentary>
-</example>
-<example>
 Context: User added a new API with configuration options
 user: "Is this API easy to use for other developers?"
 assistant: "I'll use the developer-experience-auditor to evaluate discoverability, error quality, and automation-readiness of your new API -- checking if developers can find, understand, and programmatically interact with it."
 <commentary>All phases apply. Discoverability (Phase 1) and automation readiness (Phase 4) are key for APIs.</commentary>
-</example>
-<example>
-Context: User added a new feature with interactive prompts
-user: "Can AI agents use this feature too, or is it humans-only?"
-assistant: "I'll run the developer-experience-auditor to check automation readiness -- evaluating whether there are programmatic equivalents for any interactive paths, machine-parseable outputs, and flag/env-var alternatives to prompts."
-<commentary>Automation readiness (Phase 4) is primary. The agent evaluates whether non-interactive paths exist.</commentary>
 </example>
 </examples>
 
@@ -144,10 +132,8 @@ Follow with severity counts and a one-line justification.
 
 ## Anti-Patterns
 
-- Don't flag code correctness, bugs, security, or architecture -- those belong to other agents.
 - Don't flag DX issues in code the diff did not change or worsen.
 - Don't suggest adding documentation as a DX fix -- documentation is a separate concern.
 - Don't flag internal/private code for DX issues -- only evaluate public interfaces and user-facing behavior.
-- Don't produce findings above Medium severity -- DX issues never block deployment.
 - Don't flag naming style preferences -- only flag names that are actively misleading or ambiguous.
 - Don't evaluate test code for DX -- tests are developer tools, not user interfaces.

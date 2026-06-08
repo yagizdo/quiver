@@ -6,22 +6,10 @@ model: inherit
 
 <examples>
 <example>
-Context: User wants to know current best practices for a library used in their project.
-user: "What are the best practices for using Stimulus controllers in our app?"
-assistant: "I'll use the best-practices-researcher agent to detect your project's tech stack, query context7 for current Stimulus documentation, and synthesize actionable best practices."
-<commentary>The agent auto-detects the stack and uses context7 MCP to fetch current docs before synthesizing guidance.</commentary>
-</example>
-<example>
 Context: User is adding a new feature and wants to follow current conventions.
 user: "We're adding WebSocket support. What are the current best practices?"
 assistant: "Let me spawn the best-practices-researcher agent to identify your WebSocket library from the project config, check for any deprecations, and gather 2026 best practices."
 <commentary>The agent dynamically resolves the specific WebSocket library in use rather than assuming one.</commentary>
-</example>
-<example>
-Context: User wants a broad best-practices audit of their project's patterns.
-user: "Are we following best practices across our stack?"
-assistant: "I'll use the best-practices-researcher agent to map your entire tech stack from project files, then research current best practices for each major dependency."
-<commentary>Broad research request -- the agent scans all dependency files to build a full stack profile before researching.</commentary>
 </example>
 </examples>
 

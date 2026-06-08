@@ -60,14 +60,7 @@ If user picks "Skip brainstorm", **stop here** and suggest running `/plan <task>
 
 ### Decomposition Check
 
-After assessing complexity, evaluate whether the idea is too large for a single spec:
-
-**Trigger signals:**
-- The description contains 3+ independent subsystems (e.g., "chat, file management, billing")
-- Components span different technology layers (backend + frontend + mobile + infra)
-- Estimated affected file count exceeds 20+
-
-If any trigger fires, use `AskUserQuestion`:
+If the description contains 3+ independent subsystems, spans multiple technology layers (backend + frontend + mobile + infra), or estimates 20+ affected files, use `AskUserQuestion`:
 > This idea contains multiple independent subsystems. Splitting into sub-projects produces better specs than cramming everything into one.
 Buttons: `["Split into sub-projects", "Continue as single spec"]`
 
@@ -77,17 +70,11 @@ Buttons: `["Split into sub-projects", "Continue as single spec"]`
 
 ## Step 1.5 -- Visual Companion Offer
 
-If the idea involves UI/UX, layout, design, architecture diagrams, or other visual content:
-
-Use `AskUserQuestion`:
+If the idea involves UI/UX, layout, design, or architecture diagrams, use `AskUserQuestion`:
 > This topic is well-suited for visual content. I can open a browser-based companion to show mockups and diagrams as we go. Want to try it?
 Buttons: `["Yes, open visual companion", "No, continue with text"]`
 
-**If "Yes":** Read the `visual-companion` skill for setup instructions. Start the companion server and keep it running throughout the brainstorm session. For each step that involves a visual question, write HTML content and direct the user to their browser. For text-only questions, continue in the terminal.
-
-**If "No":** Continue with normal text-only flow.
-
-**If the topic is NOT visual** (pure backend, data model, API design, etc.): Skip this step entirely. Do not offer the companion.
+**If "Yes":** Read the `visual-companion` skill for setup instructions. Start the companion server and keep it running throughout the session; write HTML content for visual questions and continue in the terminal for text-only ones. **If "No":** Continue with normal text-only flow. Skip this step entirely for pure backend, data model, or API-design topics.
 
 ## Step 2 -- Clarifying Questions
 
@@ -99,12 +86,7 @@ Ask questions to fill gaps in your understanding. Focus on: purpose, constraints
 - Always include an "Other" free-text option as the last button (AskUserQuestion adds this automatically).
 - **Question count follows depth:** Quick = 0-1, Standard = 2-3, Deep = 3-4.
 - **Group independent questions.** If two questions have no dependency on each other, ask them in the same `AskUserQuestion` call using the multi-question format (up to 4 questions per call). Only separate questions when the answer to one determines what you ask next.
-- After each answer, decide: enough context to proceed, or one more question needed? Do not ask questions for the sake of filling a quota.
-
-**When to skip questions entirely:**
-- The user provided a detailed description with clear scope, constraints, and success criteria
-- The idea is a well-known pattern (CRUD, auth, API endpoint) with obvious implementation paths
-- The user explicitly said "just brainstorm approaches" without wanting scope refinement
+- After each answer, decide: enough context to proceed, or one more question needed? Do not ask questions for the sake of filling a quota. Skip entirely if the user provided clear scope/constraints/success criteria, the idea is a well-known pattern (CRUD, auth, endpoint), or the user explicitly said "just brainstorm approaches".
 
 ## Step 3 -- Generate Approaches
 
@@ -118,9 +100,7 @@ Present 2-3 distinct approaches. Each approach must include:
 **Lead with your recommendation.** Mark it clearly and explain why in 1-2 sentences. Do not be neutral -- take a position.
 
 **Rules:**
-- Approaches must reference actual project structure observed in gather-context. Do not propose patterns that conflict with the project's existing conventions. When evaluating approaches, penalize complexity that does not directly serve the stated requirements.
-- Approaches must be genuinely different strategies, not cosmetic variations of the same idea.
-- Ground approaches in the actual codebase context (existing patterns, frameworks, conventions observed from gather-context).
+- Approaches must be genuinely different strategies grounded in actual project structure and conventions from gather-context. Penalize complexity that does not serve stated requirements.
 - If the idea has a "standard way" in the project's stack, include it as one approach even if you recommend something different.
 - For Quick depth: 2 approaches, concise (3-4 lines each). For Deep: 3 approaches, detailed (8-12 lines each).
 
@@ -160,86 +140,38 @@ Handle each response:
 
 Write the validated design as a spec document. Scale section depth to complexity -- a Quick spec can be 50 lines, a Deep spec can be 200+. Not every section is required for every depth.
 
-**Document structure:**
+**Required sections by depth:**
+- **Quick:** Executive Summary, Design (Chosen Approach + Key Decisions + Affected Areas), Success Criteria. Omit Context, Alternatives, Open Questions unless they add clear value.
+- **Standard:** All sections above plus Context and Open Questions. Skip Alternatives Considered.
+- **Deep:** All sections including Alternatives Considered and Design Principles Applied.
 
-```markdown
-# [Feature/Idea Name] -- Brainstorm Spec
-
-**Date:** YYYY-MM-DD
-**Status:** Draft
-**Depth:** Quick | Standard | Deep
-
-## Executive Summary
-[Copy from Step 4 -- this is the approved summary]
-
-## Context
-[Why this idea exists. What problem it solves. Any prior art or existing patterns.]
-
-## Design
-
-### Chosen Approach: [Name]
-[Detailed description of the selected approach]
-
-### Key Decisions
-[Numbered list of design decisions with brief rationale for each]
-
-### Affected Areas
-[File paths, modules, or system boundaries that will be touched]
-
-## Alternatives Considered  <!-- Deep only -->
-[Other approaches from Step 3, with why they were not chosen]
-
-## Open Questions  <!-- if any remain -->
-[Questions that surfaced during brainstorming but were deferred to planning phase]
-
-## Success Criteria
-[How we know this is done and working correctly]
-
-## Design Principles Applied  <!-- Standard and Deep only -->
-- **YAGNI:** [Features explicitly removed or deferred from this spec, with reasons]
-- **Single Responsibility:** [Each unit's sole responsibility]
-- **Interface Clarity:** [Communication interfaces between units]
-```
-
-**Rules:**
-- Quick depth: Executive Summary + Design + Success Criteria. Skip Context, Alternatives, Open Questions unless they add value.
-- Standard depth: All sections except Alternatives Considered.
-- Deep depth: All sections.
-- No placeholders -- every section must have real content. If you cannot fill a section, remove it.
-- Standard and Deep depth: "Design Principles Applied" section is required. Quick depth: optional.
-- Always write spec documents in English, regardless of the conversation language. Only write in another language if the user explicitly requests it.
+**Section content rules:**
+- Header block: `# [Feature/Idea Name] -- Brainstorm Spec` with `Date`, `Status: Draft`, `Depth` fields.
+- Executive Summary: copy the approved summary from Step 4.
+- Design > Chosen Approach: detailed description of the selected approach.
+- Design > Key Decisions: numbered list with brief rationale per decision.
+- Design > Affected Areas: file paths, modules, or system boundaries.
+- Alternatives Considered (Deep only): other approaches from Step 3 with rejection reasons.
+- Open Questions: items deferred to planning phase.
+- Success Criteria: how we know it is done and working.
+- Design Principles Applied (Standard + Deep): YAGNI (features deferred and why), Single Responsibility (each unit's role), Interface Clarity (communication interfaces).
+- No placeholders -- every included section must have real content. Remove sections you cannot fill.
+- Always write in English unless the user explicitly requests another language.
 
 ### Save the spec:
 
 1. Create `docs/brainstorms/` if it does not exist.
 2. Write the spec as `docs/brainstorms/YYYY-MM-DD-<descriptive-name>.md` (use `date '+%Y-%m-%d'` for the date prefix).
-3. **Verify:** Read the file back and confirm it was written correctly. Confirm no raw `{...}` placeholder text remains.
-
-## Step 6 -- Spec Self-Review
-
-After writing, review with fresh eyes:
-
-1. **Placeholder scan:** Any "TBD", "TODO", unfilled sections, or vague requirements like "add appropriate handling"? Fix them inline.
-2. **Internal consistency:** Do sections contradict each other? Does the design match the executive summary?
-3. **Scope check:** Is this focused enough for a single `/plan` session, or should it be decomposed into sub-specs?
-4. **Ambiguity check:** Could any requirement be interpreted two different ways? Pick one interpretation and make it explicit.
-
-Fix any issues by editing the saved file. No need to re-review after fixes.
+3. **Verify:** Read the file back and confirm it was written correctly. Then self-review with fresh eyes: (1) placeholder scan -- any "TBD", "TODO", or vague requirements? Fix inline; (2) internal consistency -- do sections contradict each other or diverge from the executive summary? Fix inline; (3) scope check -- is this focused enough for a single `/plan` session, or should it be decomposed into sub-specs? (4) ambiguity check -- can any requirement be read two ways? Pick one interpretation and make it explicit. Fix any issues by editing the saved file.
 
 ## Step 7 -- User Review Gate
 
-After self-review passes, present the user with the opportunity to review:
-
 Use `AskUserQuestion`:
-- **question:** "Spec saved to `docs/brainstorms/{filename}`. You can review it now or move forward. What would you like to do?"
-- Buttons:
-  1. `"Looks good -- move to planning"` / "Invoke /plan with this spec as input"
-  2. `"Let me review first"` / "I want to read the spec and may request changes"
-  3. `"Save and stop"` / "Keep the spec, I will plan later"
+> Spec saved. You can review it now or move forward. What would you like to do?
+Buttons: `["Looks good -- move to planning", "Let me review first", "Save and stop"]`
 
-Handle each response:
-- **Looks good -- move to planning** -- invoke the `plan` skill with the spec path as context: "Plan the implementation based on the brainstorm spec at `docs/brainstorms/{filename}`"
-- **Let me review first** -- say: "Take your time. When you are ready, let me know if you want changes or if we should move to `/plan`." **Stop here** and wait.
+- **Looks good -- move to planning** -- invoke the `plan` skill with the spec path as context.
+- **Let me review first** -- say: "Take your time. Let me know if you want changes or if we should move to `/plan`." **Stop here** and wait.
 - **Save and stop** -- stop here.
 
 ---
@@ -254,8 +186,7 @@ Handle each response:
 - **Don't** force questions when the user gave a clear, detailed description -- assess and skip if appropriate.
 - **Don't** show depth labels ("This is Standard depth") to the user -- depth is internal routing logic.
 - **Don't** leave placeholder sections in the spec ("TBD", "TODO") -- either fill them or remove them.
-- **Don't** add features the user didn't ask for -- if it's not in the requirements, it's not in the spec. Ask the user before adding "nice to have" features.
-- **Don't** design for hypothetical future requirements -- solve the problem at hand. If the user says "we might need X later", note it in Open Questions, don't architect for it now.
+- **Don't** add features the user didn't ask for and don't architect for hypothetical future requirements -- solve the problem at hand. If "we might need X later" comes up, note it in Open Questions only.
 
 ---
 
@@ -263,25 +194,21 @@ Handle each response:
 
 **Trigger:** `/brainstorm <idea>` (and `/quiver:brainstorm` should also work)
 
-**Setup:**
-- Project root with optional `docs/brainstorms/` directory.
+**Setup:** Project root with optional `docs/brainstorms/` directory.
 
 **Expected behavior:**
-1. Skill silently gathers project context (Glob over brainstorms/plans/source dirs) and runs the three git shell blocks.
-2. Skill restates the idea, picks a depth (Quick / Standard / Deep) silently, and asks 0-4 clarifying questions via `AskUserQuestion`.
-3. Skill presents 2-3 distinct approaches grounded in the codebase, leads with a recommendation, and asks the user to choose via `AskUserQuestion`.
-4. After approach selection, skill prints the Executive Summary and asks `Approve / Adjust / Restart` via `AskUserQuestion`.
-5. On approval, skill writes the spec to `docs/brainstorms/YYYY-MM-DD-<name>.md` (in English regardless of conversation language) and reads it back to verify.
-6. Skill ends with `AskUserQuestion` offering `Looks good / Let me review first / Save and stop`; on the first option it invokes the `plan` skill with the spec path.
+1. Silently gathers project context and runs three git shell blocks.
+2. Restates the idea, picks depth silently, asks 0-4 clarifying questions via `AskUserQuestion`.
+3. Presents 2-3 approaches with a recommendation; user selects via `AskUserQuestion`.
+4. Prints Executive Summary; user approves/adjusts/restarts via `AskUserQuestion`.
+5. Writes spec to `docs/brainstorms/YYYY-MM-DD-<name>.md` (English), reads it back, self-reviews.
+6. Final `AskUserQuestion` offering `Looks good / Let me review first / Save and stop`; first option invokes `plan` with the spec path.
 
 **Verification checklist:**
-- [ ] Slash menu shows `/brainstorm`.
-- [ ] Spec file is written under `docs/brainstorms/` with the date-prefixed filename.
-- [ ] All clarifying / approach / approval / next-step prompts use `AskUserQuestion`, not plain text.
-- [ ] Spec body has no raw `{placeholder}` text.
-- [ ] Visual companion offer appears only when the topic is visual (UI/UX/architecture diagrams).
-- [ ] Spec language is English unless the user explicitly asked for another language.
+- [ ] Slash menu shows `/brainstorm`; spec file written under `docs/brainstorms/` with date-prefixed filename.
+- [ ] All clarifying / approach / approval / next-step prompts use `AskUserQuestion`, not plain text; spec has no raw `{placeholder}` text.
+- [ ] Visual companion offer appears only for visual topics; spec language is English unless user explicitly requested otherwise.
 
 **Known gotchas:**
-- Visual companion requires the `visual-companion` skill's runtime; if its server cannot start, the brainstorm should fall back to text without aborting.
-- The decomposition check fires on 3+ subsystems or 20+ estimated files; tuning these heuristics affects when the split prompt is offered.
+- Visual companion falls back to text-only if its server cannot start -- the brainstorm must not abort.
+- Decomposition check fires at 3+ subsystems or 20+ estimated files; these thresholds control when the split prompt appears.

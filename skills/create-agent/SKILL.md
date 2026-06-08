@@ -95,11 +95,11 @@ Using the resolved fields and the [Agent Authoring Reference](#agent-authoring-r
 - Methodology sections should contain actionable, domain-specific checks ordered by impact.
 - Output format should match the agent's purpose (e.g., severity-based for reviewers, structured findings for auditors).
 - Run [Quality Gates](#quality-gates) before proceeding to save.
-- **Code navigation hint:** If the agent's purpose involves searching or exploring the broader codebase (not just reading files it already knows about), include the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`. Add a comment near the top of the generated agent file:
+- **Code navigation hint:** If the agent's purpose involves searching or exploring the broader codebase (not just reading files it already knows about), copy the Code Navigation Strategy block verbatim from `skills/code-navigation/SKILL.md` (the section starting with `## Code Navigation Strategy`) into the generated agent file. Add a comment above it:
   ```
   <!-- This agent searches the codebase. The Code Navigation Strategy block
        (from skills/code-navigation/SKILL.md) is included below. The dispatching
-       skill must pass lsp_available context. -->
+       skill must pass codegraph_available and lsp_available context. -->
   ```
 
 ---
