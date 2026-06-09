@@ -2,6 +2,7 @@
 name: handover
 description: Summarize the current work state and prepare a handover note for the next session.
 disable-model-invocation: true
+when-to-use: "user wants to save session context or wrap up a session -- '/handover', 'save handover', 'create a handover', 'end of session', 'save my progress'"
 ---
 
 # Step 0 — Gather Git Context

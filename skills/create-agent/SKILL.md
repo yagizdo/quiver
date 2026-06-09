@@ -3,6 +3,7 @@ name: create-agent
 description: Scaffold a new Claude Code agent with smart defaults from a natural language description or interactive Q&A.
 argument-hint: "[description] e.g. \"a security reviewer that checks OWASP top 10\" or run without arguments for guided setup"
 disable-model-invocation: true
+when-to-use: "user wants to scaffold a new Quiver agent -- '/create-agent', 'create an agent', 'new agent', 'add an agent', 'scaffold an agent'"
 ---
 
 # Create Agent

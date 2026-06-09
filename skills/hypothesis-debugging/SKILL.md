@@ -2,6 +2,7 @@
 name: hypothesis-debugging
 description: "Hypothesis-first debugging -- collects symptoms, generates and tests hypotheses with conditional agent dispatch, falls back to adaptive exploration, and proposes reviewed fixes."
 argument-hint: "<bug description, error message, or 'help me debug X'>"
+when-to-use: "user wants to debug an error, bug, or failure -- '/hypothesis-debugging', 'debug this', 'fix this bug', 'why is this failing', 'help me debug', 'investigate this error'"
 ---
 
 # Gather Context

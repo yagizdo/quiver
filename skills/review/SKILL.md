@@ -3,6 +3,7 @@ name: review
 description: Run a multi-agent code review. Default fast mode (5 agents); pass --deep for full pipeline (all agents + quality check + senior review). Pass --with-codex for cross-model coverage.
 argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 disable-model-invocation: true
+when-to-use: "user wants a multi-agent code review of a PR or diff -- '/review', 'review my changes', 'review this PR', 'code review', 'audit the diff' (not: 'senior review')"
 ---
 
 # Gather Context

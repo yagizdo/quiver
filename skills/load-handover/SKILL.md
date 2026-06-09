@@ -1,6 +1,7 @@
 ---
 name: load-handover
 description: Load the most recent handover note from the previous session into context.
+when-to-use: "user wants to restore previous session context -- '/load-handover', 'load handover', 'restore session', 'load previous context', 'continue from last session'"
 ---
 
 # Previous Session Handover

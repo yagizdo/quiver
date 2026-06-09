@@ -1,6 +1,7 @@
 ---
 name: visual-companion
 description: Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options. Use when brainstorm topics involve UI/UX, layout, architecture diagrams, or any content better understood visually.
+when-to-use: "user wants visual mockups, UI diagrams, or architecture sketches -- '/visual-companion', 'show me a diagram', 'sketch this UI', 'visualize this', 'open visual companion'"
 ---
 
 # Visual Companion

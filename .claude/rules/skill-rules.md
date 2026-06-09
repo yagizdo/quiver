@@ -30,6 +30,8 @@ Non-negotiable. Every command must follow all of these. Violations break things.
 
 **R9. No AI attribution.** No `Co-authored-by` or similar in commits/PRs unless the user explicitly requests it.
 
+**R10. `when-to-use:` required for user-facing skills.** Every user-facing skill must include a `when-to-use:` field in its YAML frontmatter. The value must be a single-line double-quoted string (not a multi-line YAML block scalar -- multi-line format produces empty routing entries in the hook). The string must contain: the skill's slash command name as an anchor (e.g. `'/plan'`), at least one concrete quoted user utterance, and the abstract intent category. Exceptions: internal reference skills (code-navigation, orchestrate-agents) and destructive skills (delete-all-handovers, delete-last-handover).
+
 ---
 
 ## Learned Lessons

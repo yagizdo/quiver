@@ -1,6 +1,7 @@
 ---
 name: report-check
 description: Analyze a review report for quality -- detects noise, false positives, overkill suggestions, and findings that exist to appear thorough. Usage: /report-check <path-to-report>
+when-to-use: "user wants to audit a review report for noise or false positives -- '/report-check', 'check this report', 'is this review good', 'verify the review findings'"
 ---
 
 # Gather Context
