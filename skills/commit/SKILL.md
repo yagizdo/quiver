@@ -2,6 +2,7 @@
 name: commit
 description: Generate a Conventional Commits message, commit, and optionally push to remote.
 argument-hint: "[--push] (auto commit & push without prompting)"
+when-to-use: "user wants to commit changes or write a commit message -- '/commit', 'commit this', 'make a commit', 'git commit', 'commit my changes'"
 ---
 
 # Gather Git Context

@@ -2,6 +2,7 @@
 name: plan
 description: Create a structured implementation plan with parallel agent research before coding.
 argument-hint: "<task description>"
+when-to-use: "user asks to make a plan, structure work, or plan a feature -- '/plan', 'make a plan', 'plan this out', 'how should I approach X'"
 ---
 
 # Gather Context

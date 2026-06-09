@@ -2,6 +2,7 @@
 name: create-pr
 description: "Create a GitHub pull request from the current branch. Use when the user says 'create a pr', 'open pr', 'push and open a pr', 'create pull request', or wants to open a PR from their branch."
 argument-hint: "[--draft] [--base <branch>]"
+when-to-use: "user wants to open a pull request from the current branch -- '/create-pr', 'create a PR', 'open a pull request', 'push and make a PR'"
 ---
 
 # Gather Context

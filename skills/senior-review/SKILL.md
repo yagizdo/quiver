@@ -2,6 +2,7 @@
 name: senior-review
 description: "Pragmatic senior developer code review -- evaluates code quality, risks, and conventions through a team lead lens. Standalone or integrated into /review pipeline."
 argument-hint: "[--quick] [#PR_NUMBER | PR_URL]"
+when-to-use: "user wants a quick targeted single-pass senior developer review -- '/senior-review', 'senior review', 'quick review', 'fast review', 'single-pass review'"
 ---
 
 # Gather Context

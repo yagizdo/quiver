@@ -2,6 +2,7 @@
 name: brainstorm
 description: "Explore ideas, compare approaches, and produce a validated spec before planning. Use when the user describes what to build, asks how to approach something, proposes a new feature or design change, or needs to explore options before implementation."
 argument-hint: "<idea or feature description>"
+when-to-use: "user wants to explore ideas, compare approaches, or decide what to build -- '/brainstorm', 'brainstorm this', 'help me think through' (not: 'make a plan')"
 ---
 
 # Gather Context
