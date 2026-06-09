@@ -1,0 +1,1 @@
+../../skills/senior-review/SKILL.md

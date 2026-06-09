@@ -1,0 +1,1 @@
+../../agents/debug/environment-checker.md
