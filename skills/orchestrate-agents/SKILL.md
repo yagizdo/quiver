@@ -266,7 +266,8 @@ flowchart TD
     D -->|Yes| C
     D -->|No| E
 
-    E -->|Codebase exploration| F[quiver:code-navigator]
+    E -->|Find / locate / list / verify| F[quiver:code-locator]
+    E -->|Understand / map / conventions| FA[quiver:code-navigator]
     E -->|Non-codebase read only| G[Explore]
     E -->|Planning/design| H[Plan]
     E -->|Write/modify code or shell commands| I[general-purpose]
