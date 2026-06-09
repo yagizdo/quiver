@@ -67,6 +67,24 @@ Then try `/brainstorm` in any session.
 - Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
+### Opencode
+
+```
+opencode plugin install yagizdo/quiver
+```
+
+Quiver registers 19 slash commands (type `/` to browse) and 20 specialist agents
+(invoke with `@agentname`). Commands read from `.opencode/commands/`, agents from
+`.opencode/agents/`.
+
+> **Note:** `AskUserQuestion` interactive prompts are not available in Opencode.
+> Commands present choices as numbered lists; type the number to select.
+> Multi-agent dispatch (`/review`, `/plan`) works but uses Opencode's `@agent`
+> mention syntax instead of Claude Code's `Agent` tool.
+>
+> **Windows:** Requires `git config core.symlinks true` before cloning (Developer Mode
+> or group policy grant needed).
+
 ## Components
 
 | Component | Count |
