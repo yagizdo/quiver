@@ -141,6 +141,17 @@ If your agent searches the broader codebase (beyond files it already knows about
 2. Ensure the dispatching skill passes `codegraph_available` and `lsp_available` context to your agent.
 3. Your agent does NOT need to handle LSP detection -- that is the skill's responsibility.
 
+## Locate vs Map
+
+Two agents serve code navigation. Pick by output need:
+
+| Job | Agent | Output |
+|-----|-------|--------|
+| Where is X defined / what calls Y / list uses of Z / map a directory / verify a path | `quiver:code-locator` | Compressed `path:line -- symbol -- note` table |
+| Conventions, patterns, planning context, feature impact | `quiver:code-navigator` | Structured file:role:pattern report with Key Conventions and Gaps |
+
+Both agents use the tier strategy from this skill (codegraph -> LSP -> grep). `code-locator` runs on `haiku` and refuses convention extraction; `code-navigator` runs on `inherit` and emits the full map `/plan` consumes.
+
 ---
 
 ## Test Plan
@@ -164,6 +175,7 @@ If your agent searches the broader codebase (beyond files it already knows about
 - [ ] Project memory ends up with `lsp_preference.md` after the first detection run.
 - [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
 - [ ] When `.codegraph/` does not exist, `codegraph_available` is false and behavior is unchanged.
+- [ ] Locate jobs (where is X / what calls Y / list uses / verify paths) dispatch `quiver:code-locator`; map/convention jobs dispatch `quiver:code-navigator`.
 
 **Known gotchas:**
 - LSP availability is cached per project; clearing or installing a new language server requires `forget LSP preference` or manual `lsp_preference.md` removal.

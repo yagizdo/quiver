@@ -161,9 +161,9 @@ Agent(
 
 - **Tools:** Read-only (Glob, Grep, Read, LSP -- no Edit, Write, Agent)
 - **Best for:** Non-codebase read tasks: checking if a specific config file exists, reading raw log output, grep-only operations with no benefit from codegraph
-- **When to use:** Only when the task is pure file I/O with no need for semantic code understanding. For any task that involves finding, mapping, or understanding source code, use `quiver:code-navigator` instead (see rule below).
+- **When to use:** Only when the task is pure file I/O with no need for semantic code understanding. For any task that involves finding, locating, mapping, or understanding source code, use `quiver:code-locator` (for find/locate/list/verify) or `quiver:code-navigator` (for understand/map/conventions) instead (see rule below).
 
-> **Hard rule -- codebase exploration:** Always use `quiver:code-navigator` instead of `Explore` for any task that involves finding, understanding, or mapping source code. `Explore` ignores codegraph semantic tools even when codegraph is available and falls back to grep for everything. `quiver:code-navigator` loads codegraph schemas first, uses semantic search, and falls back to grep only when needed -- fewer tokens, higher precision.
+> **Hard rule -- codebase exploration:** Never use `Explore` for source code tasks. Use `quiver:code-locator` for finding/listing/verifying locations (compressed file:line output, runs on haiku), and `quiver:code-navigator` for understanding/mapping/convention extraction (full structured report, runs on inherit). Both load codegraph schemas first and fall back to grep only when needed -- fewer tokens, higher precision than `Explore`.
 
 ### Plan
 
@@ -197,7 +197,8 @@ Agent(
 
 | Need | Agent Type | Recommended Frontmatter Model |
 |------|-----------|-------------------------------|
-| Find files matching a pattern in source code | `quiver:code-navigator` | `inherit` |
+| Find files matching a pattern in source code | `quiver:code-locator` | `haiku` |
+| Locate a symbol / find callers / list uses / map a directory | `quiver:code-locator` | `haiku` |
 | Understand how a module works | `quiver:code-navigator` | `inherit` |
 | Run shell commands or git operations | `general-purpose` | inherit |
 | Design before implementing | `Plan` | inherit or `opus` |
@@ -513,16 +514,16 @@ Start with a fast, cheap scan, then go deeper only where needed.
 
 ```mermaid
 flowchart TD
-    S1[Scan: code-navigator<br/>Quick overview] -->|identifies hotspots| S2[Deep dive: code-navigator<br/>Analyze hotspots only]
+    S1[Scan: code-locator<br/>Quick overview] -->|identifies hotspots| S2[Deep dive: code-navigator<br/>Analyze hotspots only]
     S2 -->|finds issues| S3[Fix: general-purpose<br/>Targeted fixes]
 ```
 
 ```
 # Step 1: Fast broad scan
 Agent(
-  subagent_type="quiver:code-navigator",
+  subagent_type="quiver:code-locator",
   description="Quick security scan",
-  prompt="Do a quick scan of the entire codebase for obvious security issues. Check for: hardcoded secrets, SQL string concatenation, unescaped user input in HTML, eval() calls, and exposed debug endpoints. Report ONLY file paths and line numbers -- no detailed analysis yet."
+  prompt="Do a quick scan of the entire codebase for obvious security issues. Check for: hardcoded secrets, SQL string concatenation, unescaped user input in HTML, eval() calls, and exposed debug endpoints. Report ONLY file paths and line numbers -- no detailed analysis yet. Surface the locator's table verbatim in your result; do not re-summarize it."
 )
 
 # Step 2: Deep dive only on flagged files (uses Step 1 results)
@@ -768,6 +769,7 @@ If the task is ambiguous and agent selection cannot be determined confidently, a
 - [ ] Agent selection draws from all three discovery roots; project agents override same-named plugin/user agents.
 - [ ] Skill explicitly delegates to the work orchestrator for plan-driven runs instead of duplicating that logic.
 - [ ] Ambiguous tasks produce a single clarifying question, not silent guesses.
+- [ ] Locate / find / list / verify jobs dispatch `quiver:code-locator`; understand / map / convention jobs dispatch `quiver:code-navigator`.
 
 **Known gotchas:**
 - This skill is the GENERAL orchestrator; the WORK skill's `orchestrator.md` is the specialized variant for plan execution. Do not conflate them.

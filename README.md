@@ -73,7 +73,7 @@ Then try `/brainstorm` in any session.
 |-----------|-------|
 | Hooks | 1 |
 | Skills | 19 |
-| Agents | 18 |
+| Agents | 20 |
 
 ## Skills
 
@@ -221,6 +221,7 @@ These skills back the slash-invocable skills above. They are not invoked directl
 |-------|-----------------|
 | `best-practices-researcher` (`quiver:best-practices-researcher`) | Deprecated APIs and outdated patterns versus current library docs |
 | `project-context-analyst` (`quiver:project-context-analyst`) | Prior decisions, past bugs, and churn patterns in this area of the codebase |
+| `code-locator` (`quiver:code-locator`) | Fast file:line locations for "where is X / what calls Y" without heavy mapping |
 
 <!-- agents:research-end -->
 

@@ -60,7 +60,7 @@ Otherwise:
 
 | Complexity | Signals | Agents to Dispatch |
 |------------|---------|-------------------|
-| **Light** | 1-3 files, single layer, well-understood | code-navigator |
+| **Light** | 1-3 files, single layer, well-understood | code-locator |
 | **Standard** | 3-10 files, 2+ layers, moderate unknowns | code-navigator + best-practices-researcher |
 | **Deep** | 10+ files, architectural impact, security/auth/payments, unfamiliar domain | code-navigator + best-practices-researcher + architecture-strategist |
 
@@ -114,9 +114,30 @@ Before dispatching agents, detect navigation capabilities once.
 
 Spawn all qualifying agents simultaneously using multiple Agent tool calls in a single response. Every agent prompt must be **self-contained** -- agents have zero memory of this conversation.
 
-**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the code-navigator agent to verify file paths and current patterns are still accurate.
+**Review-fix plans: reduced dispatch.** If Step 1 detected review-fix context, the review report already identified the problems and affected files. Skip best-practices-researcher and architecture-strategist -- they add no value when the scope is "fix these specific findings." Dispatch only the code-locator agent to verify file paths and that current locations are still accurate.
 
-### code-navigator Agent (always dispatched)
+### code-locator Agent (Light + review-fix verify)
+
+```
+Agent(
+  subagent_type="quiver:code-locator",
+  description="Locate files for planning: {short task summary}",
+  prompt="Task: {full task description from Step 1}
+
+  codegraph_available: {true|false from Step 2.5}
+  lsp_available: {true|false from Step 2.5}
+
+  Locate all files related to this task. For each file found, report:
+  1. File path and line (if a specific symbol is the entry point)
+  2. One-line description of its role
+  3. Whether it has an associated test file
+
+  Surface the locator's table verbatim; do not re-summarize it.",
+
+)
+```
+
+### code-navigator Agent (Standard + Deep)
 
 ```
 Agent(
@@ -441,7 +462,8 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
 - [ ] Plan Guard Notes subsection appears in the plan's Context section only when NOTE findings exist.
 - [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
+- [ ] Light and review-fix plans dispatch `quiver:code-locator`; Standard/Deep plans dispatch `quiver:code-navigator`.
 
 **Known gotchas:**
-- The code-navigator agent (`agents/research/code-navigator.md`) owns the Code Navigation Strategy. When updating the strategy in `skills/code-navigation/SKILL.md`, update the agent file too.
+- The code-navigator agent (`agents/research/code-navigator.md`) owns the Code Navigation Strategy. When updating the strategy in `skills/code-navigation/SKILL.md`, update the agent file too. `code-locator` (`agents/research/code-locator.md`) also copies this block -- update it there as well.
 - `review_iteration` is determined by counting prior plans with the same `review_source` field; if naming conventions drift, the iteration count can desync.
