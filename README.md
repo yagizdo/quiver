@@ -67,20 +67,27 @@ Then try `/brainstorm` in any session.
 - Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
-### Opencode
+### OpenCode
 
+```bash
+git clone https://github.com/yagizdo/quiver.git /tmp/quiver
+/tmp/quiver/setup-opencode.sh /path/to/your-project
 ```
-opencode plugin install yagizdo/quiver
-```
 
-Quiver registers 19 slash commands (type `/` to browse) and 20 specialist agents
-(invoke with `@agentname`). Commands read from `.opencode/commands/`, agents from
-`.opencode/agents/`.
+This copies Quiver's agents, skills, commands, plugin, and config into your
+project's `.opencode/` directory. After setup, open your project with `opencode`.
 
-> **Note:** `AskUserQuestion` interactive prompts are not available in Opencode.
-> Commands present choices as numbered lists; type the number to select.
-> Multi-agent dispatch (`/review`, `/plan`) works but uses Opencode's `@agent`
-> mention syntax instead of Claude Code's `Agent` tool.
+Quiver provides 20 specialist agents (`@agentname`), 12 slash commands (`/` tab),
+and 19 skills. The plugin hooks into session compaction to preserve handover context.
+
+> **Note:** OpenCode has no plugin marketplace or install command. Use the
+> `setup-opencode.sh` script above. For updates, re-run the script.
+>
+> **Other differences from Claude Code:**
+> `AskUserQuestion` interactive prompts are not available — commands present
+> choices as numbered lists. Multi-agent orchestration uses OpenCode's `@agent`
+> mention and Task tool instead of Claude Code's `Agent` tool.
+> PreCompact hooks don't fire — use `/handover` manually at session boundaries.
 >
 > **Windows:** Requires `git config core.symlinks true` before cloning (Developer Mode
 > or group policy grant needed).
