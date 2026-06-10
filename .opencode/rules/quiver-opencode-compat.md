@@ -1,55 +1,69 @@
-# Quiver Opencode Compatibility Rules
+# Quiver OpenCode Compatibility
 
-These rules apply when running Quiver commands (`/commandname`) or agents (`@agentname`)
-inside Opencode. They explain how to handle Claude Code-specific primitives that have
-no direct equivalent in Opencode.
+Quiver provides first-class OpenCode support via `.opencode/agents/`, `.opencode/skills/`,
+`.opencode/commands/`, and `.opencode/plugins/quiver.ts`. All 19 agents, 19 skills, and
+12 commands are available in OpenCode.
 
-## 1. AskUserQuestion (interactive choice buttons)
+## Agents
 
-`AskUserQuestion` is a Claude Code tool. Opencode does not have it.
+All Quiver agents are available as subagents in OpenCode. Invoke them with `@agentname`:
 
-**Replacement:** When a command needs a user decision, present the choices as a numbered
-plain-text list and wait for the user to type their selection number.
+`@waste-detector`, `@security-audit`, `@architecture-strategist`,
+`@developer-experience-auditor`, `@logic-reviewer`, `@test-reviewer`, `@stress-tester`,
+`@codex-code-reviewer`, `@report-checker`, `@senior-reviewer`,
+`@best-practices-researcher`, `@project-context-analyst`, `@code-navigator`,
+`@code-locator`, `@code-tracer`, `@log-analyzer`, `@regression-finder`,
+`@environment-checker`, `@fix-reviewer`, `@plan-reviewer`
 
-Example -- instead of an interactive button prompt:
-```
-Choose an option:
-1. Execute this plan
-2. Create a new branch
-3. Done -- I'll handle the rest
-```
-Then wait for the user to respond with a number before proceeding.
+## Commands
 
-## 2. Agent tool (subagent dispatch)
+Slash commands work identically to Claude Code. Available commands:
+
+`/handover`, `/review`, `/plan`, `/commit`, `/brainstorm`, `/work`,
+`/load-handover`, `/create-pr`, `/senior-review`, `/orchestrate-agents`,
+`/delete-all-handovers`, `/delete-last-handover`
+
+## Skills
+
+Skills are loaded via the `skill` tool. OpenCode discovers them from `.opencode/skills/`.
+
+## Differences from Claude Code
+
+These Claude Code-specific primitives have no direct equivalent in OpenCode:
+
+### 1. AskUserQuestion (interactive choice buttons)
+
+OpenCode does not have the `AskUserQuestion` tool.
+
+**Replacement:** Present choices as a numbered plain-text list and wait for the user
+to type their selection number.
+
+### 2. Agent tool (parallel subagent dispatch)
 
 The `Agent` tool for spawning subagents is Claude Code-specific.
 
-**Replacement:** Use `@agentname` mentions to invoke a specialist agent as a subagent.
-For example, where a command says "dispatch the `senior-reviewer` agent", use
-`@senior-reviewer` in your message. Available agents are listed in `.opencode/agents/`.
+**Replacement:** Use `@agentname` mentions to invoke subagents. Multi-agent orchestration
+(like `/review`) uses OpenCode's Task tool for sequential subagent dispatch instead of
+parallel Claude Code subagents.
 
-Note: Multi-agent orchestration commands (`/review`, `/plan`) use `Agent` tool dispatch
-internally. These commands load and run in Opencode, but subagent dispatch relies on
-Opencode's `@agent` mention behavior instead of parallel Claude Code subagents.
+### 3. Session hooks (PreCompact, SessionStart)
 
-## 3. Shell injection blocks
+PreCompact and SessionStart hooks do not fire in OpenCode.
 
-Inline shell blocks (`` !`command` ``) work identically in Opencode. No adaptation needed.
-
-## 4. Frontmatter fields (when-to-use, name)
-
-`when-to-use:` and `name:` frontmatter fields in command files are Claude Code-specific
-routing metadata. Opencode ignores them. No action needed -- they are harmless.
-
-## 5. Handover file paths
-
-Handover files write to `.claude/handovers/` relative to the project root. This path is
-unchanged in Opencode since it is relative to the project root, not the CLI install path.
-
-## 6. Session hooks (PreCompact, SessionStart)
-
-PreCompact and SessionStart hooks do not fire in Opencode. They are Claude Code lifecycle
-events. Consequence: automatic handover creation on context compaction does not happen.
-
-**Replacement:** Trigger handover creation manually by invoking `/handover` at natural
+**Replacement:** The Quiver OpenCode plugin hooks into `experimental.session.compacting`
+to inject handover context. Trigger manual handover creation with `/handover` at natural
 breakpoints or before ending a session.
+
+### 4. Shell injection blocks
+
+Inline shell blocks (`` !`command` ``) work identically in OpenCode. No adaptation needed.
+
+### 5. Frontmatter fields (when-to-use, name)
+
+`when-to-use:` and `name:` fields in skill files are Claude Code-specific.
+OpenCode ignores them. No action needed.
+
+### 6. Handover file paths
+
+Handover files write to `.claude/handovers/` relative to the project root.
+Unchanged in OpenCode since this is relative to the project root.

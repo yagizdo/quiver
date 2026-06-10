@@ -1,1 +1,0 @@
-../../skills/visual-companion/SKILL.md

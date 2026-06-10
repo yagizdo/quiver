@@ -1,1 +1,0 @@
-../../skills/hypothesis-debugging/SKILL.md

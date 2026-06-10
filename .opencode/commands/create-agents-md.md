@@ -1,1 +1,0 @@
-../../skills/create-agents-md/SKILL.md
