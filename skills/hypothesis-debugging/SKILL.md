@@ -42,7 +42,24 @@ If the argument is empty and the conversation has no prior bug context:
 
 **Stop here.**
 
-If the argument is present: use it as the initial bug description and proceed to Step 1.
+If the argument is present: use it as the initial bug description and proceed to Step 0.7.
+
+## Step 0.7 -- Navigation Detection
+
+Run once before any codebase searching. Cache results for the session.
+
+1. **CodeGraph:** Check if `.codegraph/` directory exists at project root. If yes: `codegraph_available=true`. If no: `codegraph_available=false`. No user prompt.
+2. **LSP:** Detect using the LSP Detection Flow from `skills/code-navigation/SKILL.md`. Cache as `lsp_available=true|false`.
+
+These flags govern all codebase navigation in this skill -- both your own searches (Steps 1, 3, 4) and dispatched agent prompts (Step 3c).
+
+### Navigation tier (use in all codebase searches)
+
+When `codegraph_available: true`: call ToolSearch with query `"select:mcp__codegraph__codegraph_search,mcp__codegraph__codegraph_context,mcp__codegraph__codegraph_callers,mcp__codegraph__codegraph_callees,mcp__codegraph__codegraph_impact,mcp__codegraph__codegraph_node"` to load schemas. Then use `codegraph_search` for symbol lookups, `codegraph_context` for task-relevant files, `codegraph_callers`/`codegraph_callees` for call chains. Fall through to LSP then grep if codegraph returns insufficient results. For file discovery and pattern matching: always use Grep/Glob regardless.
+
+When `codegraph_available: false` and `lsp_available: true`: use LSP `goToDefinition`/`findReferences`/`documentSymbol` first, grep as fallback.
+
+When both unavailable: use Grep, Glob, and Read.
 
 ## Step 1 -- Symptom Collection
 
@@ -50,8 +67,9 @@ Gather all available context about the bug:
 
 1. **Parse user input.** Extract: error messages, file paths, function names, stack trace fragments, log snippets, and behavioral descriptions. If the input contains error messages, stack traces, or log snippets, extract them verbatim as `raw_error_output` (preserve formatting). If no structured error output is present, note `raw_error_output: none`.
 
-2. **Search the codebase.** Based on extracted keywords:
-   - Search for error strings, function names, and file references in source files.
+2. **Search the codebase** using the navigation tier from Step 0.7. Based on extracted keywords:
+   - When `codegraph_available`: use `codegraph_search` for function/class names, `codegraph_context` with the bug description to find task-relevant files. Fall back to grep for error strings and text patterns.
+   - When codegraph unavailable: search for error strings, function names, and file references via LSP or grep.
    - Read relevant files found by the search.
 
 3. **Recent changes (git only).** If git is available:
@@ -102,7 +120,8 @@ Does hypothesis involve dependencies, config, or environment setup?
   NO  -> continue
 
 None of the above?
-  -> Handle directly (Read files, search, check single functions)
+  -> Handle directly using the navigation tier from Step 0.7
+     (codegraph_search/codegraph_context when available, then LSP, then grep/Read)
 ```
 
 ### 3c -- Dispatch qualifying agents
@@ -114,10 +133,9 @@ Dispatch qualifying agents in parallel (multiple Agent tool calls in a single re
 - Symptom summary from Step 1.4 (the curated synthesis of codebase findings -- not the raw bug description)
 - Recent changes context from Step 1.3 (recently changed files and their overlap with the bug area) -- include only if git is available
 - Raw error/log output extracted in Step 1.1 (verbatim stack traces, error messages, log snippets) -- include only if present
-- `codegraph_available` flag: check once if `.codegraph/` exists at project root; set `true` or `false`. No user prompt.
-- `lsp_available` flag (detect once using the Code Navigation Strategy detection flow from `skills/code-navigation/SKILL.md`; cache for the session)
+- `codegraph_available` and `lsp_available` flags from Step 0.7
 
-Pass both flags to each dispatched agent. Agents that search the codebase (code-tracer, regression-finder, environment-checker) carry the Code Navigation Strategy block and will call ToolSearch to load codegraph tools when `codegraph_available: true`.
+Pass both flags to each dispatched agent. Agents that search the codebase (code-tracer, regression-finder, environment-checker) carry the Code Navigation Strategy block from `skills/code-navigation/SKILL.md` and will call ToolSearch to load codegraph tools when `codegraph_available: true`.
 
 For simple single-file checks: handle directly without agent dispatch. Read the file, inspect the relevant code, and evaluate the hypothesis.
 
@@ -138,7 +156,7 @@ Triggered when: all hypotheses are refuted, or symptoms are too vague for meanin
    - "When did this last work correctly?"
    - "Does this happen in all environments or just [specific]?"
 
-2. **Explore** based on user's answers. Perform broader codebase exploration.
+2. **Explore** based on user's answers using the navigation tier from Step 0.7. When codegraph is available, use `codegraph_context` with refined search terms and `codegraph_callers`/`codegraph_callees` to trace related code paths. Fall back to grep/Read when codegraph returns insufficient results.
 
 3. **Generate new hypotheses** from exploration findings.
 
