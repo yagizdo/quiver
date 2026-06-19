@@ -69,28 +69,42 @@ Then try `/brainstorm` in any session.
 
 ### OpenCode
 
-```bash
-git clone https://github.com/yagizdo/quiver.git /tmp/quiver
-/tmp/quiver/setup-opencode.sh /path/to/your-project
+```json
+{
+  "plugin": ["quiver@git+https://github.com/yagizdo/quiver.git"]
+}
 ```
 
-This copies Quiver's agents, skills, commands, plugin, and config into your
-project's `.opencode/` directory. After setup, open your project with `opencode`.
+Add this to your `opencode.json` (project or `~/.config/opencode/opencode.json`),
+restart OpenCode, and all Quiver skills, agents, and commands are available
+automatically. The plugin auto-registers the skills directory and injects a
+bootstrap message so skills activate on every session.
 
-Quiver provides 20 specialist agents (`@agentname`), 12 slash commands (`/` tab),
-and 19 skills. The plugin hooks into session compaction to preserve handover context.
+Quiver provides 20 specialist agents (`@agentname`), 16 slash commands (`/` tab),
+and 20 skills (including the auto-loaded `using-quiver` meta-skill). The plugin
+hooks into session compaction to preserve handover context.
 
-> **Note:** OpenCode has no plugin marketplace or install command. Use the
-> `setup-opencode.sh` script above. For updates, re-run the script.
+For the full OpenCode guide including tool mapping, troubleshooting, and how
+the plugin works, see [`.opencode/README.md`](.opencode/README.md). For a
+quick install walkthrough, see [`.opencode/INSTALL.md`](.opencode/INSTALL.md).
+
+> **Note:** The bootstrap message establishes the "check for relevant skill
+> before any response" rule -- OpenCode agents invoke Quiver skills
+> automatically, not just when you type a slash command.
+>
+> **Legacy install:** If you previously used `setup-opencode.sh`, see
+> [.opencode/README.md](.opencode/README.md) for migration steps.
 >
 > **Other differences from Claude Code:**
-> `AskUserQuestion` interactive prompts are not available — commands present
-> choices as numbered lists. Multi-agent orchestration uses OpenCode's `@agent`
-> mention and Task tool instead of Claude Code's `Agent` tool.
-> PreCompact hooks don't fire — use `/handover` manually at session boundaries.
+> - `AskUserQuestion` interactive prompts are not available -- commands
+>   present choices as numbered lists.
+> - Multi-agent orchestration uses OpenCode's `task` tool and `@agent`
+>   mentions instead of Claude Code's `Agent` tool.
+> - PreCompact hooks don't fire -- use `/handover` manually at session
+>   boundaries.
 >
-> **Windows:** Requires `git config core.symlinks true` before cloning (Developer Mode
-> or group policy grant needed).
+> **Windows:** Requires `git config core.symlinks true` before installing
+> (Developer Mode or group policy grant needed).
 
 ## Components
 

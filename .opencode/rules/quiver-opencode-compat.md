@@ -1,8 +1,8 @@
 # Quiver OpenCode Compatibility
 
 Quiver provides first-class OpenCode support via `.opencode/agents/`, `.opencode/skills/`,
-`.opencode/commands/`, and `.opencode/plugins/quiver.ts`. All 19 agents, 19 skills, and
-12 commands are available in OpenCode.
+`.opencode/commands/`, and `.opencode/plugins/quiver.js`. All 20 agents, 20 skills, and
+16 commands are available in OpenCode.
 
 ## Agents
 
@@ -21,11 +21,16 @@ Slash commands work identically to Claude Code. Available commands:
 
 `/handover`, `/review`, `/plan`, `/commit`, `/brainstorm`, `/work`,
 `/load-handover`, `/create-pr`, `/senior-review`, `/orchestrate-agents`,
-`/delete-all-handovers`, `/delete-last-handover`
+`/delete-all-handovers`, `/delete-last-handover`, `/hypothesis-debugging`,
+`/create-agent`, `/create-agents-md`, `/repair-skill`
 
 ## Skills
 
 Skills are loaded via the `skill` tool. OpenCode discovers them from `.opencode/skills/`.
+
+The `using-quiver` meta-skill is loaded automatically by the plugin on every session
+via `experimental.chat.messages.transform` (see section 5 below). It establishes the
+"check for relevant skill before any response" rule.
 
 ## Differences from Claude Code
 
@@ -58,12 +63,36 @@ breakpoints or before ending a session.
 
 Inline shell blocks (`` !`command` ``) work identically in OpenCode. No adaptation needed.
 
-### 5. Frontmatter fields (when-to-use, name)
+### 5. Skill auto-activation (bootstrap injection)
+
+In Claude Code, skills are loaded on-demand via the `Skill` tool. In OpenCode, the
+Quiver plugin uses `experimental.chat.messages.transform` to inject the `using-quiver`
+meta-skill into the first user message of every session. This means Quiver skills
+auto-activate without explicit invocation -- the agent knows to check for relevant
+skills before responding.
+
+**No action required from the user** -- this happens transparently. The bootstrap
+content is wrapped in `<EXTREMELY_IMPORTANT>` tags so the model treats it as a
+high-priority directive. A guard checks for the `EXTREMELY_IMPORTANT` substring to
+prevent double-injection when OpenCode reloads messages from DB each step.
+
+Note: `experimental.chat.messages.transform` is an unstable API in OpenCode. If a
+future OpenCode version breaks this hook, skills will still be discoverable via the
+`skill` tool but won't auto-activate.
+
+### 6. Skill directory auto-registration
+
+The Quiver plugin uses the `config` hook to push the local `skills/` directory into
+OpenCode's `config.skills.paths` array. No symlinks or manual setup needed -- the
+plugin owns discovery. Users who previously needed the `setup-opencode.sh` symlink
+overlay no longer need it when installing via the native `git+https` plugin spec.
+
+### 7. Frontmatter fields (when-to-use, name)
 
 `when-to-use:` and `name:` fields in skill files are Claude Code-specific.
 OpenCode ignores them. No action needed.
 
-### 6. Handover file paths
+### 8. Handover file paths
 
 Handover files write to `.claude/handovers/` relative to the project root.
 Unchanged in OpenCode since this is relative to the project root.
