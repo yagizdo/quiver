@@ -69,42 +69,16 @@ Then try `/brainstorm` in any session.
 
 ### OpenCode
 
-```json
-{
-  "plugin": ["quiver@git+https://github.com/yagizdo/quiver.git"]
-}
-```
+OpenCode uses its own plugin install; install Quiver separately even if you
+already use it in another harness.
 
-Add this to your `opencode.json` (project or `~/.config/opencode/opencode.json`),
-restart OpenCode, and all Quiver skills, agents, and commands are available
-automatically. The plugin auto-registers the skills directory and injects a
-bootstrap message so skills activate on every session.
+- Tell OpenCode:
 
-Quiver provides 20 specialist agents (`@agentname`), 16 slash commands (`/` tab),
-and 20 skills (including the auto-loaded `using-quiver` meta-skill). The plugin
-hooks into session compaction to preserve handover context.
+  ```
+  Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/main/.opencode/INSTALL.md
+  ```
 
-For the full OpenCode guide including tool mapping, troubleshooting, and how
-the plugin works, see [`.opencode/README.md`](.opencode/README.md). For a
-quick install walkthrough, see [`.opencode/INSTALL.md`](.opencode/INSTALL.md).
-
-> **Note:** The bootstrap message establishes the "check for relevant skill
-> before any response" rule -- OpenCode agents invoke Quiver skills
-> automatically, not just when you type a slash command.
->
-> **Legacy install:** If you previously used `setup-opencode.sh`, see
-> [.opencode/README.md](.opencode/README.md) for migration steps.
->
-> **Other differences from Claude Code:**
-> - `AskUserQuestion` interactive prompts are not available -- commands
->   present choices as numbered lists.
-> - Multi-agent orchestration uses OpenCode's `task` tool and `@agent`
->   mentions instead of Claude Code's `Agent` tool.
-> - PreCompact hooks don't fire -- use `/handover` manually at session
->   boundaries.
->
-> **Windows:** Requires `git config core.symlinks true` before installing
-> (Developer Mode or group policy grant needed).
+- Detailed docs: [`.opencode/README.md`](.opencode/README.md)
 
 ## Components
 
