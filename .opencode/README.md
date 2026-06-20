@@ -42,24 +42,36 @@ use skill tool to load brainstorm
 
 ### Slash Commands
 
-Quiver registers 16 slash commands. Type `/` in OpenCode to see them all:
+OpenCode 1.16.2+ does not list Quiver skills in its `/` autocomplete menu. The TUI filter in `footer.command.tsx` drops anything with `source: "skill"`, and Quiver skills register with that source, so the picker stays empty. The skills themselves still work, just not through the menu.
 
-- `/brainstorm` -- turn a vague idea into a validated spec
-- `/plan` -- research the codebase and produce an implementation plan
-- `/work` -- execute a plan task-by-task
-- `/review` -- dispatch review agents
-- `/handover` -- save session context
-- `/load-handover` -- resume from the latest handover
-- `/commit` -- generate a Conventional Commits message
-- `/create-pr` -- open a GitHub pull request
-- `/senior-review` -- standalone senior developer review
-- `/hypothesis-debugging` -- systematic bug investigation
-- `/create-agent` -- scaffold a new agent
-- `/create-agents-md` -- generate an AGENTS.md
-- `/repair-skill` -- fix a broken skill
-- `/report-check` -- audit a review report
-- `/delete-last-handover` -- remove the most recent handover
-- `/delete-all-handovers` -- reset session history
+Two ways to invoke them:
+
+**Slash prefix.** Type `/brainstorm <idea>`, `/hypothesis-debugging <bug>`, or any other `/skill-name` directly and submit. The `using-quiver` bootstrap teaches the model to match the prefix against each skill's `when-to-use:` frontmatter and load the skill via the `skill` tool. No autocomplete, but the skill runs.
+
+**Plain language.** Describe what you want: "debug this login bug", "brainstorm a todo app", "review my changes". The bootstrap dispatches the matching skill the same way.
+
+The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 16 user-facing Quiver skills.
+
+#### Available skills
+
+| Skill | Purpose |
+|-------|---------|
+| `brainstorm` | Turn a vague idea into a validated spec |
+| `plan` | Research the codebase and produce an implementation plan |
+| `work` | Execute a plan task-by-task |
+| `review` | Dispatch review agents |
+| `senior-review` | Standalone senior developer review |
+| `hypothesis-debugging` | Systematic bug investigation |
+| `commit` | Generate a Conventional Commits message |
+| `create-pr` | Open a GitHub pull request |
+| `handover` | Save session context |
+| `load-handover` | Resume from the latest handover |
+| `delete-last-handover` | Remove the most recent handover |
+| `delete-all-handovers` | Reset session history |
+| `create-agent` | Scaffold a new agent |
+| `create-agents-md` | Generate an AGENTS.md |
+| `repair-skill` | Fix a broken skill |
+| `report-check` | Audit a review report |
 
 ### Agents
 
