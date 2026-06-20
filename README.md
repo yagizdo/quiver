@@ -75,7 +75,7 @@ already use it in another harness.
 - Tell OpenCode:
 
   ```
-  Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/main/.opencode/INSTALL.md
+  Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/master/.opencode/INSTALL.md
   ```
 
 - Detailed docs: [`.opencode/README.md`](.opencode/README.md)
