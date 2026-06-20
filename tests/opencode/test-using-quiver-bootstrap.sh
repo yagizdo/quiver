@@ -2,12 +2,16 @@
 # test-using-quiver-bootstrap.sh
 # Validates the using-quiver meta-skill and its bootstrap injection setup.
 # Verifies the file exists, has correct frontmatter, contains the load-bearing
-# <SUBAGENT-STOP> and <EXTREMELY-IMPORTANT> blocks, and the OpenCode symlink resolves.
+# <SUBAGENT-STOP> and <EXTREMELY-IMPORTANT> blocks, and that the plugin's
+# transform hook is wired correctly (no symlink required -- the plugin
+# auto-registers the skills directory via the config hook).
 
 set -e
 
 EXIT=0
 PLUGIN_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SKILL_FILE="$PLUGIN_ROOT/skills/using-quiver/SKILL.md"
+PLUGIN_FILE="$PLUGIN_ROOT/.opencode/plugins/quiver.js"
 
 # --- Helpers ---
 
@@ -19,14 +23,6 @@ assert_file_exists() {
     pass "file exists: $2"
   else
     fail "file exists: $2"
-  fi
-}
-
-assert_symlink_resolves() {
-  if [ -L "$1" ] && [ -e "$1" ]; then
-    pass "symlink resolves: $2"
-  else
-    fail "symlink resolves: $2"
   fi
 }
 
@@ -51,60 +47,64 @@ assert_not_grep() {
 echo "Testing using-quiver meta-skill..."
 
 # 1. The using-quiver skill file exists
-assert_file_exists "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "skills/using-quiver/SKILL.md"
+assert_file_exists "$SKILL_FILE" "skills/using-quiver/SKILL.md"
 
 # 2. The file has valid YAML frontmatter
-if head -1 "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" | grep -q "^---$"; then
+if head -1 "$SKILL_FILE" | grep -q "^---$"; then
   pass "file starts with YAML frontmatter delimiter"
 else
   fail "file starts with YAML frontmatter delimiter"
 fi
 
 # 3. Frontmatter contains name field
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "^name: using-quiver" "frontmatter has name: using-quiver"
+assert_grep "$SKILL_FILE" "^name: using-quiver" "frontmatter has name: using-quiver"
 
 # 4. Frontmatter contains description field
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "^description:" "frontmatter has description field"
+assert_grep "$SKILL_FILE" "^description:" "frontmatter has description field"
 
-# 5. The file contains a <SUBAGENT-STOP> block (load-bearing for subagent correctness)
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "<SUBAGENT-STOP>" "file contains <SUBAGENT-STOP> block"
+# 5. Frontmatter contains when-to-use field (R10 hard rule)
+assert_grep "$SKILL_FILE" "when-to-use:" "frontmatter has when-to-use field"
 
-# 6. The file contains an <EXTREMELY-IMPORTANT> block
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "<EXTREMELY-IMPORTANT>" "file contains <EXTREMELY-IMPORTANT> block"
+# 6. Frontmatter disables model invocation (skill is auto-injected by plugin)
+assert_grep "$SKILL_FILE" "disable-model-invocation: true" "frontmatter disables model invocation"
 
-# 7. The file contains the "Instruction Priority" hierarchy
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "Instruction Priority" "file has Instruction Priority section"
+# 7. The file contains a <SUBAGENT-STOP> block (load-bearing for subagent correctness)
+assert_grep "$SKILL_FILE" "<SUBAGENT-STOP>" "file contains <SUBAGENT-STOP> block"
 
-# 8. The file contains the Red Flags table
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "Red Flags" "file has Red Flags table"
+# 8. The file contains an <EXTREMELY-IMPORTANT> block
+assert_grep "$SKILL_FILE" "<EXTREMELY-IMPORTANT>" "file contains <EXTREMELY-IMPORTANT> block"
 
-# 9. The file contains OpenCode tool mapping
-assert_grep "$PLUGIN_ROOT/skills/using-quiver/SKILL.md" "OpenCode" "file mentions OpenCode tool mapping"
+# 9. The file contains the "Instruction Priority" hierarchy
+assert_grep "$SKILL_FILE" "Instruction Priority" "file has Instruction Priority section"
 
-# 10. The using-quiver symlink exists in .opencode/skills/ and resolves
-assert_symlink_resolves "$PLUGIN_ROOT/.opencode/skills/using-quiver" ".opencode/skills/using-quiver"
+# 10. The file contains the Red Flags table
+assert_grep "$SKILL_FILE" "Red Flags" "file has Red Flags table"
 
-# 11. The symlink points to the canonical skill
-SYMLINK_TARGET=$(readlink "$PLUGIN_ROOT/.opencode/skills/using-quiver")
-if [ "$SYMLINK_TARGET" = "../../skills/using-quiver/" ]; then
-  pass "symlink target is ../../skills/using-quiver/"
+# 11. The file contains OpenCode tool mapping (for users who read the skill directly)
+assert_grep "$SKILL_FILE" "OpenCode" "file mentions OpenCode tool mapping"
+
+# 12. The file ends with a ## Test Plan section (CLAUDE.md rule)
+assert_grep "$SKILL_FILE" "^## Test Plan" "file has Test Plan section"
+
+# 13. The plugin registers the skills directory via the config hook
+#     (replaces the old .opencode/skills/using-quiver symlink mechanism)
+assert_grep "$PLUGIN_FILE" "config.skills.paths.push(quiverSkillsDir)" "plugin auto-registers skills directory via config hook"
+
+# 14. The plugin injects bootstrap via experimental.chat.messages.transform
+assert_grep "$PLUGIN_FILE" "experimental.chat.messages.transform" "plugin injects bootstrap via message transform hook"
+
+# 15. The plugin's bootstrap uses the EXTREMELY_IMPORTANT wrapper (load-bearing for both visual priority and dedup guard)
+assert_grep "$PLUGIN_FILE" "EXTREMELY_IMPORTANT" "plugin bootstrap uses EXTREMELY_IMPORTANT wrapper"
+
+# 16. The plugin has the double-injection guard (keyed on EXTREMELY_IMPORTANT substring)
+assert_grep "$PLUGIN_FILE" "firstUser.parts.some" "plugin has double-injection guard"
+
+# 17. .opencode/skills/ does NOT need to exist -- the plugin auto-registers skills via config.skills.paths
+if [ -d "$PLUGIN_ROOT/.opencode/skills" ]; then
+  # If it does exist, that's fine too (legacy symlinks from old install).
+  pass ".opencode/skills/ optional (legacy symlinks may remain)"
 else
-  fail "symlink target is ../../skills/using-quiver/ (got: $SYMLINK_TARGET)"
-fi
-
-# 12. Content is readable via the symlink
-if head -3 "$PLUGIN_ROOT/.opencode/skills/using-quiver/SKILL.md" | grep -q "name: using-quiver"; then
-  pass "content readable via symlink"
-else
-  fail "content readable via symlink"
-fi
-
-# 13. Skill list count is 20 (19 existing + 1 new using-quiver)
-SKILL_COUNT=$(find -L "$PLUGIN_ROOT/.opencode/skills/" -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
-if [ "$SKILL_COUNT" -ge 20 ] 2>/dev/null; then
-  pass "at least 20 skills available (found: $SKILL_COUNT)"
-else
-  fail "at least 20 skills available (found: $SKILL_COUNT)"
+  pass ".opencode/skills/ not required (plugin auto-registers skills)"
 fi
 
 # --- Summary ---

@@ -7,7 +7,6 @@
 
 import path from 'path';
 import fs from 'fs';
-import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,45 +19,14 @@ const usingQuiverPath = path.join(quiverSkillsDir, 'using-quiver', 'SKILL.md');
 // every agent step.
 let _bootstrapCache = undefined; // undefined = not yet loaded, null = file missing
 
-// Simple frontmatter extraction (avoid dependency on skills-core for bootstrap)
-const extractAndStripFrontmatter = (content) => {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { content };
-
-  const frontmatterStr = match[1];
-  const body = match[2];
-  const frontmatter = {};
-
-  for (const line of frontmatterStr.split('\n')) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0) {
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
-      frontmatter[key] = value;
-    }
-  }
-
-  return { frontmatter, content: body };
+// Strip YAML frontmatter and return the body. The plugin only needs the body
+// to inject into the bootstrap -- it does not parse the frontmatter itself.
+const stripFrontmatter = (content) => {
+  const match = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+  return match ? match[1] : content;
 };
 
-// Normalize a path: trim whitespace, expand ~, resolve to absolute
-const normalizePath = (p, homeDir) => {
-  if (!p || typeof p !== 'string') return null;
-  let normalized = p.trim();
-  if (!normalized) return null;
-  if (normalized.startsWith('~/')) {
-    normalized = path.join(homeDir, normalized.slice(2));
-  } else if (normalized === '~') {
-    normalized = homeDir;
-  }
-  return path.resolve(normalized);
-};
-
-export const QuiverPlugin = async ({ client, directory }) => {
-  const homeDir = os.homedir();
-  const envConfigDir = normalizePath(process.env.OPENCODE_CONFIG_DIR, homeDir);
-  const configDir = envConfigDir || path.join(homeDir, '.config/opencode');
-
+export const QuiverPlugin = async ({ client }) => {
   // Helper to generate bootstrap content (cached after first call)
   const getBootstrapContent = () => {
     // Return cached result on subsequent calls
@@ -71,20 +39,7 @@ export const QuiverPlugin = async ({ client, directory }) => {
     }
 
     const fullContent = fs.readFileSync(usingQuiverPath, 'utf8');
-    const { content } = extractAndStripFrontmatter(fullContent);
-
-    const toolMapping = `**Tool Mapping for OpenCode:**
-When Quiver skills request actions, substitute OpenCode equivalents:
-- Create or update todos -> \`todowrite\`
-- \`Subagent (general-purpose):\` -> \`task\` with \`subagent_type: "general"\` (or specific Quiver subagent)
-- Invoke a skill -> OpenCode's native \`skill\` tool
-- Read files -> \`read\`
-- Create, edit, or delete files -> \`apply_patch\`
-- Run shell commands -> \`bash\`
-- Search files -> \`grep\`, \`glob\`
-- Fetch a URL -> \`webfetch\`
-
-Use OpenCode's native \`skill\` tool to list and load Quiver skills.`;
+    const content = stripFrontmatter(fullContent);
 
     _bootstrapCache = `<EXTREMELY_IMPORTANT>
 You have Quiver.
@@ -92,8 +47,6 @@ You have Quiver.
 **IMPORTANT: The using-quiver skill content is included below. It is ALREADY LOADED - you are currently following it. Do NOT use the skill tool to load "using-quiver" again - that would be redundant.**
 
 ${content}
-
-${toolMapping}
 </EXTREMELY_IMPORTANT>`;
 
     return _bootstrapCache;
@@ -133,8 +86,7 @@ ${toolMapping}
       // transformed in-memory message array through the hook again.
       if (firstUser.parts.some(p => p.type === 'text' && p.text.includes('EXTREMELY_IMPORTANT'))) return;
 
-      const ref = firstUser.parts[0];
-      firstUser.parts.unshift({ ...ref, type: 'text', text: bootstrap });
+      firstUser.parts.unshift({ type: 'text', text: bootstrap });
     },
 
     // Preserve Quiver-specific state across session compactions.
@@ -153,22 +105,25 @@ When generating a continuation summary for this session, include the following Q
 This context ensures that Quiver sessions can be resumed seamlessly across compactions.`);
     },
 
-    // Short-circuit the question tool to prevent infinite loops.
+    // Block the question tool to prevent infinite loops. OpenCode's plugin API
+// requires `throw` for cancellation; a bare `return` is a no-op.
     'tool.execute.before': async (input, _output) => {
       if (input.tool === 'question') {
-        return;
+        throw new Error('Quiver: question tool disabled to prevent infinite loops');
       }
     },
 
-    'session.created': async (input, _output) => {
-      await client.app.log({
-        body: {
-          service: "quiver",
-          level: "debug",
-          message: "Session created",
-          extra: { sessionId: input.session.id },
-        },
-      });
+    'event': async ({ event }) => {
+      if (event.type === 'session.created') {
+        await client.app.log({
+          body: {
+            service: "quiver",
+            level: "debug",
+            message: "Session created",
+            extra: { sessionId: event.properties.sessionID },
+          },
+        });
+      }
     },
   };
 };

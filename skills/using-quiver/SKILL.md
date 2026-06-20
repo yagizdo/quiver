@@ -1,6 +1,8 @@
 ---
 name: using-quiver
 description: Use when starting any conversation - establishes how to find and use Quiver skills, requiring skill invocation before ANY response including clarifying questions
+when-to-use: "user is starting a Quiver-aware session and needs the meta-skill that auto-loads -- '/using-quiver', 'load quiver context', 'use quiver' (not: a specific workflow invocation)"
+disable-model-invocation: true
 ---
 
 <SUBAGENT-STOP>
@@ -141,3 +143,36 @@ The canonical Quiver workflow chains these skills in order. Skip steps, reorder 
 7. `/handover` -- save an 8-section summary for the next session
 
 If you hit a bug at any point, run `/hypothesis-debugging`.
+
+---
+
+## Test Plan
+
+**Trigger:** Auto-injected by the OpenCode Quiver plugin via the `experimental.chat.messages.transform` hook on the first user message of every session. Slash command `/using-quiver` is hidden because `disable-model-invocation: true` is set.
+
+**Setup:**
+- Quiver is installed in OpenCode via `quiver@git+https://github.com/yagizdo/quiver.git` in `opencode.json`.
+- `skills/using-quiver/SKILL.md` exists and is readable from the plugin's `quiverSkillsDir` (`skills/using-quiver/` resolved relative to the plugin file via `path.resolve(__dirname, '../../skills')`).
+
+**Expected behavior:**
+1. Plugin loads and registers skills directory: OpenCode's `skill` tool lists all 20 Quiver skills including `using-quiver`. The `config` hook pushes `quiverSkillsDir` into `config.skills.paths` exactly once.
+2. Bootstrap injection: the first user message of every session is prepended with the `<EXTREMELY_IMPORTANT>`-wrapped `using-quiver` body. The agent recognizes the wrapper and follows the contained instructions (invoke relevant skills before any response).
+3. Double-injection guard: the `EXTREMELY_IMPORTANT` substring check prevents re-injection when OpenCode passes an already-transformed message array through the hook again.
+4. Module-level cache: `_bootstrapCache` is populated on first call to `getBootstrapContent()` and returned on every subsequent call without disk I/O.
+5. Frontmatter is stripped before injection: the `<EXTREMELY-IMPORTANT>` content, `<SUBAGENT-STOP>` block, and rule body are injected -- the YAML frontmatter (`name`, `description`, `when-to-use`, `disable-model-invocation`) is NOT injected.
+6. `tool.execute.before` blocks the `question` tool with a thrown Error when invoked.
+7. The `event` hook logs `Session created` (debug level) when `event.type === 'session.created'` fires.
+8. Compaction preserves Quiver handover context: `experimental.session.compacting` pushes the handover context block into `output.context`.
+
+**Verification checklist:**
+- [ ] `node --check .opencode/plugins/quiver.js` exits 0.
+- [ ] `bash tests/opencode/test-plugin-hooks.sh` exits 0.
+- [ ] `bash tests/opencode/test-using-quiver-bootstrap.sh` exits 0 (after H2 stale-test fix).
+- [ ] Manual: start an OpenCode session, observe the first user message in the session prompt contains the `<EXTREMELY_IMPORTANT>` wrapper and the `using-quiver` body.
+- [ ] Manual: run a `/skill` command that does not match any skill -- agent invokes the closest matching skill from the auto-injected list instead of guessing.
+
+**Known gotchas:**
+- `experimental.chat.messages.transform` and `experimental.session.compacting` are explicitly unstable per OpenCode docs ("may change or be removed without notice"). If the hook is removed in a future OpenCode version, bootstrap injection stops working but the plugin still registers skills and logs sessions.
+- The `tool.execute.before` hook relies on `throw` for cancellation. A bare `return` is a no-op in OpenCode's plugin API.
+- Bootstrap content is cached at module level. If `skills/using-quiver/SKILL.md` is edited mid-session, the change will NOT be reflected until the plugin is reloaded (OpenCode restart).
+- The plugin resolves `quiverSkillsDir` relative to its own `__dirname` (`.opencode/plugins/quiver.js` -> `../../skills/`). Moving the plugin file requires updating this path.
