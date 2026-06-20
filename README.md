@@ -69,28 +69,16 @@ Then try `/brainstorm` in any session.
 
 ### OpenCode
 
-```bash
-git clone https://github.com/yagizdo/quiver.git /tmp/quiver
-/tmp/quiver/setup-opencode.sh /path/to/your-project
-```
+OpenCode uses its own plugin install; install Quiver separately even if you
+already use it in another harness.
 
-This copies Quiver's agents, skills, commands, plugin, and config into your
-project's `.opencode/` directory. After setup, open your project with `opencode`.
+- Tell OpenCode:
 
-Quiver provides 20 specialist agents (`@agentname`), 12 slash commands (`/` tab),
-and 19 skills. The plugin hooks into session compaction to preserve handover context.
+  ```
+  Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/main/.opencode/INSTALL.md
+  ```
 
-> **Note:** OpenCode has no plugin marketplace or install command. Use the
-> `setup-opencode.sh` script above. For updates, re-run the script.
->
-> **Other differences from Claude Code:**
-> `AskUserQuestion` interactive prompts are not available — commands present
-> choices as numbered lists. Multi-agent orchestration uses OpenCode's `@agent`
-> mention and Task tool instead of Claude Code's `Agent` tool.
-> PreCompact hooks don't fire — use `/handover` manually at session boundaries.
->
-> **Windows:** Requires `git config core.symlinks true` before cloning (Developer Mode
-> or group policy grant needed).
+- Detailed docs: [`.opencode/README.md`](.opencode/README.md)
 
 ## Components
 

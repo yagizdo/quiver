@@ -1,8 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    "./.opencode/plugins/quiver.ts"
-  ],
   "mcp": {
     "context7": {
       "type": "remote",
