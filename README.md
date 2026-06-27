@@ -85,7 +85,7 @@ already use it in another harness.
 | Component | Count |
 |-----------|-------|
 | Hooks | 1 |
-| Skills | 21 |
+| Skills | 22 |
 | Agents | 20 |
 
 ## What Do I Use?
@@ -98,6 +98,12 @@ already use it in another harness.
 | Scope is clear, need a step-by-step breakdown | `/plan` | Researches codebase in parallel, produces a task-by-task plan with file paths |
 | Plan is ready, want hands-off execution | `/work` | Executes tasks one by one with testing, branch setup, and incremental commits |
 | Want a quick second opinion on an approach | `/advise` | Gives a senior-style inline review -- no spec or plan artifact |
+
+### Finishing Something
+
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| I have a partial project and need to find what is missing | `/finish-it` | Scans for completion gaps, asks targeted Q&A, writes a parseable manifest at `docs/finish-it/<project>-manifest.md` |
 
 ### Reviewing Code
 
