@@ -1,6 +1,6 @@
 # Quiver
 
-[![Version](https://img.shields.io/badge/version-1.13.0-blue)](https://github.com/yagizdo/quiver/releases)
+[![Version](https://img.shields.io/badge/version-1.14.0-blue)](https://github.com/yagizdo/quiver/releases)
 
 Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skills for brainstorming, planning, execution, debugging, code review, and session handover, plus specialized agents for review and debugging.
 
@@ -85,7 +85,7 @@ already use it in another harness.
 | Component | Count |
 |-----------|-------|
 | Hooks | 1 |
-| Skills | 20 |
+| Skills | 21 |
 | Agents | 20 |
 
 ## Skills
@@ -197,6 +197,7 @@ These skills back the slash-invocable skills above. They are not invoked directl
 |-------|-------------|
 | `code-navigation` | LSP-first code navigation with grep fallback: guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
 | `orchestrate-agents` | Discover agents, plan an optimal team, and coordinate parallel or sequential execution |
+| `using-quiver` | Meta-skill that establishes skill-awareness at session start so the agent checks for relevant skills before responding |
 | `visual-companion` | Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options when topics are better understood visually |
 
 ## Hooks
