@@ -61,3 +61,6 @@ docs/
 
 # Local scripts (release helpers, etc.)
 scripts/
+
+# Codegraph
+.codegraph/
