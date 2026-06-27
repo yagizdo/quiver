@@ -9,7 +9,7 @@ Reference: https://github.com/EveryInc/compound-engineering-plugin/tree/main/plu
 3. **Quick Start** — marketplace add + plugin install + first slash example
 4. **Installation** — Plugin Install (recommended) as standalone section
 5. **Components table** — inventory of all component types with counts
-6. **Skills** — grouped by category (not one flat list); slash-invocable skills first, "Internal References" subsection last for skills used only by other skills/agents
+6. **What Do I Use?** — scenario-based grouped tables; internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs
 7. **Hooks** — table with hook name, event, and description
 8. **Agents** (when added) — grouped by category (e.g. Review, Research, Workflow)
 9. **MCP Servers** (when added) — table with server name and description, plus tool details
@@ -40,32 +40,25 @@ Always at the top, shows what the plugin contains at a glance:
 
 ### Grouping Skills/Agents
 
-Never use a single flat table for all items. Group by category with H3 headings:
+Never use a single flat table for all items. Group by scenario with H3 headings. Use the `Situation | Command | What happens` column format for the skills section:
 
 ```markdown
-## Skills
+## What Do I Use?
 
-### Session Handover
+### Building Something
 
-| Skill | Description |
-|-------|-------------|
-| `/handover` | ... |
-| `/load-handover` | ... |
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| I have a vague idea | `/brainstorm` | ... |
 
-### Git
+### Git & Shipping
 
-| Skill | Description |
-|-------|-------------|
-| `/commit` | ... |
-
-### Internal References
-
-| Skill | Description |
-|-------|-------------|
-| `code-navigation` | ... |
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| Changes ready to commit | `/commit` | ... |
 ```
 
-Slash-invocable skills are listed by their `/<name>` invocation. Reference-only skills (used by other skills or agents, never invoked by a slash menu) live in a final "Internal References" subsection and are listed by their bare name.
+Slash-invocable skills are listed by their `/<name>` invocation. Internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs entirely -- they are never listed in the README.
 
 ### Hooks Table
 
@@ -99,8 +92,8 @@ Group agents by role. Current categories:
 ## Checklist — When Updating README
 
 - [ ] Component inventory counts match actual files (`ls -d skills/*/ | wc -l`, agent count from `agents/**/*.md`)
-- [ ] All slash-invocable skills (skills with frontmatter that are not reference-only) are listed under `## Skills`
-- [ ] All reference-only skills are listed under the `### Internal References` subsection
+- [ ] All slash-invocable skills (skills with frontmatter that are not reference-only) are listed under `## What Do I Use?`
+- [ ] Internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs
 - [ ] All hooks in `hooks/hooks.json` are listed
 - [ ] Skills/agents are grouped by category, not flat
 - [ ] Descriptions are concise (one line)

@@ -88,117 +88,65 @@ already use it in another harness.
 | Skills | 21 |
 | Agents | 20 |
 
-## Skills
+## What Do I Use?
 
-### Session Handover
+### Building Something
 
-| Skill | Description | When to use |
-|-------|-------------|-------------|
-| `/handover` | Builds an 8-section handover note with freshness checks and quality gates | At the end of a work session to preserve context for resuming later |
-| `/load-handover` | Loads the most recent handover and highlights top priorities | At the start of a new session to pick up where the last one left off |
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| I have a vague idea, not sure where to start | `/brainstorm` | Walks through clarifying questions, compares 2-3 approaches, outputs a validated spec |
+| Scope is clear, need a step-by-step breakdown | `/plan` | Researches codebase in parallel, produces a task-by-task plan with file paths |
+| Plan is ready, want hands-off execution | `/work` | Executes tasks one by one with testing, branch setup, and incremental commits |
+| Want a quick second opinion on an approach | `/advise` | Gives a senior-style inline review -- no spec or plan artifact |
 
-### Cleanup
+### Reviewing Code
 
-| Skill | Description |
-|-------|-------------|
-| `/delete-last-handover` | Show and delete the most recent handover file with confirmation |
-| `/delete-all-handovers` | List all handover files, confirm, then delete everything |
-
-### Code Review
-
-| Skill | Description | When to use |
-|-------|-------------|-------------|
-| `/review` | Dispatches review agents and synthesizes findings into one report. Default fast mode (5 agents); `--deep` for full pipeline | Before merging a PR, or whenever you want multi-agent code review |
-| `/senior-review` | Pragmatic senior developer review -- evaluates structure, quality, risks, and conventions through a team lead lens | Quick sanity check on a diff, or standalone code review with a senior developer perspective |
-| `/report-check` | Analyze a review report for quality -- detects noise, false positives, and overkill suggestions | After a review, to audit the report before acting on findings |
-
-**Diff source** (pick one):
-```
-/review                              # Fast review of current branch (5 agents, prompts for base)
-/review --base main                  # Fast review against a specific base branch
-/review --deep                       # Full pipeline: all agents + quality check + senior review
-/review --deep --base main           # Deep review against a specific base
-/review <PR-URL>                     # Review a pull/merge request by URL
-```
-
-**Output flags** (combine with any diff source above):
-```
---deep                               # Full pipeline with all agents, quality check, and senior review
---terminal                           # Print full report in terminal instead of saving
---output ./reports/                  # Save report to a custom path (one-time)
---set-output ./reports/              # Save report to a custom path and remember it as default
---comment-pr                         # Post the review as a PR comment (opt-in)
---with-codex                         # Also dispatch a Codex-backed reviewer in parallel (requires --deep)
-```
-
-**Examples:**
-```
-/review <PR-URL> --terminal          # Review a PR and print in terminal
-/review --base main --output ./tmp/   # Review against main, save to ./tmp/
-/review --set-output ./reports/      # Set default save path for future reviews
-/review <PR-URL> --comment-pr        # Review a PR and post the report as a comment
-/review --deep --with-codex          # Deep review plus Codex (cross-model coverage)
-/review --deep <PR-URL> --comment-pr # Deep review a PR and post the report as a comment
-```
-
-> When a PR URL is provided, you'll be prompted after the review to post it as a comment. Use `--comment-pr` to skip the prompt and post directly.
-
-> `--with-codex` requires the `codex` CLI installed (`npm install -g @openai/codex`, >= 0.123.0) and authenticated (`codex login`). When the flag is set but the CLI is missing or not authenticated, the Codex agent is skipped with a one-line note and the review proceeds with Claude agents only. Codex findings carry a `(codex-code-reviewer)` source prefix in the synthesized report; when both Claude and Codex flag the same line, the existing `Flagged by:` consensus annotation kicks in.
->
-> **Model selection:** Quiver does not pass `--model` to the codex CLI: whichever model your local codex is configured to use (set in `~/.codex/config.toml`, CLI default, or env override) is the model that will run the review. If your auth method or plan does not have access to a given model, change your local codex configuration; Quiver will not override it.
-
-**Re-review detection:** If you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode. It only flags new issues introduced since the last review: no duplicate findings, no infinite review loops. If nothing functional changed, it approves immediately.
-
-### Debugging
-
-| Skill | Description | When to use |
-|-------|-------------|-------------|
-| `/hypothesis-debugging` | Hypothesis-first debugging with conditional agent dispatch and mandatory fix review | When you have a bug and want systematic investigation: provide error messages, logs, or a description and the skill traces root cause and proposes fixes |
-
-### Git
-
-| Skill | Description |
-|-------|-------------|
-| `/commit` | Generate a Conventional Commits message from staged changes, commit, and optionally push |
-| `/create-pr` | Create a GitHub pull request from the current branch |
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report |
+| Want a quick senior dev sanity check | `/senior-review` | One pragmatic reviewer evaluates structure, quality, risks |
+| Got a review report, not sure which findings matter | `/report-check` | Audits the report for noise, false positives, and overkill |
 
 ```
-/commit                              # Commit with interactive prompt (commit, commit & push, edit, cancel)
-/commit --push                       # Auto commit and push without prompting
+/review                    # fast review (5 agents, prompts for base branch)
+/review --deep             # full pipeline: all agents + quality check + senior review
+/review --base main        # review against a specific base branch
+/review <PR-URL>           # review a pull request by URL
 ```
 
-### Agent Development
+Pass `--comment-pr` to post the report as a PR comment. Use `--deep --with-codex` for cross-model coverage (requires `codex` CLI).
 
-| Skill | Description |
-|-------|-------------|
-| `/create-agent` | Scaffold a new agent interactively from a description or Q&A walkthrough |
-| `/create-agents-md` | Analyze project context and generate an AGENTS.md checklist for AI agents |
+Re-review detection: if you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
 
-### Planning & Execution
+### Fixing a Bug
 
-| Skill | Description | When to use |
-|-------|-------------|-------------|
-| `/brainstorm` | Explores ideas, compares approaches, and produces a validated spec before planning | When you have a vague idea and need to pin down scope, constraints, and approach before coding |
-| `/advise` | Gives a senior-style inline review of code, a planned change, or a library choice without writing a spec | When you want a quick grounded second opinion, not a plan or spec artifact |
-| `/plan` | Creates a structured implementation plan with parallel agent research before coding | When scope is clear but the work breakdown and research are not: produces a step-by-step plan |
-| `/work` | Executes a work plan or specification systematically with continuous testing and incremental commits | When a plan file is ready and you want hands-off task-by-task execution with tests and commits |
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| Bug won't go away after multiple attempts | `/hypothesis-debugging` | Generates hypotheses, tests each systematically, traces root cause, proposes reviewed fix |
 
-### Maintenance
+### Git & Shipping
 
-| Skill | Description |
-|-------|-------------|
-| `/repair-skill` | Diagnose and fix a broken skill by analyzing structure and verifying API references |
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| Changes ready to commit | `/commit` | Generates a Conventional Commits message, commits, optionally pushes |
+| Branch ready for PR | `/create-pr` | Creates a GitHub pull request with auto-generated title and description |
 
-### Internal References
+### Session Management
 
-These skills back the slash-invocable skills above. They are not invoked directly; they exist so other skills and agents can include their methodology by reference.
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| Ending a work session | `/handover` | Saves an 8-section summary so the next session resumes with full context |
+| Starting a new session | `/load-handover` | Loads the most recent handover and highlights top priorities |
+| Last handover is stale or wrong | `/delete-last-handover` | Shows and deletes the most recent handover file with confirmation |
+| Want a clean slate | `/delete-all-handovers` | Lists all handover files, confirms, then deletes everything |
 
-| Skill | Description |
-|-------|-------------|
-| `code-navigation` | LSP-first code navigation with grep fallback: guides agents on when to use goToDefinition, findReferences, and documentSymbol vs grep-based search |
-| `orchestrate-agents` | Discover agents, plan an optimal team, and coordinate parallel or sequential execution |
-| `using-quiver` | Meta-skill that establishes skill-awareness at session start so the agent checks for relevant skills before responding |
-| `visual-companion` | Browser-based visual brainstorming companion for showing mockups, diagrams, and visual options when topics are better understood visually |
+### Tooling & Maintenance
+
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| A skill is broken or outdated | `/repair-skill` | Diagnoses the skill's structure and fixes API references |
+| Need a new agent for the project | `/create-agent` | Scaffolds a new agent interactively from a description |
+| Want an AGENTS.md for the project | `/create-agents-md` | Analyzes project context and generates an operational checklist |
 
 ## Hooks
 
