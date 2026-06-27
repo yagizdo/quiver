@@ -85,7 +85,7 @@ already use it in another harness.
 | Component | Count |
 |-----------|-------|
 | Hooks | 1 |
-| Skills | 19 |
+| Skills | 20 |
 | Agents | 20 |
 
 ## Skills
@@ -179,6 +179,7 @@ already use it in another harness.
 | Skill | Description | When to use |
 |-------|-------------|-------------|
 | `/brainstorm` | Explores ideas, compares approaches, and produces a validated spec before planning | When you have a vague idea and need to pin down scope, constraints, and approach before coding |
+| `/advise` | Gives a senior-style inline review of code, a planned change, or a library choice without writing a spec | When you want a quick grounded second opinion, not a plan or spec artifact |
 | `/plan` | Creates a structured implementation plan with parallel agent research before coding | When scope is clear but the work breakdown and research are not: produces a step-by-step plan |
 | `/work` | Executes a work plan or specification systematically with continuous testing and incremental commits | When a plan file is ready and you want hands-off task-by-task execution with tests and commits |
 
