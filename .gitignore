@@ -58,3 +58,6 @@ docs/
 
 # Git worktrees
 .worktrees/
+
+# Local scripts (release helpers, etc.)
+scripts/
