@@ -111,6 +111,16 @@ Before dispatching agents, detect navigation capabilities once.
    - If user declines: cache `lsp_declined` in project memory.
 4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to all agents dispatched in Step 3.
 
+### Navigation tier (use in all codebase searches from Step 4 onward)
+
+After agents return, the main orchestrator verifies file paths, checks symbol locations, and reads code. Use the highest available tier:
+
+When `codegraph_available: true`: call ToolSearch with query `"select:mcp__codegraph__codegraph_search,mcp__codegraph__codegraph_context,mcp__codegraph__codegraph_callers,mcp__codegraph__codegraph_callees,mcp__codegraph__codegraph_impact,mcp__codegraph__codegraph_node"` to load schemas. Then use `codegraph_search` for symbol lookups, `codegraph_callers`/`codegraph_callees` for reference finding. Fall through to grep if codegraph returns insufficient results. For file discovery and text patterns: always use Grep/Glob regardless.
+
+When `codegraph_available: false` and `lsp_available: true`: use LSP `goToDefinition`/`findReferences` first, grep as fallback.
+
+When both unavailable: use Grep, Glob, and Read.
+
 ## Step 3 -- Parallel Agent Dispatch
 
 Spawn all qualifying agents simultaneously using multiple Agent tool calls in a single response. Every agent prompt must be **self-contained** -- agents have zero memory of this conversation.
@@ -198,7 +208,7 @@ If agent discovery found project/user agents whose description matches the task 
 
 ## Step 4 -- Synthesize Research
 
-After **all** agents return, merge findings into a unified research brief:
+After **all** agents return, merge findings into a unified research brief. Use the navigation tier from Step 2.5 for any codebase verification -- symbol lookups via codegraph when available, grep as fallback.
 
 1. **Deduplicate** -- If multiple agents report the same file or pattern, keep the most detailed version.
 2. **Organize:**
