@@ -99,11 +99,11 @@ already use it in another harness.
 | Plan is ready, want hands-off execution | `/work` | Executes tasks one by one with testing, branch setup, and incremental commits |
 | Want a quick second opinion on an approach | `/advise` | Gives a senior-style inline review -- no spec or plan artifact |
 
-### Finishing Something
+### Shipping Something
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| I have a partial project and need to find what is missing | `/finish-it` | Scans for completion gaps, asks targeted Q&A, writes a parseable manifest at `docs/finish-it/<project>-manifest.md` |
+| I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), then autonomous loop: code + test + review + fix until done. Manifest at `docs/ship/<project>-manifest.md` |
 
 ### Reviewing Code
 
