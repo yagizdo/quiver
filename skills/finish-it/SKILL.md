@@ -1,8 +1,8 @@
 ---
 name: finish-it
-description: "Scan a partial project for completion gaps, collect missing information via Q&A, and write a parseable completion manifest at docs/finish-it/<project>-manifest.md. A completed manifest can also be executed autonomously -- use /loop /finish-it --execute to implement resolved gaps one tick at a time."
-argument-hint: "[<project-path>] [--seed <brainstorm-spec.md>] [--resume] [--execute]"
-when-to-use: "user has a partial project and needs to find what is missing -- '/finish-it', 'scan for gaps', 'what is missing in this project', 'find incomplete parts', 'finish this project', 'what do I still need to build', 'gap analysis on my project', 'run the execution loop', 'autonomously finish the gaps', 'execute the completion manifest' (not: idea exploration -- use '/brainstorm' for that; not: executing a work plan -- use '/work' for that; '/finish-it --execute' executes a completion manifest, '/work' executes a work plan)"
+description: "Scan a partial project for completion gaps, collect missing information via Q&A, and write a parseable completion manifest at docs/finish-it/<project>-manifest.md. A completed manifest can also be executed autonomously -- use /loop /finish-it --execute to implement resolved gaps one tick at a time. After execution, use /finish-it --verify to validate all gaps were addressed and produce a final report."
+argument-hint: "[<project-path>] [--seed <brainstorm-spec.md>] [--resume] [--execute] [--verify]"
+when-to-use: "user has a partial project and needs to find what is missing -- '/finish-it', 'scan for gaps', 'what is missing in this project', 'find incomplete parts', 'finish this project', 'what do I still need to build', 'gap analysis on my project', 'run the execution loop', 'autonomously finish the gaps', 'execute the completion manifest', 'verify my project', 'run verification', 'check if gaps are fixed', 'verify the gaps were addressed' (not: idea exploration -- use '/brainstorm' for that; not: executing a work plan -- use '/work' for that; '/finish-it --execute' executes a completion manifest, '/work' executes a work plan; '/finish-it --verify' validates completed execution, not a fresh gap scan)"
 ---
 
 # Gather Context
@@ -50,20 +50,27 @@ Use `<project>` as the derived name throughout the skill.
 Read `$ARGUMENTS` as plain text:
 
 - If it contains `--execute`: set execution intent; skip interactive State Detection entirely and enter Execution Mode (see the `# Execution Mode` section after Manifest Finalization). Do not continue into Step 1.
+- If it contains `--verify`: set verification intent; skip interactive State Detection entirely and enter Verification Mode (see the `# Verification Mode` section after Execution Mode). Do not continue into Step 1.
 - If it contains `--resume`: jump directly to Step 1 Resume path (skip State Detection routing, act as if exactly one manifest was found and the user picked "Resume").
-- **Precedence:** if both `--resume` and `--execute` are present, `--resume` wins. Q&A resume is interactive and supersedes autonomous execution intent; clear execution intent and follow the `--resume` path instead.
+- **Precedence:** `--resume` > `--verify` > `--execute`. If `--resume` is present, clear all other intents and follow the Resume path. If `--verify` is present without `--resume`, clear execution intent and enter Verification Mode.
 - If it contains `--seed <path>`: note the seed path. Read the spec file in Phase A (A1 fallback) and pre-populate detected categories from its "Stack", "Dependencies", or "Affected Areas" sections.
 - If it contains a path that is not a flag (e.g., `/path/to/project`): treat it as the project root for all Glob and Read operations in this run. Derive `<project>` from this path's basename instead.
 - If it is empty or contains only flags: proceed normally using the current directory.
 
 ## Step 1 -- State Detection
 
-**Execution-mode guard (check first, before any Glob):** If execution intent was set in Step 0.5 (`--execute`), do not run State Detection. Go directly to `# Execution Mode`. Never reach any `AskUserQuestion` from an autonomous tick.
+**Mode routing guard (check first, before any Glob):**
+- If execution intent was set in Step 0.5 (`--execute`), do not run State Detection. Go directly to `# Execution Mode`. Never reach any `AskUserQuestion` from an autonomous tick.
+- If verification intent was set in Step 0.5 (`--verify`), do not run State Detection. Go directly to `# Verification Mode`.
 
 Truth table:
 - `--execute` + manifest `status: complete` -> silent execution (Execution Mode runs the tick loop).
-- bare `/finish-it` + existing manifest -> unchanged interactive routing below (Resume / Start fresh / Inspect).
 - `--execute` + partial or absent manifest -> clean termination with a printed message; no scheduling, no prompt.
+- `--verify` + manifest with `execution:` block -> Verification Mode (guards checked inside Verification Mode Entry).
+- `--verify` + no manifest or no `execution:` block -> error message + terminate (handled by Verification Mode Entry guards).
+- bare `/finish-it` + existing manifest where `execution.status: verification-pending` -> print `> Execution complete. Starting verification...` and enter Verification Mode.
+- bare `/finish-it` + existing manifest where `execution.status: verified` -> normal Resume / Start fresh / Inspect routing.
+- bare `/finish-it` + existing manifest -> unchanged interactive routing below (Resume / Start fresh / Inspect).
 
 Use the Glob tool to check for existing manifests: `docs/finish-it/*.md`.
 
@@ -71,6 +78,11 @@ Use the Glob tool to check for existing manifests: `docs/finish-it/*.md`.
 Proceed to Phase A.
 
 **One manifest found:**
+Read the manifest. Check `execution.status` in the `execution:` block (if present):
+
+- If `execution.status: verification-pending`: print `> Execution complete. Starting verification...` and enter `# Verification Mode`. Do not show the routing dialog.
+- If `execution.status: verified` or `execution.status` is any other value (or no `execution:` block exists): proceed to the routing dialog below.
+
 Use `AskUserQuestion`:
 > Found an existing completion manifest for this project. How would you like to proceed?
 
@@ -436,7 +448,7 @@ This mode consumes a completed manifest and implements its resolved gaps autonom
 
 **First-tick predicate:** a tick is the first tick when the manifest frontmatter contains no `execution:` block.
 
-**On the first tick:** read-modify-write the manifest frontmatter to append a nested `execution:` block. Count the number of gap rows with `Status == resolved` for `tasks_pending`. Get the current timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`).
+**On the first tick:** read-modify-write the manifest frontmatter to append a nested `execution:` block. Count the number of gap rows with `Status == resolved` for `tasks_pending`. Get the current timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`). Record the current git HEAD commit SHA via the Bash tool (`git rev-parse HEAD`).
 
 ```
 execution:
@@ -446,6 +458,7 @@ execution:
   tasks_blocked: 0
   tasks_pending: <count of resolved gaps>
   last_tick_at: <timestamp>
+  baseline_commit: <git rev-parse HEAD output>
   mcps_available: []
 ```
 
@@ -485,7 +498,7 @@ Execute these steps in order for each tick. Each tick processes exactly one `res
 
 Re-read the manifest fresh at the start of every tick (each tick begins with clean context). Select the next gap by allowlist: the first row in `## Gaps` (following the `## Execution Order` sort) where `Status == resolved`.
 
-- If no `resolved` gaps remain: set `execution.status: completed`, write the manifest, read it back (L3), print a completion summary (gaps completed, gaps blocked, ticks used), and terminate without calling `ScheduleWakeup`. The loop ends here.
+- If no `resolved` gaps remain: set `execution.status: verification-pending`, write the manifest, read it back (L3), print `> Execution complete: <tasks_completed> gaps completed, <tasks_blocked> gaps blocked. Verification pending -- run /finish-it to verify.` and terminate without calling `ScheduleWakeup`. The loop ends here.
 - If `pending` gaps exist: these signal incomplete Q&A. Leave them as `pending`. Do not select them for implementation. Do not set their Status to `skipped`. They are not eligible for this mode.
 
 ### Step 2 -- Plan Task
@@ -556,6 +569,15 @@ skipped  --> (never touched by Execution mode)
 pending  --> (never touched by Execution mode -- signals incomplete Q&A)
 ```
 
+**Execution status machine (ASCII):**
+
+```
+running --> verification-pending  (Step 1: no resolved gaps remain)
+        \-> paused               (tick cap or no-progress cap)
+
+verification-pending --> verified  (Verification Mode completes)
+```
+
 A tick is atomic: a gap moves from `resolved` to `completed` or `blocked` within one tick. There is no persisted `in_progress` state. If a tick is interrupted mid-execution (e.g., token budget), the gap stays at `resolved` and the next tick retries it cleanly.
 
 ## Strategic Parallelism
@@ -607,11 +629,260 @@ A user can edit the manifest manually: flip a `blocked` gap back to `resolved` (
 ### Completion Behavior
 
 On completion (no `resolved` gaps remain):
-1. Set `execution.status: completed`.
+1. Set `execution.status: verification-pending`.
 2. Write the manifest. Read it back (L3).
-3. Print a completion summary: all gaps completed count, all gaps blocked count, total ticks.
-4. If a push-notification capability is available, optionally notify -- but never require it.
-5. Terminate. Do NOT call `ScheduleWakeup`.
+3. Print: `> Execution complete: <tasks_completed> gaps completed, <tasks_blocked> gaps blocked. Verification pending -- run /finish-it to verify.`
+4. Terminate. Do NOT call `ScheduleWakeup`.
+
+---
+
+# Verification Mode
+
+This mode validates that the execution loop's work was effective. It walks every completed gap, runs build and test checks, dispatches agents for critical categories, and produces a timestamped final report. It never modifies gap status rows or Q&A counters.
+
+## Entry
+
+**Triggers:** `--verify` flag (set in Step 0.5) OR `execution.status: verification-pending` detected automatically in State Detection (Step 1).
+
+**Guards (check in order -- fail any one and terminate):**
+1. Use Glob to locate manifest at `docs/finish-it/*.md`. If not found: print `> No manifest found. Run /finish-it first to generate a completion manifest.` Terminate.
+2. Read manifest. Check that an `execution:` block exists in frontmatter. If absent: print `> No execution record found. Run /loop /finish-it --execute first, then run /finish-it --verify.` Terminate.
+3. Check that `execution.baseline_commit` is present. If absent: print `> No baseline commit recorded. This manifest was created before baseline tracking was added. Re-run the execution loop to record a baseline.` Terminate.
+
+**State initialization (scaffolding-on-demand):** Create `execution.verification:` block nested inside `execution:`. Get timestamp via `date '+%Y-%m-%d_%H-%M-%S'` via Bash tool. Write manifest, read back (L3).
+
+```
+execution:
+  ...
+  verification:
+    status: running
+    started_at: <timestamp>
+```
+
+**Read-only contract:** Verification mode never modifies gap `Status` columns, `gaps_total`, `gaps_resolved`, `gaps_skipped`, or top-level `status`. All verification state lives in `execution.verification:` exclusively.
+
+**Re-read MCP availability:** Load `execution.mcps_available` from manifest. Use this list for Steps 4-5.
+
+## Step 1 -- Manifest Check
+
+Walk each row in `## Gaps` where `Status == completed`.
+
+For each completed gap:
+1. Extract the file path from the `Location` column. If `Location` is "missing", classify as `unverified` and continue.
+2. Run `git diff <execution.baseline_commit>..HEAD -- <location-file>` via Bash tool.
+3. Check if the diff is non-empty (file was changed since baseline).
+4. Grep the diff output for a key action term from the gap's `Gap` description column (e.g., if gap says "Firebase.initializeApp() call absent", grep for "initializeApp"). A rough match suffices -- this is a quick check.
+
+**Classify each gap:**
+- `verified`: diff non-empty AND grep match found.
+- `unverified`: diff non-empty but grep match not found (file changed, action unclear).
+- `missing`: diff empty (no change to this file since baseline).
+
+Accumulate classifications in memory (`{gap_id, classification, file}`). Do NOT modify the manifest gap table.
+
+## Step 2 -- Build Check
+
+Detect build command from stack:
+
+| Stack | Build command |
+|-------|---------------|
+| Flutter | `flutter build apk` |
+| Node/npm | `npm run build` |
+| Python | `python -m build` |
+| Go | `go build ./...` |
+| Rust | `cargo build` |
+| Ruby | `bundle exec rake build` |
+
+If no build command detectable: skip, record `build_result: skipped`.
+
+Run command via Bash tool. Capture output.
+
+- **Pass:** exit code 0 -> `build_result: pass`.
+- **Fail:** non-zero exit or error lines -> `build_result: fail`. Store first 3 error lines as `build_error_summary`.
+
+## Step 3 -- Test Suite
+
+Detect test command from stack (same table as Execution Step 4):
+
+| Stack | Test command |
+|-------|-------------|
+| Flutter | `flutter test` |
+| Node/npm | `npm test` |
+| Python | `pytest` |
+| Go | `go test ./...` |
+| Rust | `cargo test` |
+| Ruby | `bundle exec rspec` |
+
+If no test command detectable: skip, record `test_result: skipped`.
+
+Run command via Bash tool. Parse output for pass/fail/skip counts. Record:
+- `test_result: pass | fail | skipped`
+- `test_pass_count: <N>`
+- `test_fail_count: <N>`
+- `test_skip_count: <N>`
+
+## Step 4 -- Critical Category Agents
+
+Check completed gaps from Step 1 against these triggers:
+
+| Trigger | Agent role | Dispatch when |
+|---------|-----------|--------------|
+| Any `completed` gap with `Severity == blocking` | Config Validator | At least one blocking gap completed |
+| Any `completed` gap in a category matching `UI*` | UI Coherence Checker | Completed gaps include UI Completeness category |
+| Any `completed` gap in a category matching `Auth*` or `Security*` | Security Spot Check | Completed gaps include Auth or Security category |
+
+If no triggers match: print `> No critical categories require agent verification.` Skip to Step 5.
+
+**Dispatch all triggered agents in a single parallel Agent tool call block.** Each agent prompt must be fully self-contained.
+
+Config Validator prompt template:
+```
+You are a Config Validator. Read-only scan -- do not modify any files.
+
+Context:
+- Project root: <absolute path>
+- Stack: <comma-separated stack>
+- Blocking gaps that were completed: <list of gap IDs, descriptions, and Notes answers>
+- Baseline commit: <execution.baseline_commit>
+
+Your job:
+1. Read the files referenced in gap Notes columns.
+2. Run git diff <baseline>..HEAD for each referenced file via Bash tool.
+3. Verify: config values are set (no placeholder text like REPLACE_ME or your_key_here remaining), no obviously missing required values.
+
+Output format: one line per issue: "ISSUE | <severity: high|medium|low> | <file:line> | <description>". If no issues: output exactly "NO_ISSUES".
+```
+
+UI Coherence Checker prompt template:
+```
+You are a UI Coherence Checker. Read-only scan -- do not modify any files.
+
+Context:
+- Project root: <absolute path>
+- Stack: <comma-separated stack>
+- UI gaps that were completed: <list of gap IDs, descriptions, and Notes answers>
+- Baseline commit: <execution.baseline_commit>
+- MCPs available: <execution.mcps_available>
+
+Your job:
+1. Read the UI files referenced in gap Notes columns.
+2. Run git diff <baseline>..HEAD for each referenced file via Bash tool.
+3. Check: navigation links wired to real destinations, no broken imports, no placeholder TODO or lorem ipsum text remaining.
+
+Output format: "ISSUE | <severity> | <file:line> | <description>". If no issues: "NO_ISSUES".
+```
+
+Security Spot Check prompt template:
+```
+You are a Security Spot Check agent. Read-only scan -- do not modify any files.
+
+Context:
+- Project root: <absolute path>
+- Stack: <comma-separated stack>
+- Auth/security gaps that were completed: <list of gap IDs, descriptions, and Notes answers>
+- Baseline commit: <execution.baseline_commit>
+
+Your job:
+1. Read the auth/security files referenced in gap Notes columns.
+2. Run git diff <baseline>..HEAD for each referenced file via Bash tool.
+3. Check: auth flow complete (no missing wiring), no credentials hardcoded in diffs, input validation present at auth endpoints.
+
+Output format: "ISSUE | <severity> | <file:line> | <description>". If no issues: "NO_ISSUES".
+```
+
+After agents return: parse all `ISSUE |` lines. Collect findings for the Step 6 report.
+
+## Step 5 -- UI Smoke Test
+
+Check `execution.mcps_available`:
+- Contains `xcode`: use xclaude-plugin MCPs.
+- Contains `browser`: use browser MCP.
+- Empty or neither present: print `> UI smoke test skipped: no UI MCP available.` Record `ui_smoke_result: skipped`. Skip to Step 6.
+
+**If MCP available:**
+1. Build and launch the app using the appropriate MCP tool.
+2. Navigate main flows: launch screen, home/main screen, key feature screens identified from manifest categories.
+3. Take a screenshot at each step using the MCP screenshot tool.
+4. Flag screens showing: placeholder text (TODO, Coming Soon, lorem ipsum), blank screens, visible error messages, or crash dialogs.
+
+Record `ui_smoke_result: pass | issues-found`. Store any flagged issues for the report.
+
+## Step 6 -- Final Report + Termination
+
+**Generate report:**
+
+1. Get timestamp via `date '+%Y-%m-%d_%H-%M-%S'` via Bash tool.
+2. Derive `<project>` from Step 0 (same as manifest filename stem without `-manifest`).
+3. Write to `docs/finish-it/<project>-report-<timestamp>.md`:
+
+```
+---
+name: <project>-finish-report
+created: <timestamp>
+manifest: docs/finish-it/<project>-manifest.md
+---
+
+# Finish-It Report: <project>
+
+## Summary
+
+- **Total gaps:** <gaps_total>
+- **Completed:** <count completed> (verified: <N>, unverified: <N>, missing: <N>)
+- **Blocked:** <count blocked>
+- **Skipped:** <count skipped>
+- **Build:** <pass | fail | skipped>
+- **Tests:** <pass_count>/<pass_count+fail_count> passing (<fail_count> failures, <skip_count> skipped)
+
+## Verification Results
+
+### Passing
+
+| # | Gap | Category | Verification |
+|---|-----|----------|-------------|
+<rows for verified gaps>
+
+### Issues Found
+
+| # | Gap | Category | Issue | Severity |
+|---|-----|----------|-------|----------|
+<rows from agent ISSUE lines + missing/unverified gaps>
+
+## Blocked
+
+| # | Gap | Reason |
+|---|-----|--------|
+<rows for blocked gaps with their Notes content>
+
+## Skipped
+
+| # | Gap | Reason |
+|---|-----|--------|
+<rows for skipped gaps with their Notes content>
+
+## Action Items
+
+<numbered list ordered by severity: high first. Format: [Severity] Description (gap #ID)>
+
+## What's Next
+
+<1-3 sentences: summary of remaining work. If all verified and build/tests pass, note the project appears complete.>
+```
+
+4. Read the report back to verify it was written (L3).
+
+**Termination:**
+
+1. Determine overall status: no agent issues, no missing gaps, build pass or skipped, tests pass or skipped -> `passed`. Otherwise -> `issues-found`.
+2. Count `issues_total`: number of `ISSUE |` lines from agents + count of `missing` and `unverified` gaps.
+3. Update `execution.verification:` block:
+   - `status: passed | issues-found`
+   - `completed_at: <timestamp>`
+   - `build_result: <value>`
+   - `test_result: <value>`
+   - `issues_total: <count>`
+4. Set `execution.status: verified`.
+5. Write manifest, read back (L3).
+6. Print: `> Verification complete. Report: docs/finish-it/<project>-report-<timestamp>.md. <issues_total> issues found.`
 
 ---
 
@@ -633,11 +904,23 @@ On completion (no `resolved` gaps remain):
 7. Resume mode reads pending gaps and skips Phase A and Phase B.
 8. A project with no third-party SDKs and no missing files produces `status: complete`, `gaps_total: 0`, and `## Execution Order: _No gaps detected_`.
 9. `/finish-it --execute` on a `status: complete` manifest enters Execution Mode silently; no AskUserQuestion is called.
-10. Bare `/finish-it` on a `status: complete` manifest still shows the interactive Resume / Start fresh / Inspect routing unchanged.
+10. Bare `/finish-it` on a `status: complete` manifest **where `execution.status` is not `verification-pending`** still shows the interactive Resume / Start fresh / Inspect routing unchanged.
 11. Each completed gap produces exactly one atomic commit with a Conventional Commits message; the manifest is never staged.
 12. A gap whose fix fails all 3 within-tick attempts is set to `blocked` with a reason in its Notes column; the loop continues to the next gap.
 13. The loop pauses (sets `execution.status: paused`, no ScheduleWakeup) after 3 consecutive no-progress ticks or 50 total ticks.
 14. The manifest accurately reflects the `execution:` block state after each tick.
+
+**Setup (Verification mode):** A project whose manifest is `status: complete` and whose `execution:` block contains `status: verification-pending`, `baseline_commit: <SHA>`, at least two `completed` gaps (one blocking, one UI), and one `blocked` gap. Run `/finish-it --verify` from the project root.
+
+**Expected behavior (Verification mode):**
+15. `/finish-it --verify` with no manifest terminates with `> No manifest found.` No ScheduleWakeup, no AskUserQuestion.
+16. `/finish-it --verify` with a manifest but no `execution:` block terminates with `> No execution record found.`
+17. `/finish-it --verify` with a manifest whose `execution:` block lacks `baseline_commit` terminates with `> No baseline commit recorded.`
+18. Bare `/finish-it` on a manifest with `execution.status: verification-pending` auto-enters Verification Mode, printing `> Execution complete. Starting verification...` without showing the routing dialog.
+19. Verification Step 1 classifies completed gaps as verified/unverified/missing. The manifest gap table is never modified during verification.
+20. Verification Step 4 dispatches agents only when triggers match. A manifest with no blocking/UI/auth-security completed gaps prints `> No critical categories require agent verification.` and skips agents.
+21. Report generated at `docs/finish-it/<project>-report-<timestamp>.md`. A second `/finish-it --verify` run creates a new timestamped report without overwriting the first.
+22. After verification completes, `execution.status: verified` is set. Subsequent bare `/finish-it` shows the normal Resume / Start fresh / Inspect routing dialog.
 
 **Verification checklist:**
 - [ ] `/finish-it` and `/quiver:finish-it` both appear in the slash command menu after plugin reload.
@@ -662,6 +945,15 @@ On completion (no `resolved` gaps remain):
 - [ ] No new inline `!` shell blocks added to Execution Mode (R3).
 - [ ] `when-to-use:` field is a single-line double-quoted string (R10).
 - [ ] All `!` shell blocks use git commands only; no `||` with non-git commands (L1).
+- [ ] `--verify` flag routes to Verification Mode; State Detection skipped.
+- [ ] `--verify` + `--resume` together: `--resume` wins, Q&A resume path runs.
+- [ ] Bare `/finish-it` on `execution.status: verification-pending` manifest auto-enters Verification Mode without routing dialog.
+- [ ] Verification Mode never writes to gap `Status` columns (read-only contract enforced).
+- [ ] `execution.verification:` block created lazily at Entry, not in A4 scaffold.
+- [ ] Report saved at `docs/finish-it/<project>-report-<timestamp>.md` with timestamp in filename.
+- [ ] Re-running verification creates a new timestamped report, not overwriting previous one.
+- [ ] `execution.status: verified` set after Verification Mode Step 6 completes.
+- [ ] `execution.baseline_commit` present in `execution:` block after first execution tick.
 
 **Known gotchas:**
 - Plugin auto-discovery requires a plugin reload after the skill is first installed. `/finish-it` will not appear in the slash menu until the plugin reloads.
@@ -673,3 +965,8 @@ On completion (no `resolved` gaps remain):
 - `--execute` on a partial manifest must terminate, not hang. The termination path must NOT call ScheduleWakeup; omitting the call ends the loop.
 - Parallel batches in Execution mode cap at 3 agents and merge sequentially; a conflict marks affected gaps `blocked` and stops the batch without auto-resolution.
 - ScheduleWakeup at exactly 300s is wrong: it pays the cache miss without amortizing it. Use 60s (momentum) or 270s (blocked/low-progress) only.
+- `execution.baseline_commit` is only recorded by the updated /finish-it version. Manifests created before this field was added will trigger the "No baseline commit recorded" guard in Verification Mode -- re-run the execution loop to generate a new manifest.
+- Verification report files live in `docs/finish-it/`, which is gitignored (same as manifest files). Reports are intentionally local only.
+- Timestamped report filenames (`<project>-report-<YYYY-MM-DD_HH-MM-SS>.md`) are intentional -- each verification run produces a new file. Do not change to a fixed filename; history would be lost.
+- The `execution.verification:` block is nested inside `execution:` in YAML frontmatter. Read and write it as a nested block. Flattening it to top-level keys would break the read-only contract separation.
+- Verification dispatches agents for blocking/UI/auth-security categories only. Running agents for all categories would be wasteful and is not part of this mode.
