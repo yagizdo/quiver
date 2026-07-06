@@ -69,6 +69,6 @@ Rules:
 3. Do not collapse multiple decisions into a single prompt unless the original AskUserQuestion call did so. One question per polyfill prompt is the default.
 4. After the user replies with a number, restate the choice in one sentence ("Going with option 2: ...") before continuing. This catches misclicks visible to the user before the action runs.
 
-## Stop hook
+## No auto-save hook
 
-Codex does not have a PreCompact event. The handover auto-save hook is mapped to the Stop event (turn completion) with a time-based guard. The guard skips saving if a handover was already saved within the last 10 minutes. This means handovers are saved less frequently than on Claude Code, but the manual `/handover` skill always works regardless of the hook.
+Codex does not have a PreCompact event. An earlier version mapped the handover auto-save hook onto Codex's Stop event (turn completion) with a 10-minute guard, but the guard only reset on a *successful* save -- if the save kept failing (e.g. `transcript_path` absent from Codex's Stop payload, or `claude` not resolvable in the hook's shell), it re-ran the full summarization on every single turn instead of throttling. That cost real time and tokens with nothing to show for it, so the Stop-hook mapping was removed. Use the manual `/handover` skill to save context on Codex; there is no automatic equivalent.
