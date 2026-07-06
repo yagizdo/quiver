@@ -206,6 +206,8 @@ Agent(
 
 If agent discovery found project/user agents whose description matches the task domain, dispatch them with the same self-contained prompt pattern.
 
+**No fallback polling.** After dispatching agents, wait for the harness's completion notification before moving to Step 4 -- never call `ScheduleWakeup` as a hedge against a missed notification. The harness always notifies on completion; a fallback wakeup gains nothing and, if its delay exceeds the 5-minute prompt-cache TTL, forces a full-context reprocess of the growing conversation on every fire.
+
 ## Step 4 -- Synthesize Research
 
 After **all** agents return, merge findings into a unified research brief. Use the navigation tier from Step 2.5 for any codebase verification -- symbol lookups via codegraph when available, grep as fallback.

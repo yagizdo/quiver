@@ -139,6 +139,8 @@ Pass both flags to each dispatched agent. Agents that search the codebase (code-
 
 For simple single-file checks: handle directly without agent dispatch. Read the file, inspect the relevant code, and evaluate the hypothesis.
 
+**No fallback polling.** After dispatching agents, wait for the harness's completion notification before moving to 3d -- never call `ScheduleWakeup` as a hedge against a missed notification. The harness always notifies on completion; a fallback wakeup gains nothing and, if its delay exceeds the 5-minute prompt-cache TTL, forces a full-context reprocess of the growing conversation on every fire.
+
 ### 3d -- Evaluate results
 
 After agent results (or direct investigation) return:

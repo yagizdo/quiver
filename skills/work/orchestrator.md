@@ -133,7 +133,7 @@ For each execution group, in order:
    - `isolation="worktree"` (each agent works in its own git worktree)
    - `run_in_background=true`
    - The filled-in prompt template as the agent's instructions.
-3. **Wait for group completion:** Wait for all agents in the current group to finish.
+3. **Wait for group completion:** Wait for all agents in the current group to finish. Never call `ScheduleWakeup` as a fallback in case a notification is missed -- the harness always notifies on completion, and a fallback wakeup past the 5-minute prompt-cache TTL forces a full-context reprocess for no benefit.
 4. **Process results:** Collect each agent's output and determine status (see Result Collection below).
 5. **Update tracking:** Call `TaskUpdate` for each task with its final status.
 6. **Proceed to next group:** If all tasks in the current group are DONE or if independent tasks in the next group are unblocked, move to the next group.
