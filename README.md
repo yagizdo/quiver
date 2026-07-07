@@ -49,10 +49,9 @@ codex plugin marketplace add yagizdo/quiver
 
 Then try `/brainstorm` in any session.
 
-- The handover auto-save hook maps to Codex's `Stop` event with a 10-minute cooldown. For on-demand handovers, use `/handover` directly.
+- Codex uses the bundled default `PreCompact` hook in `hooks/hooks.json` for automatic handover auto-save before automatic compaction. If Codex prompts for hook review, open `/hooks` and trust the Quiver hook; `/handover` also works manually.
 - `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
 - Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
-- The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
 ### Gemini CLI
 
@@ -63,7 +62,7 @@ gemini extensions install quiver
 Then try `/brainstorm` in any session.
 
 - `ask_user` is native on Gemini CLI: interactive prompts render with full fidelity.
-- The handover auto-save hook maps to Gemini CLI's `PreCompress` event. Unlike Codex's Stop event, no cooldown guard is needed: PreCompress fires only before history compression.
+- The handover auto-save hook maps to Gemini CLI's `PreCompress` event, which fires only before history compression (like Claude Code's PreCompact) -- no cooldown guard needed.
 - Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
 - The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 

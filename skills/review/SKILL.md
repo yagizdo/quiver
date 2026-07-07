@@ -256,6 +256,8 @@ Each agent receives (in this order):
 - **Review-scoped agents:** Create under `agents/review/` and register in `plugin.json`'s `agents` array. The orchestrator discovers them automatically via Tier 1.
 - **Cross-category agents:** Create under `agents/<category>/`, register in `plugin.json`, and add the path to the Tier 2 list in Step 2a. Add a dispatch rule in Step 2b.
 
+**No fallback polling.** After dispatching agents, wait for the harness's completion notification before moving to Step 3 -- never call `ScheduleWakeup` as a hedge against a missed notification. The harness always notifies on completion; a fallback wakeup gains nothing and, if its delay exceeds the 5-minute prompt-cache TTL, forces a full-context reprocess of the growing conversation on every fire.
+
 ## Step 3 -- Synthesize Findings
 
 After **all** agents return, merge their outputs into a single unified report.

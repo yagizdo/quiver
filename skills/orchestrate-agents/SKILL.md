@@ -143,6 +143,8 @@ sequenceDiagram
 
 **Rule:** Synchronous is default. Use `run_in_background: true` only when launching multiple independent tasks in parallel.
 
+**No fallback polling.** After dispatching agents with `run_in_background: true`, wait for the harness's completion notification -- never call `ScheduleWakeup` as a hedge against a missed notification. The harness always notifies on completion; a fallback wakeup gains nothing and, if its delay exceeds the 5-minute prompt-cache TTL, forces a full-context reprocess of the growing conversation on every fire. Repeated fallback wakeups turn a normal multi-agent dispatch into a runaway token/time sink.
+
 ---
 
 ## Built-in Agent Types

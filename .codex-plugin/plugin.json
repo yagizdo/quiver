@@ -9,7 +9,6 @@
   "repository": "https://github.com/yagizdo/quiver",
   "license": "MIT",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks-codex.json",
   "rules": "./.codex-plugin/rules/",
   "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
