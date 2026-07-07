@@ -69,6 +69,8 @@ Rules:
 3. Do not collapse multiple decisions into a single prompt unless the original AskUserQuestion call did so. One question per polyfill prompt is the default.
 4. After the user replies with a number, restate the choice in one sentence ("Going with option 2: ...") before continuing. This catches misclicks visible to the user before the action runs.
 
-## No auto-save hook
+## Handover auto-save hook
 
-Codex does not have a PreCompact event. An earlier version mapped the handover auto-save hook onto Codex's Stop event (turn completion) with a 10-minute guard, but the guard only reset on a *successful* save -- if the save kept failing (e.g. `transcript_path` absent from Codex's Stop payload, or `claude` not resolvable in the hook's shell), it re-ran the full summarization on every single turn instead of throttling. That cost real time and tokens with nothing to show for it, so the Stop-hook mapping was removed. Use the manual `/handover` skill to save context on Codex; there is no automatic equivalent.
+Codex supports `PreCompact`, and Quiver bundles the shared `hooks/hooks.json` config so the handover auto-save hook runs before automatic compaction. No `Stop` hook or separate Codex hook manifest is needed for that default bundled hook file. If Codex reports that the hook needs review, use `/hooks` to inspect and trust the Quiver hook before expecting it to run. The manual `/handover` skill always works regardless of hook trust state.
+
+An earlier version mapped the handover auto-save hook onto Codex's `Stop` event (turn completion) with a 10-minute guard, but the guard only reset on a *successful* save -- if the save kept failing (e.g. `transcript_path` absent from Codex's Stop payload, or `claude` not resolvable in the hook's shell), it re-ran the full summarization on every single turn instead of throttling. That cost real time and tokens with nothing to show for it, so the Stop-hook mapping was removed. Do not reintroduce Stop-event handover auto-save or fallback polling as a substitute for `PreCompact`.

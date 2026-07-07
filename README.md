@@ -49,7 +49,7 @@ codex plugin marketplace add yagizdo/quiver
 
 Then try `/brainstorm` in any session.
 
-- Codex has no automatic handover auto-save (no PreCompact-equivalent event). Use `/handover` directly to save context.
+- Codex uses the bundled default `PreCompact` hook in `hooks/hooks.json` for automatic handover auto-save before automatic compaction. If Codex prompts for hook review, open `/hooks` and trust the Quiver hook; `/handover` also works manually.
 - `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
 - Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
 
