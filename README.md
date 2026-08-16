@@ -84,7 +84,7 @@ already use it in another harness.
 | Component | Count |
 |-----------|-------|
 | Hooks | 1 |
-| Skills | 22 |
+| Skills | 24 |
 | Agents | 20 |
 
 ## What Do I Use?
@@ -103,6 +103,21 @@ already use it in another harness.
 | Situation | Command | What happens |
 |-----------|---------|--------------|
 | I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), then autonomous loop: code + test + review + fix until done. Manifest at `docs/ship/<project>-manifest.md` |
+
+### Implementing a Design
+
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| A Figma frame is ready to become code | `/design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
+| Design plan is ready, want it built pixel-accurate | `/design-build` | Implements each node against its embedded spec, captures the running UI, compares it to the Figma reference, and fixes deviations under a bounded retry budget |
+
+```
+/design                    # extract whatever is selected in Figma
+/design 4029:12345         # extract a specific node by ID
+/design-build              # pick a design plan and build it
+```
+
+`/design` is the only half that talks to Figma. The plan carries every measurement, token, and layout anchor it produced, so `/design-build` runs with Figma disconnected. Setup is in [External Dependencies](#external-dependencies).
 
 ### Reviewing Code
 
@@ -226,6 +241,27 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 - `query-docs`: Get documentation for a specific library
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
+
+### figma-bridge (optional, for `/design`)
+
+`/design` reads Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway. Set it up once:
+
+1. Add the server to your MCP config:
+
+   ```json
+   {
+     "figma-bridge": {
+       "command": "npx",
+       "args": ["-y", "@gethopp/figma-mcp-bridge"]
+     }
+   }
+   ```
+
+2. Download the Figma plugin from the [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), then in Figma: **Plugins > Development > Import plugin from manifest**.
+
+3. Run the plugin inside the Figma file you want to read and leave it open. It connects to the server over a WebSocket; closing it drops the connection mid-extraction.
+
+`/design` only calls the bridge's read tools. `/design-build` never calls it at all. Every other Quiver skill works without it.
 
 ## Uninstall
 
