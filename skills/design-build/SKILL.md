@@ -1,6 +1,6 @@
 ---
 name: design-build
-description: "Execute a design plan produced by /design -- implements each node against its embedded measurement spec, captures the running UI, compares it to the Figma reference, and fixes deviations under a bounded retry budget. Runs with Figma disconnected; the plan carries every number it needs."
+description: "Execute a design plan produced by /design -- implements each node against its embedded measurement spec, delegates fidelity measurement to /design-verify, and fixes the reported deviations under a bounded retry budget. Runs with Figma disconnected; the plan carries every number it needs."
 argument-hint: "<path to a *-design-plan.md, or empty to pick one>"
 when-to-use: "user wants to build a design plan into working pixel-accurate UI -- '/design-build', 'build the design plan', 'implement the figma plan', 'make it match the design', 'fix the pixel differences'"
 ---
@@ -23,7 +23,7 @@ when-to-use: "user wants to build a design plan into working pixel-accurate UI -
 
 # Instructions
 
-You are a design implementation specialist. You take a plan written by `/design`, build it, then prove it matches by capturing the running UI and comparing it against the Figma reference screenshots. You do not open Figma -- the plan is self-contained.
+You are a design implementation specialist. You take a plan written by `/design`, build it, hand the fidelity measurement to `/design-verify`, and fix what its report says is off. You do not open Figma -- the plan is self-contained -- and you do not capture or measure anything yourself.
 
 **Announce:** "Using the design-build skill to implement the design plan."
 
@@ -31,7 +31,7 @@ You are a design implementation specialist. You take a plan written by `/design`
 
 If a gather-context block returned `NO_GIT`, this directory is not a git repository.
 Print: `> No git repository detected -- skipping branch and commit steps.`
-Proceed. Skip branch creation in Phase 2 and all commit steps in Phase 4.
+Proceed. Skip branch creation in Phase 2 and all commit steps in Phase 3d.
 
 ## Phase 1 -- Load the Plan
 
@@ -54,71 +54,49 @@ Proceed. Skip branch creation in Phase 2 and all commit steps in Phase 4.
 ```
 **Stop here.**
 
-**Check the references.** Every path under `screenshot_dir` named in a node spec must exist on disk. If any are missing, print which ones and continue -- those nodes fall back to spec-versus-code comparison in Phase 4.
+**Check the references.** Every path under `screenshot_dir` named in a node spec must exist on disk. If any are missing, print which ones and continue. What a missing reference means for verification is `/design-verify`'s decision, not this skill's.
 
-## Phase 2 -- Capture Target
+### Frontmatter fields this skill reads
 
-Pick the capture method **once**, up front, by reading the project. Do not walk a ladder of attempts.
+The plan schema is declared once, in `skills/design/SKILL.md` Step 9. This skill does not
+reproduce that fence. It reads these fields and applies these defaults when a field is
+absent:
 
-Detect the project type from manifest files at the project root:
+| Field | Used for | Default when absent |
+|-------|----------|---------------------|
+| `commit_strategy` | Phase 3d's commit policy | `none` |
+| `verify_gate` | which command must pass before a commit | `none` |
+| `screenshot_dir` | where the deviation reports land | `.claude/plans/assets/<slug>/`, slug derived from the plan filename |
 
-| Signal | Project type |
-|--------|--------------|
-| `pubspec.yaml` | Flutter |
-| `package.json` with `next`, `react`, `vue`, `svelte`, `astro`, or `vite` | Web |
-| `index.html` at root with no JS manifest | Web |
-| `*.xcodeproj`, `*.xcworkspace`, or `Package.swift` with UI targets | iOS native |
-| `build.gradle` or `build.gradle.kts` with an Android plugin | Android native |
+Plans written before these fields existed carry none of them, and they live in
+`.claude/plans/`, which is gitignored -- no migration can reach them. The defaults are
+load-bearing, not defensive styling. Default `commit_strategy` to `none` specifically:
+an older plan predates the question being asked, so the user never consented to a commit.
 
-Then resolve the capture method:
-
-| Project type | Capture method |
-|--------------|----------------|
-| Web | Playwright or Puppeteer MCP screenshot |
-| iOS native, simulator | `simulator_screenshot` from the `xc-interact` MCP |
-| iOS native, physical device | `idevicescreenshot` (libimobiledevice) |
-| Android native, emulator or physical device | `adb exec-out screencap -p > <path>` |
-| Flutter | resolve the run target first, see below |
-
-**Flutter run target.** Run `flutter devices` with the Bash tool and read the output:
-- An Android device or emulator is attached: use `adb exec-out screencap -p`. This works for emulators and physical devices alike.
-- Only an iOS simulator is attached: use `simulator_screenshot` from `xc-interact`.
-- Only a physical iOS device is attached: use `idevicescreenshot`. Probe it once with `which idevicescreenshot` via the Bash tool. If absent, print:
-  ```
-  > No screenshot capture available for a physical iOS device.
-  > Install it with: brew install libimobiledevice
-  > Continuing with spec-versus-code comparison instead.
-  ```
-- Both Android and iOS targets are attached: use `AskUserQuestion`.
-  > Which device should the design be verified against?
-
-  Build one button per attached device from the `flutter devices` output.
-- Nothing attached: fall back to spec-versus-code.
-
-**MCP schema loading.** If the chosen method needs a deferred MCP tool, load its schema once with `ToolSearch` before the first capture. Do not reload per task.
-
-**Spec-versus-code fallback.** When no capture method resolves, verification for every task is a careful read of the written code against the node spec: every measurement, token, and anchor checked by hand. Print:
-```
-> No UI capture available -- verifying against the spec by reading the code.
-```
-
-Record the chosen method. Print `> Capture target: {method}`.
-
-## Phase 3 -- Branch
+## Phase 2 -- Branch
 
 Skip entirely if `NO_GIT`.
 
 If the current branch is the default branch (`master` or `main`), create a feature branch named `design/<slug>` from the plan's slug. Otherwise stay on the current branch.
 
-## Phase 4 -- Build Loop
+## Phase 3 -- Build Loop
 
 Work the plan's `### Tasks` in order. New-token tasks come first -- later tasks reference those tokens.
 
 For each task:
 
-### 4a -- Implement
+### 3a -- Implement
 
 Read the node specs the task names. Write the code using the plan's literal values and the Token Map. Match the project's component conventions from the plan's `### Stack and Conventions` section.
+
+Three spec lines override the raw measurements when they are present:
+
+- **`Fit:`** wins over `Box:` on any axis it marks `fill`. The `Box:` number is what that
+  axis measured at one frame size; writing it as a fixed dimension produces a component
+  that is wrong at every other width. Implement `fill` as the framework's fill mechanism.
+- **`Content:`** is the literal copy, and its i18n decision is binding. When it names a
+  key, add the key and reference it. Never invent or paraphrase copy.
+- **`Route:`** is where the node lives at runtime. Build it so that route reaches it.
 
 **Layout reconciliation is mandatory.** Before writing any centering, alignment, or positioning code, check whether the node has a `Reconciliation:` line in its spec.
 
@@ -128,27 +106,31 @@ Read the node specs the task names. Write the code using the plan's literal valu
 
 Follow the plan's File Map. Do not create files the plan does not list.
 
-### 4b -- Capture and Compare
+### 3b -- Verify
 
-Skip to 4c with a `spec-check` result when the capture method is spec-versus-code.
+This skill does not capture and does not compare. It delegates, then reads a file.
 
-1. Get the app into the state that shows this task's node. Build and launch or reload as the stack requires.
-2. Capture a screenshot with the Phase 2 method. Save it to `.claude/plans/assets/<slug>/actual/<task-id>.png`.
-3. Read the capture and the Figma reference named in the node spec's `Reference:` line.
-4. Compare against the spec, in this order. Report each as a deviation with its measured delta:
-   - **Anchor** -- is the node positioned relative to the right region? Measure its center against the chrome-excluded region's center. This is the first check because it is the one that silently fails.
-   - **Box** -- width, height, and insets against the spec numbers.
-   - **Spacing** -- gaps and padding.
-   - **Typography** -- size, weight, line height, color.
-   - **Fill, stroke, radius, effects.**
+1. Invoke the `design-verify` skill with the plan path, this task's node IDs, this task's
+   ID, and mode `build`:
+   `/design-verify <plan path> --nodes <this task's node IDs> --task <task id> --mode build`
+2. Read `<screenshot_dir>/verify/<task-id>.md`.
 
-A deviation of 2px or less on any single measurement is within tolerance. Anything larger is a deviation to fix.
+**An absent report file means the verify step did not run.** That is the only thing it
+means -- a clean verification still writes a report. Treat the task as `spec-check`,
+record that verification did not run, and continue to 3d. Do not loop, do not re-invoke,
+and do not infer that the task passed.
 
-### 4c -- Fix, Bounded
+All capture resolution, image normalization, metric selection, check order, and tolerance
+live in `/design-verify`. They are not restated here, and this skill does not second-guess
+them.
 
-If there are no deviations, go to 4d.
+### 3c -- Fix, Bounded
 
-Otherwise fix the largest deviation first, then recapture and recompare. **Three attempts maximum per task**, counting the initial implementation as attempt one.
+If the report lists no deviations, go to 3d.
+
+Otherwise fix the largest delta in the report's deviation table first, then re-run 3b --
+re-invoke `design-verify` and re-read the report. **Three attempts maximum per task**,
+counting the initial implementation as attempt one.
 
 After the third attempt still leaves deviations, **stop and ask**. Do not keep looping. Call `AskUserQuestion`:
 
@@ -157,20 +139,38 @@ After the third attempt still leaves deviations, **stop and ask**. Do not keep l
 
 Buttons: `["Accept as-is -- note it and move on", "I'll describe the fix", "Try 3 more attempts", "Skip this task"]`
 
-- **Accept as-is:** record the remaining deviations in the final summary and continue to 4d.
-- **I'll describe the fix:** take the user's description, apply it, recapture once, then continue to 4d regardless of the result.
-- **Try 3 more attempts:** reset the counter and return to the top of 4c. This is the only way the budget grows -- it is never extended automatically.
+- **Accept as-is:** record the remaining deviations in the final summary and continue to 3d.
+- **I'll describe the fix:** take the user's description, apply it, re-run 3b once, then continue to 3d regardless of the result.
+- **Try 3 more attempts:** reset the counter and return to the top of 3c. This is the only way the budget grows -- it is never extended automatically.
 - **Skip this task:** revert this task's changes, mark it skipped, continue to the next task.
 
-### 4d -- Commit
+### 3d -- Gate, then Commit
 
-Skip if `NO_GIT`.
+**Verification gate.** Read `verify_gate` from the plan frontmatter.
 
-Stage only the files this task touched. Never `git add .`. Never stage the plan or anything under `screenshot_dir`.
+- `build` -- run the project's build command.
+- `test` -- run the project's test command.
+- `none` (the default) -- no gate; go straight to the commit policy.
 
-Commit with a Conventional Commits message scoped to the task, for example `feat(wallet): add balance card matching design spec`. No push. No AI attribution.
+A failing gate **blocks the commit**. Feed the failure output back into 3c as a
+deviation and re-enter the fix loop under the same 3-attempt budget. Never commit past a
+failing gate, and never commit a task the gate has not cleared.
 
-## Phase 5 -- Summary
+**Commit policy.** Read `commit_strategy` from the plan frontmatter. The user chose this
+at plan time, so nothing here asks again.
+
+- `none` (the default) -- write no commit. Say so once, on the first task:
+  `> commit_strategy: none -- changes stay in the working tree.` Do not repeat it per
+  task.
+- `per-task` -- skip if `NO_GIT`. Stage only the files this task touched. Never
+  `git add .`. Never stage the plan or anything under `screenshot_dir`. Commit with a
+  Conventional Commits message scoped to the task, for example
+  `feat(wallet): add balance card matching design spec`. No push. No AI attribution.
+- `single` -- accumulate. Commit nothing here; after the last task, make one commit
+  covering every file the run touched, with a Conventional Commits message scoped to the
+  plan. Same staging rules, same exclusions, no push, no AI attribution.
+
+## Phase 4 -- Summary and Handoff
 
 Print a table:
 
@@ -180,9 +180,22 @@ Print a table:
 | 2 | done | 2 deviations accepted |
 | 3 | skipped | -- |
 
-Then list every accepted deviation with its measured delta and the file it lives in, so the user can decide later whether to revisit.
+Then list every accepted deviation with its measured delta and the file it lives in, so the user can decide later whether to revisit. Name the deviation report path for each task, so the measurements stay reachable after this run ends.
 
-Print the branch name and the commit count. Do not open a pull request -- that is `/create-pr`.
+Print the branch name and the commit count.
+
+Then call `AskUserQuestion`:
+
+> Build finished. What next?
+
+Buttons: `["Review the changes -- /review", "Commit -- /commit", "Open a PR -- /create-pr", "Stop here"]`
+
+- **Review the changes:** invoke the `review` skill.
+- **Commit:** invoke the `commit` skill.
+- **Open a PR:** invoke the `create-pr` skill.
+- **Stop here:** stop.
+
+Do not open a pull request directly -- `/create-pr` owns that.
 
 ---
 
@@ -191,13 +204,19 @@ Print the branch name and the commit count. Do not open a pull request -- that i
 Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 
 - **Don't** call figma-bridge tools. This skill runs with Figma disconnected; the plan carries the data.
-- **Don't** probe capture methods one by one. Phase 2 picks one from the project type.
-- **Don't** loop capture-and-fix without a bound. Three attempts, then ask.
+- **Don't** capture or compare here. 3b delegates to `/design-verify` and reads its report.
+- **Don't** restate `/design-verify`'s capture commands, tolerance, or check order. One copy, in one file.
+- **Don't** treat an absent deviation report as a pass. A clean verification still writes a report.
+- **Don't** loop the fix cycle without a bound. Three attempts, then ask.
 - **Don't** extend the retry budget on your own. Only the user's "Try 3 more attempts" resets it.
 - **Don't** replace a precedent mechanism with a simpler one because it compiles. The precedent is in the plan because the simple version is what looks wrong.
 - **Don't** center at page level when a Reconciliation line names a chrome-excluded region.
+- **Don't** write a `fill` axis as the literal `Box:` number.
 - **Don't** adjust the plan's numbers to match what the code happens to produce. Fix the code.
+- **Don't** commit when `commit_strategy` is absent or `none`. Absence means the user was never asked.
+- **Don't** commit past a failing verification gate.
 - **Don't** stage the plan file or the screenshot assets.
+- **Don't** restate the plan frontmatter schema. `skills/design/SKILL.md` Step 9 declares it; this file lists only the fields it reads.
 
 ---
 
@@ -207,31 +226,37 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 
 **Setup:**
 - A design plan written by `/design` with at least two tasks, one node carrying a `Reconciliation:` line, and reference PNGs present under `screenshot_dir`.
-- A runnable project matching one of the Phase 2 signals.
+- A second, legacy plan carrying none of `commit_strategy`, `verify_gate`, or `screenshot_dir`.
+- A runnable project.
 
 **Expected behavior:**
 1. All three shell blocks exit 0 in a git repo and in a non-git directory.
 2. With no design plan on disk, Phase 1 prints the `/design` pointer and stops.
 3. A plan lacking `design_source: figma-bridge` or `### Node Specs` is rejected with a message; no code is written.
-4. Phase 2 resolves exactly one capture method from the project type and prints it. No sequential probing occurs.
-5. A Flutter project with both an Android and an iOS target attached asks which device via `AskUserQuestion`.
-6. A physical iOS target with `idevicescreenshot` absent prints the brew hint and falls back to spec-versus-code.
-7. With no capture method available, every task verifies by reading code against the spec, and the skill says so once.
-8. A node with a `Reconciliation:` line and a precedent `file:line` causes that file range to be read before the positioning code is written.
-9. A node with a `Reconciliation:` line and `No precedent found` produces content constrained to the chrome-excluded region, with a comment naming what it centers within.
-10. Deviations of 2px or less are within tolerance and do not trigger a fix.
+4. The legacy plan loads and builds on the documented defaults, committing nothing.
+5. A node with a `Fit:` axis of `fill` is implemented with the framework's fill mechanism, not the `Box:` literal.
+6. A node with a `Content:` line carrying an i18n key produces that key, never invented copy.
+7. 3b invokes `/design-verify` with mode `build` and reads `<screenshot_dir>/verify/<task-id>.md`. No capture command runs in this skill.
+8. An absent deviation report is recorded as `spec-check` and does not loop or read as a pass.
+9. A node with a `Reconciliation:` line and a precedent `file:line` causes that file range to be read before the positioning code is written.
+10. A node with a `Reconciliation:` line and `No precedent found` produces content constrained to the chrome-excluded region, with a comment naming what it centers within.
 11. After three failed attempts on one task, `AskUserQuestion` appears with the four options. The loop never continues silently.
 12. "Try 3 more attempts" resets the counter; nothing else does.
-13. Each completed task produces exactly one commit; the plan and `screenshot_dir` are never staged.
-14. Phase 5 prints the status table and lists every accepted deviation with its delta.
+13. `verify_gate: build` or `test` runs that command before the commit; a failure blocks the commit and re-enters 3c.
+14. `commit_strategy: none` or absent writes no commit and says so exactly once.
+15. `commit_strategy: per-task` produces one commit per task; `single` produces exactly one commit after the last task. The plan and `screenshot_dir` are never staged.
+16. Phase 4 prints the status table, lists every accepted deviation with its delta and report path, and ends with the four-button handoff.
 
 **Verification checklist:**
 - [ ] `/design-build` and `/quiver:design-build` both appear in the slash menu after plugin reload.
 - [ ] All three `!` blocks exit 0 with `NO_GIT` output in a non-git directory.
 - [ ] No figma-bridge tool is called anywhere in this skill.
-- [ ] Capture method is chosen once in Phase 2, never re-probed per task.
+- [ ] No capture command, tolerance value, or check order appears anywhere in this file.
+- [ ] No screenshot binary or capture MCP server is named anywhere in this file.
+- [ ] The plan frontmatter fence is not reproduced; only the fields this skill reads are listed, each with a default.
 - [ ] The retry budget is capped at 3 and only the user can reset it.
 - [ ] The bounded-retry prompt uses `AskUserQuestion`, not plain text.
+- [ ] No commit is written when `commit_strategy` is absent.
 - [ ] Commits stage task files only; no `git add .`; plan and assets excluded.
 - [ ] No AI attribution in any commit message.
 - [ ] `when-to-use:` is a single-line double-quoted string.
@@ -240,9 +265,8 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] No `$()`, variable assignment, or `if/else` inside any `!` block.
 
 **Known gotchas:**
-- `adb exec-out screencap -p` covers Android emulators and physical devices identically -- no separate physical-device path is needed there. iOS is the asymmetric case: the simulator has an MCP tool, a physical device needs `idevicescreenshot` from libimobiledevice.
-- `flutter devices` output is the only reliable way to know which platform a Flutter run targets. The manifest alone cannot tell you.
-- Anchor deviations are the ones that look "almost right" and read as fine in a quick glance. Check the anchor before the box, or a wrong-region centering hides behind correct dimensions.
-- The 2px tolerance is per single measurement, not cumulative. Four separate 2px deviations still add up to a visibly wrong layout, so recheck the anchor when several small deviations cluster.
-- Screenshot captures land under `.claude/plans/assets/<slug>/actual/`. If `.claude/` is gitignored they stay local, which is intended -- never stage them.
+- The retry budget is a cross-file loop: 3c counts attempts here, but each attempt's measurement happens in `/design-verify`. The counter never lives in the report file -- it is this skill's state.
+- An absent deviation report and a report with zero deviations mean opposite things. `/design-verify` writes a report on every path precisely so the difference is unambiguous.
+- Deviation reports and captures land under `.claude/plans/assets/<slug>/`. If `.claude/` is gitignored they stay local, which is intended -- never stage them.
 - Reverting a skipped task's changes only removes what that task wrote. A task that a later task depends on cannot be cleanly skipped; when that happens, say so rather than leaving a half-built dependency.
+- `commit_strategy: single` still has to skip when `NO_GIT`. The accumulate branch is easy to write as if git is always present.
