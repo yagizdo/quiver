@@ -83,8 +83,8 @@ already use it in another harness.
 
 | Component | Count |
 |-----------|-------|
-| Hooks | 1 |
-| Skills | 22 |
+| Hooks | 2 |
+| Skills | 25 |
 | Agents | 20 |
 
 ## What Do I Use?
@@ -103,6 +103,23 @@ already use it in another harness.
 | Situation | Command | What happens |
 |-----------|---------|--------------|
 | I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), then autonomous loop: code + test + review + fix until done. Manifest at `docs/ship/<project>-manifest.md` |
+
+### Implementing a Design
+
+| Situation | Command | What happens |
+|-----------|---------|--------------|
+| A Figma frame is ready to become code | `/design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
+| Design plan is ready, want it built pixel-accurate | `/design-build` | Implements each node against its embedded spec, then fixes whatever `/design-verify` reports, under a bounded retry budget |
+| Built UI is on screen, want to know how far off it is | `/design-verify` | Captures the running app, normalizes both images to a common logical width, measures the deviations, and writes a report to disk |
+
+```
+/design                    # extract whatever is selected in Figma
+/design 4029:12345         # extract a specific node by ID
+/design-build              # pick a design plan and build it
+/design-verify             # measure a built screen against its spec
+```
+
+`/design` is the only stage that talks to Figma. The plan carries every measurement, token, and layout anchor it produced, so `/design-build` runs with Figma disconnected and `/design-verify` measures against the plan alone. Each stage stands on its own: `/design-verify` works against any file with a `### Node Specs` section, including a hand-written measurement spec, and needs no screenshot and no installed comparison tool. Setup is in [External Dependencies](#external-dependencies).
 
 ### Reviewing Code
 
@@ -158,6 +175,7 @@ Re-review detection: if you run `/review` again on the same branch after fixing 
 | Hook | Event | Description |
 |------|-------|-------------|
 | `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before the CLI compacts context |
+| `session-start-auto-dispatch` | SessionStart | Reads every skill's `when-to-use` and emits a routing block so intent matches invoke the right skill |
 
 > The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
 
@@ -226,6 +244,39 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 - `query-docs`: Get documentation for a specific library
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
+
+### figma-bridge (optional, for `/design`)
+
+`/design` reads Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway. Set it up once:
+
+1. Add the server to your MCP config:
+
+   ```json
+   {
+     "figma-bridge": {
+       "command": "npx",
+       "args": ["-y", "@gethopp/figma-mcp-bridge"]
+     }
+   }
+   ```
+
+2. Download the Figma plugin from the [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), then in Figma: **Plugins > Development > Import plugin from manifest**.
+
+3. Run the plugin inside the Figma file you want to read and leave it open. It connects to the server over a WebSocket; closing it drops the connection mid-extraction.
+
+`/design` only calls the bridge's read tools. `/design-build` and `/design-verify` never call it at all. Every other Quiver skill works without it.
+
+### ImageMagick (optional, for `/design-verify`)
+
+`/design-verify` works with nothing installed -- it reads the built UI against the spec and marks the report low confidence. Installing ImageMagick upgrades that structural read into a measured differing-pixel count:
+
+```
+brew install imagemagick
+```
+
+The skill probes `magick -version` and `magick -list metric`, picks the `PDC` metric when the build has it, and records which comparison path produced each report. Nothing breaks without it; the reports simply carry fewer numbers.
+
+Device capture is optional in the same way. `/design-verify` uses `xcrun simctl` for iOS simulators, `adb` for Android, `pymobiledevice3` for physical iOS devices, and the Playwright MCP for web -- whichever is already on the machine. Each absent tool prints one install hint and the run continues down to the next option.
 
 ## Uninstall
 
