@@ -122,9 +122,16 @@ Run these against the resolved `fileKey`:
      record the resolved location as `screenshot_dir` in the plan frontmatter. Do not
      assume the server's working directory is the project root.
    - **Writes use flag `wx` and throw on an existing file.** Before writing, list the
-     target directory. When a file of the same name already exists, delete it first or
-     write a suffixed name (`<node-id>-2.png`). A second `/design` run against the same
-     node must not throw.
+     target directory. When a file of the same name already exists, **write a suffixed
+     name** (`<node-id>-2.png`, incrementing until the name is free). A second `/design`
+     run against the same node must not throw.
+
+     **Never delete the existing file.** Step 9 has not yet asked whether this run
+     overwrites the previous plan, and an existing plan's `Reference:` lines and `###
+     Assets` rows point at these exact paths. Deleting here would answer that question
+     destructively before it is asked: the user could still choose "Write a new plan
+     file", keeping a plan whose images had already been replaced with a different
+     design's. Suffixing costs disk and keeps both plans readable.
 
    Record every exported file with its node ID, node name, and final path. Step 9 writes
    them into the plan's `### Assets` section.
@@ -515,7 +522,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** skip the anchor computation because the node "is obviously centered". Centered inside what is the whole question.
 - **Don't** invent a codebase precedent. If code-navigator found none, say none was found.
 - **Don't** write a `fill` axis as the literal measured width. The measurement is what that axis happened to be at one frame size; the fit is the intent.
-- **Don't** export an asset over an existing file. The bridge writes with flag `wx` and throws -- list the directory first.
+- **Don't** export an asset over an existing file, and don't delete one to make room. The bridge writes with flag `wx` and throws -- list the directory first and suffix the name. An existing plan still references the old file, and Step 9's overwrite question has not been asked yet.
 - **Don't** restate the plan frontmatter schema in another skill. Step 9's fence is the only declaration; consumers list the fields they read.
 - **Don't** compare a `VARIABLE_ALIAS` as if it were a value. Follow the alias chain to a literal first.
 - **Don't** dispatch a prompt containing `{true|false}`. `codegraph_available` and `lsp_available` are resolved to literals before Step 6 dispatches.
@@ -539,7 +546,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 5. A node ID passed as `4029-12345` is normalized to `4029:12345` before any tool call.
 6. With nothing selected and no ID argument, Step 3 prints the selection instruction and stops.
 7. Step 4 writes reference PNGs into `.claude/plans/assets/<slug>/` at scale 2, plus one file per icon and image leaf node (`.svg` for vectors, `.png` at scale 3 otherwise).
-8. Re-running `/design` against a node whose asset already exists does not throw -- the existing file is removed or the new name is suffixed.
+8. Re-running `/design` against a node whose asset already exists does not throw, and does not delete the existing file -- the new export takes a suffixed name and the previous plan's references still resolve.
 9. A `save_screenshots` sandbox rejection prints the reported sandbox root and writes there, recording it as `screenshot_dir`.
 10. Step 5 emits an Anchor line for every node, and a Reconciliation line for every node whose anchor references excluded chrome.
 11. Step 6 resolves `codegraph_available` from a Glob on `.codegraph/*` and dispatches exactly one `quiver:code-navigator` agent, with literals in the prompt, and waits without polling.
@@ -578,7 +585,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - Instance-child node IDs use the `I12740:17806;12740:17793` form. Passing only the leading segment returns the wrong node.
 - `.claude/plans/assets/` holds binary PNGs. If the project gitignores `.claude/`, the screenshots are local-only, which is intended.
 - The plugin must stay running in Figma for the whole extraction. Closing it mid-run drops the WebSocket and later calls fail.
-- `save_screenshots` writes with flag `wx`. It throws on an existing file rather than overwriting, which is why a second run against the same node fails unless the directory is listed first.
+- `save_screenshots` writes with flag `wx`. It throws on an existing file rather than overwriting, which is why a second run against the same node fails unless the directory is listed first. Suffixing rather than deleting matters because Step 4 runs before Step 9's overwrite question -- deleting would strip an existing plan's reference images no matter which way the user answered it.
 - `save_screenshots` sandboxes `outputPath` to the MCP server's working directory, which is not always the project root. A rejection is a path problem, not a permissions problem.
 - `save_screenshots` infers the format from the `outputPath` extension. Passing a `format` that disagrees with the extension throws, and `scale` is ignored entirely for SVG and PDF.
 - `get_screenshot` returns base64 inside a JSON text blob rather than an inline image, so nothing in this skill can see it. Visual work goes through `save_screenshots` and a subsequent Read.

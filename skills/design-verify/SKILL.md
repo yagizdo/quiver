@@ -113,23 +113,39 @@ expected, not an error.
 None of these is mandatory. Walk them in order and stop at the first that produces an
 image:
 
-1. **A supplied screenshot** -- `--screenshot <path>`, when the file exists.
+1. **A supplied screenshot** -- `--screenshot <path>` when the file exists, or a file
+   already sitting at this run's conventional capture path,
+   `<screenshot_dir>/actual/<task-id>.png`. Both are user-supplied input; neither runs a
+   capture command.
 2. **An automatic capture** -- the per-target commands below.
 3. **A spec-versus-code read** -- no image at all. Read the written code against the node
    spec: every measurement, token, and anchor checked by hand. The report is marked
    `spec-check` and low confidence.
 
-`capture_preference` routes into that ladder, and its three values are three distinct
-paths:
+**An explicit `--screenshot` wins over `capture_preference`.** A path the user typed on
+the command line is a stronger signal than a preference stored at plan time, so level 1
+runs before the preference is consulted, on every value including `skip`. A supplied file
+is not a capture attempt, and `skip` only forbids capture attempts.
+
+With no `--screenshot`, `capture_preference` routes into the ladder, and its three values
+are three distinct paths:
 
 - `skip` -- go straight to level 3. No capture is attempted, so no build-and-launch cycle
   runs. This is the cheap path for a plan whose UI is not runnable right now.
-- `manual` -- level 1 only. A supplied path is expected; without one, fall to level 3
-  rather than capturing.
+- `manual` -- level 1 only, including the conventional path. The user drops screenshots at
+  `<screenshot_dir>/actual/<task-id>.png` and both modes find them there with no question
+  asked -- which is what makes `manual` reachable inside a build loop that may not be
+  interrupted. When neither source produces a file, print once:
+  ```
+  > capture_preference: manual and no screenshot supplied. Drop one at
+  > <screenshot_dir>/actual/<task-id>.png and re-run, or continue on the spec read.
+  ```
+  then fall to level 3 rather than capturing.
 - `auto` -- the full ladder.
 
-When mode is `standalone` and no screenshot was supplied and automatic capture found no
-tooling, make the offer **once** before falling to level 3, with `AskUserQuestion`:
+When mode is `standalone`, level 1 produced no image, and either automatic capture found
+no tooling or `capture_preference` is `manual`, make the offer **once** before falling to
+level 3, with `AskUserQuestion`:
 
 > No capture tooling resolved. A screenshot would turn this into a measured comparison
 > instead of a spec read.
@@ -138,9 +154,42 @@ Buttons: `["Verify against the spec by reading the code", "I'll supply a screens
 
 When mode is `build`, skip that question and fall through silently.
 
-### Per-target capture commands
+### Resolve the target once per run
 
-Resolve the target **once per run**, not per node.
+Resolve the target once, before the first capture, never per node. Detect the project
+type from its manifest, then take the first live target in that type's order:
+
+| Manifest at the project root | Project type | Target order |
+|------------------------------|--------------|--------------|
+| `pubspec.yaml` | Flutter | the device named by `flutter devices --machine`, then that device's platform row below |
+| `*.xcodeproj`, `*.xcworkspace`, or `Package.swift` | iOS | iOS simulator, then physical iOS device |
+| `build.gradle` or `build.gradle.kts` declaring an Android plugin | Android | Android emulator or device |
+| `package.json` naming `next`, `react`, `vue`, `svelte`, or `vite` | Web | Web |
+
+Then resolve the tie:
+
+- **One live target:** use it.
+- **Several live** -- a booted simulator and an attached phone, or `flutter devices
+  --machine` returning more than one entry. In `standalone` mode ask with
+  `AskUserQuestion`, one button per live target. In `build` mode never ask: take the
+  first live target in the order above and name the choice in the report's
+  `capture_method`.
+- **No manifest matches:** walk the four command rows below top to bottom and take the
+  first target whose absence probe reports something live.
+
+An Android capture compared against an iOS-frame export produces a deviation on every
+row, so the resolved target is recorded in the report rather than left implicit.
+
+### Where captures land
+
+Every capture command writes to `<screenshot_dir>/actual/<task-id>.png`, with `<task-id>`
+resolved exactly as Phase 6 resolves it. Create `<screenshot_dir>/actual/` with `mkdir -p`
+before the first capture: `adb ... > <path>` fails on a missing parent directory, and the
+failure reads as a device problem.
+
+In the commands below, `<path>` is that file.
+
+### Per-target capture commands
 
 | Target | Capture command | Absence probe |
 |--------|-----------------|---------------|
@@ -215,30 +264,67 @@ against the larger, pads with virtual pixels, and returns a plausible-looking nu
 silently includes the padded region. An unnormalized comparison produces a wrong answer
 that looks like a right one.
 
-1. **Compute the common logical width.** Take the reference width from the plan's
-   `figma_frame_size` and the capture's logical size from the device. When
-   `figma_frame_size` is absent, skip normalization entirely and mark the report low
-   confidence -- do not guess a frame size.
-2. **Scale-only difference** (same aspect ratio, different pixel dimensions):
+**The two sides do not start from the same origin, and each needs its own normalization.**
+
+- **The reference PNG is node-clipped.** `/design` exports it with `clip: true` at
+  `screenshot_scale`, so the file holds the node's own box at that scale -- not the frame.
+  Its logical size is the node's `Box:` width and height.
+- **A device capture is the whole screen** at the device's pixel ratio. Its logical size
+  is the frame, not the node.
+
+Intermediates land beside the capture: `<screenshot_dir>/actual/<task-id>-ref.png`,
+`-norm.png`, and `-crop.png`.
+
+1. **Normalize the reference to the node's logical box.** Take `w` and `h` from the node
+   spec's `Box:` line. The reference is that box at `screenshot_scale`, so this is a
+   scale-only resize and the aspect ratio already matches:
    ```
-   magick <in.png> -resize 'WxH!' <out.png>
+   magick <reference.png> -resize '<w>x<h>!' <ref.png>
    ```
    The `!` is required; without it ImageMagick preserves aspect ratio and the output does
-   not land on the requested size.
-3. **Aspect-ratio difference** (a taller device than the Figma frame):
+   not land on the requested size. **Never resize the reference to `figma_frame_size`.**
+   It is not a frame image. Stretching a node crop to frame dimensions, then cropping it
+   again at the node's absolute coordinates, reads a region that lies outside the original
+   node entirely -- every delta downstream is a geometry artifact, and the fix loop then
+   edits working code to chase it.
+2. **Normalize the capture to the frame's logical size**, from `figma_frame_size`. When
+   `figma_frame_size` is absent, skip normalization entirely and mark the report low
+   confidence -- do not guess a frame size.
+   - **Scale-only difference** (same aspect ratio, different pixel dimensions):
+     ```
+     magick <capture.png> -resize 'WxH!' <norm.png>
+     ```
+   - **Aspect-ratio difference** (a taller device than the Figma frame):
+     ```
+     magick <capture.png> -background none -gravity NorthWest -extent WxH <norm.png>
+     ```
+     Pad, do not resize. `-resize` across differing aspect ratios stretches the image and
+     shifts every element, so every measured delta afterwards is wrong. Gravity must be
+     `NorthWest`: `Center` shifts content by half the size delta on both axes, which
+     silently invalidates every anchor measurement.
+3. **Crop the normalized capture to the node's box**, in logical px, from the same `Box:`
+   line -- absolute `x`, `y`, `w`, `h`:
    ```
-   magick <in.png> -background none -gravity NorthWest -extent WxH <out.png>
+   magick <norm.png> -crop '<w>x<h>+<x>+<y>' +repage <crop.png>
    ```
-   Pad, do not resize. `-resize` across differing aspect ratios stretches the image and
-   shifts every element, so every measured delta afterwards is wrong. Gravity must be
-   `NorthWest`: `Center` shifts content by half the size delta on both axes, which
-   silently invalidates every anchor measurement.
-4. **Crop both images to the node's bounding box** in logical px, from the node spec's
-   `Box:` line.
+   `+repage` is required; without it the crop keeps the original canvas geometry and every
+   later `identify` reports the frame size instead of the crop.
+   **The reference is never cropped.** It is already the node.
+4. **Confirm both sides ended up the same size** before comparing:
+   ```
+   magick identify -format '%wx%h ' <ref.png> <crop.png>
+   ```
+   Two different sizes mean the crop coordinates or the frame size are wrong. Say which,
+   mark the report low confidence, and do not compare anyway -- a mismatch here is exactly
+   the padded-comparison failure this phase exists to prevent.
 
-Without ImageMagick, do the equivalent reasoning structurally: state the reference size,
-the capture size, and the scale factor between them in the report, and treat every
-measurement you read off the image as relative to that factor.
+A capture that is already node-scoped -- a Playwright element screenshot taken with
+`element` and `target` -- skips steps 2 and 3 and resizes straight to the node's logical
+box, like the reference.
+
+Without ImageMagick, do the equivalent reasoning structurally: state the node box, the
+reference size, the capture size, and the scale factor between them in the report, and
+treat every measurement you read off the image as relative to that factor.
 
 ## Phase 5 -- Compare
 
@@ -271,7 +357,7 @@ magick -list metric
 ### Run the comparison
 
 ```
-magick compare -metric PDC -fuzz 5% -alpha off <a.png> <b.png> null: 2>&1
+magick compare -metric PDC -fuzz 5% -alpha off <ref.png> <crop.png> null: 2>&1
 ```
 
 Four facts about this command, each of which changes the result if ignored:
@@ -293,6 +379,33 @@ question this skill is not asking.
 
 Without ImageMagick, read the two normalized crops structurally against the spec and mark
 the report's comparison path `structural`.
+
+### From the metric to the measurements
+
+**The metric is a screening number, not a measurement.** It answers one question -- does
+this node's crop differ from its reference at all, and across how many pixels -- and it
+cannot answer any of the questions in the check order below. A pixel count carries no box
+height and no font size. Record it in the report as `diff_pixels` and use it only as the
+gate:
+
+- **`diff_pixels` is 0**, or `magick compare` exited 0 (everything within `-fuzz`): the
+  node matches. Write a report with an empty deviation table and stop. Do not measure
+  fields.
+- **`diff_pixels` is greater than 0**: run the check order, and fill each `Measured` cell
+  from the source named below. Never fill a `Measured` cell from `diff_pixels` -- it is
+  one number for the whole node and cannot be divided across rows.
+
+Each field group has exactly one measurement source:
+
+| Field group | Measured from | How |
+|-------------|---------------|-----|
+| `box.width`, `box.height` | the normalized capture crop | `magick <crop.png> -alpha off -fuzz 5% -trim -format '%wx%h' info:` -- the trimmed content size, already in logical px |
+| `anchor.x`, `anchor.y` | the crop's content within the crop box | trim as above with `-format '%wx%h%O'`; `%O` gives the trimmed content's offset inside the crop, and the node's measured center is that offset plus half the trimmed size, plus the crop's own `x`/`y` |
+| `spacing` | the normalized capture crop | measure the gap between two adjacent trimmed child regions in the crop, in logical px |
+| `typography`, `paint` | the implementation source | no pixel operation returns a font weight, a token name, or a radius value. Read the code the build wrote against the spec line, and mark these rows `source: code` in the report |
+
+The 2px tolerance below applies to these per-field deltas. It never applies to
+`diff_pixels`, which is a count, not a distance.
 
 ### Check order
 
@@ -324,7 +437,8 @@ Write to `<screenshot_dir>/verify/<task-id>.md`, where `<task-id>` is:
 - the `--task` value when mode is `build`,
 - the node ID (with `:` replaced by `-`) when mode is `standalone`.
 
-Create the `verify/` directory if it does not exist.
+Create `<screenshot_dir>/verify/` if it does not exist. (`<screenshot_dir>/actual/` was
+already created in Phase 3, before the first capture.)
 
 Fixed report shape -- identical in both modes, so a human reading a standalone report and
 `/design-build` reading a composed one see the same file:
@@ -338,6 +452,7 @@ capture_method: ios-simulator | android-adb | ios-device | web-playwright | supp
 comparison_path: imagemagick-pdc | imagemagick-ae | structural | spec-check
 confidence: high | low
 normalized: true | false
+diff_pixels: 18432 | none
 created: YYYY-MM-DD HH:MM:SS
 ---
 
@@ -345,15 +460,16 @@ created: YYYY-MM-DD HH:MM:SS
 
 Reference: .claude/plans/assets/wallet/4029-12345.png
 Capture:   .claude/plans/assets/wallet/actual/3.png
-Normalized to: 375x812 logical px (reference 375x812, capture 1179x2556 at 3x)
+Normalized to: 327x48 logical px, the node box
+  (reference 654x96 at 2x, capture 1179x2556 at 3x -> frame 375x812 -> crop +24+320)
 
 ## Deviations
 
-| Field | Expected | Measured | Delta |
-|-------|----------|----------|-------|
-| anchor.y | centered in Body content box (376) | 402 | +26 px |
-| box.height | 48 | 56 | +8 px |
-| typography.size | 16 | 14 | -2 px |
+| Field | Expected | Measured | Delta | Source |
+|-------|----------|----------|-------|--------|
+| anchor.y | centered in Body content box (376) | 402 | +26 px | crop |
+| box.height | 48 | 56 | +8 px | crop |
+| typography.size | 16 | 14 | -2 px | code |
 
 ## Notes
 
@@ -364,12 +480,22 @@ Rules for the report:
 
 - **Every delta is stated in logical px**, computed after normalization. A delta measured
   on unnormalized images is not a delta, it is a scale artifact.
+- **Every row names its `Source`** -- `crop` for a value read off the normalized crop,
+  `code` for a value read from the implementation. A row with no source is a guess.
+- **`diff_pixels` records the screening metric**, or `none` when no metric ran. It is
+  never a `Measured` value.
 - **`confidence: low`** whenever normalization was skipped, the comparison path is
-  `spec-check`, or `figma_frame_size` was absent.
+  `spec-check` or `structural`, `figma_frame_size` was absent, or the two normalized
+  sides did not end up the same size.
 - **A clean run still writes a report.** Zero deviations produces the same file with an
   empty deviation table and a line saying so. An absent report file therefore means
   exactly one thing: the verify step did not run. Nothing else may be inferred from a
   missing file.
+- **An empty table is not by itself a pass.** "Measured and matched" and "never measured"
+  both produce an empty table, and the frontmatter is what separates them: a pass carries
+  `comparison_path: imagemagick-*` with `confidence: high`, while an unmeasured run
+  carries `spec-check` or `structural`, or `confidence: low`, and lists every skipped node
+  under `## Notes` with its reason. Readers key on those fields, never on the row count.
 - **Read the file back after writing it** and confirm it exists (rule L3 in
   `.claude/rules/skill-rules.md`). A silent write failure would read downstream as "verify
   did not run", which is the wrong conclusion.
@@ -401,6 +527,17 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
   measurements and `screenshot_dir` carries the reference images.
 - **Don't** measure before normalizing. A dimension mismatch does not error -- it pads and
   returns a wrong number that looks right.
+- **Don't** resize the reference PNG to `figma_frame_size` or crop it by the node's
+  absolute box. It is exported node-clipped, so it is already the node.
+- **Don't** fill a `Measured` cell from the comparison metric. It is one count for the
+  whole node; per-field values come from the crop or from the code.
+- **Don't** run a capture command without resolving `<path>` first. Every capture lands at
+  `<screenshot_dir>/actual/<task-id>.png`, under a directory created with `mkdir -p`.
+- **Don't** let `capture_preference` override an explicit `--screenshot`. A typed path
+  outranks a stored preference.
+- **Don't** capture from whichever target answers first when several are live. Resolve the
+  target from the project manifest, then ask (standalone) or take the ordered first
+  (build).
 - **Don't** treat `magick compare` exit code 1 as a failure. It means the images differ,
   which is the entire point of running it.
 - **Don't** use `-metric AE` without probing `magick -list metric` for `PDC` first. On
@@ -433,11 +570,17 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 2. A plan with `### Node Specs` but no `design_source` is accepted and verified.
 3. A file with no `### Node Specs` section is rejected with a message; nothing is written.
 4. A plan missing all five new frontmatter fields loads on the documented defaults.
-5. `--screenshot <path>` is used directly; no capture is attempted.
-6. With `capture_preference: skip`, no capture command runs at all and the report's
-   comparison path is `spec-check`.
-7. With `capture_preference: manual` and no supplied path, the run falls to the spec read
-   rather than capturing.
+5. `--screenshot <path>` is used directly; no capture is attempted. It is used even when
+   the plan carries `capture_preference: skip`.
+6. With `capture_preference: skip` and no `--screenshot`, no capture command runs at all
+   and the report's comparison path is `spec-check`.
+7. With `capture_preference: manual`, a file already at
+   `<screenshot_dir>/actual/<task-id>.png` is used in both modes with no question asked.
+   With no such file and no supplied path, the run prints the drop-here line once and
+   falls to the spec read rather than capturing.
+7b. With a booted iOS simulator and an attached Android device both live, `standalone`
+    asks which to use and `build` takes the manifest-ordered first, recording it as
+    `capture_method`.
 8. With no capture tooling installed, each absent tool prints exactly one install line and
    the run reaches a written report.
 9. An iOS simulator capture succeeds with no `xc-interact` MCP configured.
@@ -446,10 +589,18 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 11. `--mode standalone` makes the manual-screenshot offer once; `--mode build` never does.
 12. Normalization runs before any measurement, and every delta in the report is in
     logical px.
+12b. The reference is resized to the node's `Box:` size and never cropped; the capture is
+     resized to `figma_frame_size` and then cropped at the node's absolute box. Both
+     sides `identify` to the same size before the comparison runs.
 13. `PDC` is selected when `magick -list metric` lists it; `AE` only when it does not.
 14. `magick compare` exit code 1 produces deviations, never an error.
-15. A run with zero deviations still writes a report file.
+14b. `diff_pixels` appears in the report frontmatter, and no `Measured` cell repeats it.
+     Every deviation row carries a `Source` of `crop` or `code`.
+15. A run with zero deviations still writes a report file, with
+    `comparison_path: imagemagick-*` and `confidence: high` when it was actually measured.
 16. The report is read back after writing and its path is printed.
+17. Captures and their intermediates land under `<screenshot_dir>/actual/`, which is
+    created before the first capture runs.
 
 **Verification checklist:**
 - [ ] `/design-verify` and `/quiver:design-verify` both appear in the slash menu after plugin reload.
@@ -458,6 +609,9 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] The plan frontmatter fence is not reproduced anywhere in this file.
 - [ ] Every field this skill reads is listed with its default when absent.
 - [ ] No capture probe appears inside a `` !`...` `` block.
+- [ ] Every capture command's `<path>` resolves to `<screenshot_dir>/actual/<task-id>.png`.
+- [ ] The reference normalization targets the node box, never `figma_frame_size`.
+- [ ] Every field group in the check order has a named measurement source.
 - [ ] No figma-bridge tool is called anywhere in this file.
 - [ ] The report is written in both modes and in every comparison path.
 - [ ] `when-to-use:` is a single-line double-quoted string.
@@ -477,6 +631,11 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - `-gravity Center` on `-extent` shifts content by half the size delta on both axes. Every
   anchor measurement taken afterwards is off by that amount, and the images still look
   correct side by side.
+- The reference PNG is node-clipped, not a frame render. Treating it as a frame -- resize
+  to `figma_frame_size`, then crop at the node's absolute coordinates -- reads a region
+  outside the node, and the resulting deltas look like real design drift.
+- `-crop` without `+repage` leaves the original canvas geometry attached. The file looks
+  cropped in a viewer while `identify` still reports the frame size.
 - `idevicescreenshot` still exists and still runs on iOS 17+; it just never returns an
   image. An empty output file, not an error, is the symptom.
 - `adb shell screencap -p` writes a file that opens in some viewers and fails in others,

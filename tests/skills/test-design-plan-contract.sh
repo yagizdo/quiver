@@ -8,12 +8,15 @@
 # Every contract in this repo that a consumer restated has drifted. This test fails
 # mechanically when a field moves, a fence is duplicated, or a default goes undocumented.
 #
+# Every assertion reads a skill file. None writes a fixture and greps it with a rule
+# hardcoded here -- that form passes whatever the skills say, which is the opposite of a
+# drift guard.
+#
 # Run directly: bash tests/skills/test-design-plan-contract.sh
 
 set -u
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-TEST_DIR="/tmp/quiver-design-contract-test"
 EXIT=0
 
 DESIGN="$REPO_ROOT/skills/design/SKILL.md"
@@ -26,8 +29,9 @@ pass() { echo "  PASS: $1"; }
 fail() { echo "  FAIL: $1"; EXIT=1; }
 
 # assert_in <file> <pattern> <label>
+# The -- guards patterns that start with a dash, such as the --mode build flag.
 assert_in() {
-  if grep -q "$2" "$1"; then
+  if grep -q -- "$2" "$1"; then
     pass "$3"
   else
     fail "$3"
@@ -36,7 +40,7 @@ assert_in() {
 
 # assert_not_in <file> <pattern> <label>
 assert_not_in() {
-  if grep -q "$2" "$1"; then
+  if grep -q -- "$2" "$1"; then
     fail "$3"
   else
     pass "$3"
@@ -60,127 +64,29 @@ if [ $EXIT -ne 0 ]; then
   exit $EXIT
 fi
 
-# --- Fixtures ---
-
-rm -rf "$TEST_DIR"
-mkdir -p "$TEST_DIR"
-
-# A plan carrying the full current frontmatter.
-cat > "$TEST_DIR/current-design-plan.md" << 'PLAN'
----
-name: wallet-design-plan
-design_source: figma-bridge
-figma_file_key: abc123
-figma_file_name: Wallet
-figma_node_ids: ["4029:12345"]
-figma_frame_size: 375x812
-screenshot_dir: .claude/plans/assets/wallet/
-screenshot_scale: 2
-stack: Dart, Flutter 3.24
-commit_strategy: none
-verify_gate: test
-capture_preference: auto
-created: 2026-08-17
----
-
-### Node Specs
-
-#### WalletCard (`4029:12345`)
-
-- Type: FRAME
-- Box: absolute x 24 y 320 w 327 h 48
-- Fit: width fill, height fixed 48
-- Content: "Continue" -- i18n key `wallet.continue`
-- Route: /wallet
-PLAN
-
-# A plan written before the fidelity fields existed (commit c514685 shape).
-cat > "$TEST_DIR/legacy-design-plan.md" << 'PLAN'
----
-name: wallet-design-plan
-design_source: figma-bridge
-figma_file_key: abc123
-figma_file_name: Wallet
-figma_node_ids: ["4029:12345"]
-screenshot_dir: .claude/plans/assets/wallet/
-stack: Dart, Flutter 3.24
-created: 2026-08-16
----
-
-### Node Specs
-
-#### WalletCard (`4029:12345`)
-
-- Type: FRAME
-- Box: absolute x 24 y 320 w 327 h 48
-PLAN
-
-# A hand-written measurement spec with no Figma provenance at all.
-cat > "$TEST_DIR/handwritten-spec.md" << 'PLAN'
----
-name: handwritten-spec
-created: 2026-08-17
----
-
-### Node Specs
-
-#### LoginButton (`manual-1`)
-
-- Type: BUTTON
-- Box: absolute x 16 y 600 w 343 h 52
-PLAN
-
-# A file that is not a measurement spec.
-cat > "$TEST_DIR/not-a-spec.md" << 'PLAN'
----
-name: some-other-plan
----
-
-## Steps
-- [ ] Step 1
-PLAN
-
-# --- Assertion 1: both consumers accept a current plan ---
+# --- Assertion 1: each consumer's validation rule is declared where it is applied ---
 #
-# /design-build documents: design_source: figma-bridge AND a ### Node Specs section.
-# /design-verify documents: a ### Node Specs section, and nothing else.
+# These read the skill files. Writing a fixture here and grepping it with a rule this
+# test hardcodes proves only that grep works: the rule can change in the skill and the
+# fixture assertion still passes.
 
 echo ""
-echo "=== 1. Current plan accepted by both consumers ==="
+echo "=== 1. Consumer validation rules ==="
 
-CUR="$TEST_DIR/current-design-plan.md"
+assert_in "$BUILD" 'design_source: figma-bridge` in frontmatter and a `### Node Specs` section' \
+  "/design-build requires design_source and a Node Specs section"
+assert_in "$VERIFY" 'Validate on `### Node Specs` and nothing else' \
+  "/design-verify validates on the Node Specs section only"
+assert_in "$VERIFY" 'this skill never requires' \
+  "/design-verify states it never requires Figma provenance"
 
-if grep -q "^design_source: figma-bridge" "$CUR" && grep -q "^### Node Specs" "$CUR"; then
-  pass "current plan satisfies /design-build validation"
-else
-  fail "current plan satisfies /design-build validation"
-fi
-
-if grep -q "^### Node Specs" "$CUR"; then
-  pass "current plan satisfies /design-verify validation"
-else
-  fail "current plan satisfies /design-verify validation"
-fi
-
-# --- Assertion 2: the legacy plan is still accepted, and every absent field
-#     has a documented default in the skill that reads it ---
+# --- Assertion 2: every field a consumer reads has a documented default ---
+#
+# A plan written before a field existed still has to load. The default is what makes that
+# true, and it belongs in the skill that reads the field.
 
 echo ""
-echo "=== 2. Legacy plan accepted, absent-field defaults documented ==="
-
-LEG="$TEST_DIR/legacy-design-plan.md"
-
-if grep -q "^design_source: figma-bridge" "$LEG" && grep -q "^### Node Specs" "$LEG"; then
-  pass "legacy plan satisfies /design-build validation"
-else
-  fail "legacy plan satisfies /design-build validation"
-fi
-
-if grep -q "^### Node Specs" "$LEG"; then
-  pass "legacy plan satisfies /design-verify validation"
-else
-  fail "legacy plan satisfies /design-verify validation"
-fi
+echo "=== 2. Absent-field defaults documented ==="
 
 # Every field a consumer reads must appear in that consumer's defaults table,
 # which is the row form: | `field` | ... | default |
@@ -193,30 +99,35 @@ assert_in "$VERIFY" '`screenshot_scale` |' "/design-verify documents a default f
 assert_in "$VERIFY" '`screenshot_dir` |' "/design-verify documents a default for screenshot_dir"
 assert_in "$VERIFY" '`capture_preference` |' "/design-verify documents a default for capture_preference"
 
-# --- Assertion 2b: /design-verify validates on Node Specs only ---
+# --- Assertion 2b: the strings restated across the producer/consumer handshake ---
+#
+# These are the only strings in the contract written in one file and read in another.
+# Nothing else in the repo declares them, so a rename on either side is silent: every
+# build-loop verification degrades to the unverified branch while this suite still prints
+# "All tests passed". Frontmatter fields, by contrast, are each declared once.
 
 echo ""
-echo "=== 2b. /design-verify accepts a spec with no Figma provenance ==="
+echo "=== 2b. Restated handshake strings ==="
 
-HAND="$TEST_DIR/handwritten-spec.md"
+assert_in "$VERIFY" '<screenshot_dir>/verify/<task-id>.md' "/design-verify writes the agreed report path"
+assert_in "$BUILD"  '<screenshot_dir>/verify/<task-id>.md' "/design-build reads the agreed report path"
+assert_in "$VERIFY" '<screenshot_dir>/actual/<task-id>.png' "/design-verify names the agreed capture path"
 
-if grep -q "^### Node Specs" "$HAND"; then
-  pass "hand-written spec satisfies /design-verify validation"
-else
-  fail "hand-written spec satisfies /design-verify validation"
-fi
+# The build-mode invocation, flag by flag.
+assert_in "$BUILD"  '--nodes' "/design-build passes --nodes"
+assert_in "$VERIFY" '--nodes' "/design-verify accepts --nodes"
+assert_in "$BUILD"  '--task' "/design-build passes --task"
+assert_in "$VERIFY" '--task' "/design-verify accepts --task"
+assert_in "$BUILD"  '--mode build' "/design-build passes --mode build"
+assert_in "$VERIFY" '--mode build' "/design-verify accepts --mode build"
+assert_in "$VERIFY" '--mode standalone' "/design-verify accepts --mode standalone"
 
-if grep -q "^design_source:" "$HAND"; then
-  fail "hand-written spec has no design_source (fixture is wrong)"
-else
-  pass "hand-written spec has no design_source, and is still valid input"
-fi
-
-if grep -q "^### Node Specs" "$TEST_DIR/not-a-spec.md"; then
-  fail "a non-spec file is rejected"
-else
-  pass "a non-spec file is rejected"
-fi
+# Report frontmatter fields the build loop reads to tell "measured and matched" from
+# "never measured". Without these an empty deviation table reads as a pass.
+for field in comparison_path confidence created; do
+  assert_in "$VERIFY" "$field" "/design-verify writes $field into the deviation report"
+  assert_in "$BUILD"  "$field" "/design-build reads $field from the deviation report"
+done
 
 # --- Assertion 3: each new field is named in exactly the skills that own it,
 #     and the schema fence lives in the producer only ---
@@ -327,10 +238,6 @@ for f in "$DESIGN" "$BUILD" "$VERIFY"; do
     fail "Test Plan missing in ${f#$REPO_ROOT/}"
   fi
 done
-
-# --- Cleanup ---
-
-rm -rf "$TEST_DIR"
 
 echo ""
 echo "================================"

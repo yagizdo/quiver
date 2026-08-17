@@ -77,7 +77,17 @@ an older plan predates the question being asked, so the user never consented to 
 
 Skip entirely if `NO_GIT`.
 
-If the current branch is the default branch (`master` or `main`), create a feature branch named `design/<slug>` from the plan's slug. Otherwise stay on the current branch.
+If the current branch is not the default branch (`master` or `main`), stay on it. Nothing below runs.
+
+On the default branch, resolve `design/<slug>` from the plan's slug, then check two things before touching it:
+
+1. **Uncommitted work.** The third gather-context block already holds `git status --short`. If it is non-empty, do not switch branches -- a checkout carries those changes onto the new branch or fails outright. Stay put and print:
+   `> Uncommitted changes present -- building on {current branch} instead of creating design/<slug>.`
+2. **The branch already exists.** Run `git rev-parse --verify design/<slug>` with the Bash tool. A re-run of the same plan hits this every time, and `git checkout -b` aborts on it.
+   - Exists: `git checkout design/<slug>` and print `> Continuing on existing branch design/<slug>.`
+   - Does not exist: `git checkout -b design/<slug>`.
+
+Read `git branch --show-current` back afterwards and print the branch the build actually runs on. A silent checkout failure otherwise puts the whole run on the default branch.
 
 ## Phase 3 -- Build Loop
 
@@ -110,15 +120,34 @@ Follow the plan's File Map. Do not create files the plan does not list.
 
 This skill does not capture and does not compare. It delegates, then reads a file.
 
-1. Invoke the `design-verify` skill with the plan path, this task's node IDs, this task's
+1. **Note the report's current state.** Read `<screenshot_dir>/verify/<task-id>.md` if it
+   exists and keep its `created:` value. Absent is a state too -- record that instead.
+2. Invoke the `design-verify` skill with the plan path, this task's node IDs, this task's
    ID, and mode `build`:
    `/design-verify <plan path> --nodes <this task's node IDs> --task <task id> --mode build`
-2. Read `<screenshot_dir>/verify/<task-id>.md`.
+3. Re-read `<screenshot_dir>/verify/<task-id>.md`.
 
-**An absent report file means the verify step did not run.** That is the only thing it
-means -- a clean verification still writes a report. Treat the task as `spec-check`,
-record that verification did not run, and continue to 3d. Do not loop, do not re-invoke,
-and do not infer that the task passed.
+**The report path is fixed per task, so the file's existence proves nothing on a re-run.**
+A verify that aborts before writing -- a shut-down simulator, a bad plan path, a denied
+permission -- leaves the previous attempt's report exactly where the new one would go.
+Compare `created:` against the value noted in step 1. Unchanged, or still absent, means
+this attempt's verification did not run: treat the task as `unverified`, record that, and
+continue to 3d. Do not loop, do not re-invoke, and do not read the stale deviations as
+current -- doing so spends the retry budget re-fixing a delta that was already fixed.
+
+**Classify the report before acting on it.** Deviation rows are not the only signal:
+
+| Report state | Status |
+|--------------|--------|
+| deviation rows present | go to 3c |
+| empty table, `comparison_path: imagemagick-*`, `confidence: high` | `matched` -- go to 3d |
+| empty table, any other `comparison_path`, `confidence: low`, or nodes listed as skipped under `## Notes` | `unverified` -- record the reason from the report, go to 3d |
+| `created:` unchanged, or the file is absent | `unverified` (verification did not run) -- go to 3d |
+
+**An empty deviation table is not by itself a pass.** `spec-check` means nothing was
+compared, `confidence: low` means the comparison could not be trusted, and a node under
+`## Notes` was never captured at all. Every one of those produces an empty table, and
+reporting any of them as `matched` claims a fidelity measurement that never happened.
 
 All capture resolution, image normalization, metric selection, check order, and tolerance
 live in `/design-verify`. They are not restated here, and this skill does not second-guess
@@ -126,9 +155,11 @@ them.
 
 ### 3c -- Fix, Bounded
 
-If the report lists no deviations, go to 3d.
+There are two ways in: 3b classified the report as carrying deviation rows, or 3d's gate
+failed and handed its output here as the deviation. `matched` and `unverified` never
+enter -- both go straight to 3d.
 
-Otherwise fix the largest delta in the report's deviation table first, then re-run 3b --
+Fix the largest delta in the report's deviation table first, then re-run 3b --
 re-invoke `design-verify` and re-read the report. **Three attempts maximum per task**,
 counting the initial implementation as attempt one.
 
@@ -139,10 +170,12 @@ After the third attempt still leaves deviations, **stop and ask**. Do not keep l
 
 Buttons: `["Accept as-is -- note it and move on", "I'll describe the fix", "Try 3 more attempts", "Skip this task"]`
 
-- **Accept as-is:** record the remaining deviations in the final summary and continue to 3d.
+- **Accept as-is:** record the remaining deviations in the final summary and continue to 3d. When this loop was entered from a gate failure, 3d does not re-run the gate -- see the gate budget below.
 - **I'll describe the fix:** take the user's description, apply it, re-run 3b once, then continue to 3d regardless of the result.
 - **Try 3 more attempts:** reset the counter and return to the top of 3c. This is the only way the budget grows -- it is never extended automatically.
-- **Skip this task:** revert this task's changes, mark it skipped, continue to the next task.
+- **Skip this task:** undo what this task wrote, mark it skipped, continue to the next task. Undo has one mechanism per environment, and none of them is `git revert` -- under the default `commit_strategy: none` there is no commit to revert:
+  - **Git available:** `git restore -- <files this task modified>` for tracked files, then delete the files this task created. Take that file list from 3a's own record of what it wrote, never from `git status` -- an earlier task's uncommitted work sits in the same tree and is not this task's to undo.
+  - **`NO_GIT`, or any file this task shares with an earlier task:** undo nothing. Leave the code in place, mark the task `skipped (changes left in place)`, and name those files in the Phase 4 summary. Hand-unpicking interleaved edits is worse than the half-built state, and there is no restore point to fall back to.
 
 ### 3d -- Gate, then Commit
 
@@ -152,9 +185,18 @@ Buttons: `["Accept as-is -- note it and move on", "I'll describe the fix", "Try 
 - `test` -- run the project's test command.
 - `none` (the default) -- no gate; go straight to the commit policy.
 
-A failing gate **blocks the commit**. Feed the failure output back into 3c as a
-deviation and re-enter the fix loop under the same 3-attempt budget. Never commit past a
-failing gate, and never commit a task the gate has not cleared.
+**The gate runs at most twice per task.** Run it; on a failure, feed the failure output
+back into 3c as a deviation and re-enter the fix loop under the same 3-attempt budget;
+then run it one final time. That second run is the last for this task whatever it returns.
+
+Record the outcome as this task's **gate verdict**, `cleared` or `failed`. Everything
+downstream reads the verdict; the gate itself never runs a third time.
+
+3c's "Accept as-is" returns here with the verdict already `failed`. **Do not re-run the
+gate on that path** -- re-running it re-enters 3c, which returns here, which re-runs it.
+The 3-attempt budget bounds 3c's internal loop, not the 3c-to-3d cycle, so a gate failing
+for a reason this task cannot fix (a pre-existing compile error elsewhere) would otherwise
+have no exit but "Skip this task".
 
 **Commit policy.** Read `commit_strategy` from the plan frontmatter. The user chose this
 at plan time, so nothing here asks again.
@@ -162,25 +204,36 @@ at plan time, so nothing here asks again.
 - `none` (the default) -- write no commit. Say so once, on the first task:
   `> commit_strategy: none -- changes stay in the working tree.` Do not repeat it per
   task.
-- `per-task` -- skip if `NO_GIT`. Stage only the files this task touched. Never
-  `git add .`. Never stage the plan or anything under `screenshot_dir`. Commit with a
-  Conventional Commits message scoped to the task, for example
+- `per-task` -- skip if `NO_GIT`. Skip when this task's gate verdict is `failed`, and say
+  which task and why. Otherwise stage only the files this task touched. Never `git add .`.
+  Never stage the plan or anything under `screenshot_dir`. Commit with a Conventional
+  Commits message scoped to the task, for example
   `feat(wallet): add balance card matching design spec`. No push. No AI attribution.
 - `single` -- accumulate. Commit nothing here; after the last task, make one commit
   covering every file the run touched, with a Conventional Commits message scoped to the
   plan. Same staging rules, same exclusions, no push, no AI attribution.
+  **Enforce the gate verdicts at that point.** Under `single` there is no per-task commit
+  for a failing gate to block, so a task the gate rejected would otherwise ride into the
+  final commit alongside the cleared ones. If any task's verdict is `failed`, write no
+  commit at all: print each failed task with its gate output and leave everything in the
+  working tree. Splitting the commit is not an option -- a later task builds on an earlier
+  one's files, so the cleared subset is not independently committable.
 
 ## Phase 4 -- Summary and Handoff
 
 Print a table:
 
-| Task | Status | Fidelity |
-|------|--------|----------|
-| 1 | done | matched |
-| 2 | done | 2 deviations accepted |
-| 3 | skipped | -- |
+| Task | Status | Fidelity | Gate |
+|------|--------|----------|------|
+| 1 | done | matched | cleared |
+| 2 | done | 2 deviations accepted | cleared |
+| 3 | done | unverified (spec-check, no capture tooling) | failed |
+| 4 | skipped (changes left in place) | -- | -- |
 
-Then list every accepted deviation with its measured delta and the file it lives in, so the user can decide later whether to revisit. Name the deviation report path for each task, so the measurements stay reachable after this run ends.
+`matched` means a measured comparison found no deviations. Anything 3b classified as
+`unverified` prints as `unverified` with the reason from the report -- never as `matched`.
+
+Then list every accepted deviation with its measured delta and the file it lives in, so the user can decide later whether to revisit. Name the deviation report path for each task, so the measurements stay reachable after this run ends. Name every task whose changes were left in place after a skip.
 
 Print the branch name and the commit count.
 
@@ -207,14 +260,18 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** capture or compare here. 3b delegates to `/design-verify` and reads its report.
 - **Don't** restate `/design-verify`'s capture commands, tolerance, or check order. One copy, in one file.
 - **Don't** treat an absent deviation report as a pass. A clean verification still writes a report.
+- **Don't** treat an empty deviation table as a pass either. Read `comparison_path` and `confidence` first.
+- **Don't** trust a report at the task's path without checking `created:` against the value noted before the invocation. The path is fixed, so a stale report sits exactly where a fresh one would.
 - **Don't** loop the fix cycle without a bound. Three attempts, then ask.
+- **Don't** re-run the gate after "Accept as-is". That is the 3c-to-3d cycle the attempt budget does not bound.
 - **Don't** extend the retry budget on your own. Only the user's "Try 3 more attempts" resets it.
 - **Don't** replace a precedent mechanism with a simpler one because it compiles. The precedent is in the plan because the simple version is what looks wrong.
 - **Don't** center at page level when a Reconciliation line names a chrome-excluded region.
 - **Don't** write a `fill` axis as the literal `Box:` number.
 - **Don't** adjust the plan's numbers to match what the code happens to produce. Fix the code.
 - **Don't** commit when `commit_strategy` is absent or `none`. Absence means the user was never asked.
-- **Don't** commit past a failing verification gate.
+- **Don't** commit past a failing verification gate. Under `single` that means withholding the whole accumulate commit, not skipping one task's files.
+- **Don't** answer "Skip this task" with `git revert`. The default strategy writes no commit, so there is nothing to revert.
 - **Don't** stage the plan file or the screenshot assets.
 - **Don't** restate the plan frontmatter schema. `skills/design/SKILL.md` Step 9 declares it; this file lists only the fields it reads.
 
@@ -237,14 +294,17 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 5. A node with a `Fit:` axis of `fill` is implemented with the framework's fill mechanism, not the `Box:` literal.
 6. A node with a `Content:` line carrying an i18n key produces that key, never invented copy.
 7. 3b invokes `/design-verify` with mode `build` and reads `<screenshot_dir>/verify/<task-id>.md`. No capture command runs in this skill.
-8. An absent deviation report is recorded as `spec-check` and does not loop or read as a pass.
+8. An absent deviation report is recorded as `unverified` and does not loop or read as a pass. A report whose `created:` is unchanged after the invocation is recorded the same way, and its stale deviations are not re-fixed.
+8b. A report with an empty deviation table and `comparison_path: spec-check` (or `confidence: low`, or a node listed under `## Notes`) is recorded as `unverified`, never `matched`.
+8c. On the default branch with an existing `design/<slug>`, the run checks that branch out instead of failing at `git checkout -b`. With a dirty working tree it stays on the current branch and says so.
 9. A node with a `Reconciliation:` line and a precedent `file:line` causes that file range to be read before the positioning code is written.
 10. A node with a `Reconciliation:` line and `No precedent found` produces content constrained to the chrome-excluded region, with a comment naming what it centers within.
 11. After three failed attempts on one task, `AskUserQuestion` appears with the four options. The loop never continues silently.
 12. "Try 3 more attempts" resets the counter; nothing else does.
-13. `verify_gate: build` or `test` runs that command before the commit; a failure blocks the commit and re-enters 3c.
+13. `verify_gate: build` or `test` runs that command before the commit; a failure blocks the commit and re-enters 3c. The gate runs at most twice per task, and "Accept as-is" after a gate failure moves on instead of re-running it -- a permanently failing gate never loops.
 14. `commit_strategy: none` or absent writes no commit and says so exactly once.
-15. `commit_strategy: per-task` produces one commit per task; `single` produces exactly one commit after the last task. The plan and `screenshot_dir` are never staged.
+15. `commit_strategy: per-task` produces one commit per task, skipping any task whose gate verdict is `failed`; `single` produces exactly one commit after the last task, and none at all if any task's gate failed. The plan and `screenshot_dir` are never staged.
+15b. "Skip this task" restores the modified files and deletes the created ones when git is available, and leaves them in place with a stated reason under `NO_GIT` or on files an earlier task also wrote.
 16. Phase 4 prints the status table, lists every accepted deviation with its delta and report path, and ends with the four-button handoff.
 
 **Verification checklist:**
@@ -255,6 +315,9 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] No screenshot binary or capture MCP server is named anywhere in this file.
 - [ ] The plan frontmatter fence is not reproduced; only the fields this skill reads are listed, each with a default.
 - [ ] The retry budget is capped at 3 and only the user can reset it.
+- [ ] The gate runs at most twice per task and never re-runs after "Accept as-is".
+- [ ] Report freshness is checked by `created:`, not by the file existing.
+- [ ] Every empty-table outcome is classified from `comparison_path` and `confidence`.
 - [ ] The bounded-retry prompt uses `AskUserQuestion`, not plain text.
 - [ ] No commit is written when `commit_strategy` is absent.
 - [ ] Commits stage task files only; no `git add .`; plan and assets excluded.
@@ -268,5 +331,6 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - The retry budget is a cross-file loop: 3c counts attempts here, but each attempt's measurement happens in `/design-verify`. The counter never lives in the report file -- it is this skill's state.
 - An absent deviation report and a report with zero deviations mean opposite things. `/design-verify` writes a report on every path precisely so the difference is unambiguous.
 - Deviation reports and captures land under `.claude/plans/assets/<slug>/`. If `.claude/` is gitignored they stay local, which is intended -- never stage them.
-- Reverting a skipped task's changes only removes what that task wrote. A task that a later task depends on cannot be cleanly skipped; when that happens, say so rather than leaving a half-built dependency.
+- Undoing a skipped task's changes only removes what that task wrote, and only when git can restore them. A task whose files an earlier task also touched cannot be cleanly skipped; when that happens, say so rather than hand-unpicking interleaved edits.
+- The verification report path is fixed per task, so a failed re-verify is invisible from the filesystem alone. `created:` is the only thing that separates this attempt's report from the last one's.
 - `commit_strategy: single` still has to skip when `NO_GIT`. The accumulate branch is easy to write as if git is always present.
