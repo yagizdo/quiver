@@ -2,6 +2,8 @@
 name: stress-tester
 description: "Constructs concrete failure scenarios by stressing assumptions, fracturing component interactions, and building cascade chains -- each finding is a narrative showing trigger, propagation, and failure state."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: high
 ---
 
 <examples>

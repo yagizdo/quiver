@@ -2,6 +2,8 @@
 name: code-tracer
 description: "Execution path investigator that traces call chains from entry point to failure point -- follows data flow across files to identify where behavior diverges from expectation."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

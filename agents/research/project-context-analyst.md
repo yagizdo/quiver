@@ -2,6 +2,8 @@
 name: project-context-analyst
 description: "Cross-references the diff against project memory, git history, and past decisions to surface institutional knowledge, churn patterns, and recurring issues that contextualize the review."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

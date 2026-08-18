@@ -2,6 +2,8 @@
 name: regression-finder
 description: "Git history detective that analyzes commit history to find when and where a bug was introduced -- narrows candidate commits through blame analysis and diff comparison."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

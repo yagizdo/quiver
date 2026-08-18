@@ -2,6 +2,8 @@
 name: log-analyzer
 description: "Log and error output specialist that parses log dumps, stack traces, and error messages to extract actionable patterns -- maps error output back to source code locations."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: low
 ---
 
 <examples>

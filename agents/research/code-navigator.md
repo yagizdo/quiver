@@ -2,6 +2,8 @@
 name: code-navigator
 description: "CodeGraph-first codebase explorer that maps files, symbols, and patterns relevant to a task. Uses codegraph semantic search when available, falls back to LSP then grep. Returns a structured file:role:pattern report."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

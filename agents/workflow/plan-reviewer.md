@@ -2,6 +2,8 @@
 name: plan-reviewer
 description: "Reviews implementation plans for logical coherence, dependency ordering, coverage completeness, and spec alignment."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

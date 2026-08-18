@@ -2,6 +2,8 @@
 name: test-reviewer
 description: "Evaluates whether tests actually prove code works by analyzing assertion strength, regression detection power, and risk-based coverage gaps -- asking 'would this test catch a real bug?' not just 'does a test exist?'"
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>
