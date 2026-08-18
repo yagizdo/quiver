@@ -1,6 +1,7 @@
 ---
 name: code-navigation
 description: "CodeGraph-first code navigation with LSP and grep fallback. Provides agents with a reusable strategy for semantic code exploration -- codegraph tools when available, LSP goToDefinition/findReferences/documentSymbol otherwise, grep as last resort."
+user-invocable: false
 ---
 
 # Code Navigation

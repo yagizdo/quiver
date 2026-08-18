@@ -235,7 +235,9 @@ At the start of every orchestration, scan all three agent directories using Glob
 2. **Project agents** -- `.claude/agents/*.md` in the project root
 3. **User agents** -- `~/.claude/agents/*.md`
 
-For each `.md` file, parse the YAML frontmatter to extract: `name`, `description`, `model`, and optional fields (`tools`, `skills`, `permissionMode`, `memory`).
+For each `.md` file, parse the YAML frontmatter to extract: `name`, `description`, `model`, and optional fields (`disallowedTools`, `effort`, `tools`, `skills`, `memory`).
+
+`disallowedTools` is resolved before `tools`, so an agent carrying both composes rather than conflicts; a tool listed in both is removed. Quiver agents set `disallowedTools` only -- see `.claude/rules/agent-capability-rules.md` CP3.
 
 Output:
 ```

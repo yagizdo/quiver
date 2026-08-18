@@ -24,6 +24,8 @@ Non-negotiable. Every agent file must satisfy all of these, and the verifier fai
 
 **CP5. Field spelling is per artifact type.** Agents use camelCase `disallowedTools`. Skills use kebab-case `disallowed-tools`. A wrong-case key produces no warning, no error, and applies no restriction. Never document the two as one string.
 
+Measured on Claude Code 2.1.233: `claude plugin validate ./ --strict` does not inspect agent markdown frontmatter. With `disallowedTools` deliberately misspelled as kebab-case `disallowed-tools` in `agents/workflow/plan-reviewer.md`, validate passed in both modes -- marketplace-manifest mode (chosen when `.claude-plugin/marketplace.json` is present) and plugin-manifest mode. It reports on the JSON manifest only. `tests/agents/test-capability-profile-contract.sh` is therefore the sole gate against this trap, and it catches the kebab-case spelling by reporting the camelCase field as absent.
+
 **CP6. Value format is a comma-separated string.** YAML list form is documented for the `--agents` JSON flag and the SDK, not for agent markdown frontmatter. Use `Edit, Write, NotebookEdit` -- unquoted, one space after each comma.
 
 **CP7. `effort` is per agent, never per profile.** Profiles carry the tool contract only. Folding budget into the profile forces profile proliferation (`read-only-cheap`, `read-only-expensive`) the moment one agent needs different tuning. `disallowedTools` has a right answer per profile; `effort` is per-agent tuning with no right answer.
