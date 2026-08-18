@@ -60,6 +60,8 @@ Never use a single flat table for all items. Group by scenario with H3 headings.
 
 Slash-invocable skills are listed by their `/<name>` invocation. Internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs entirely -- they are never listed in the README.
 
+This exclusion list is documentation-scoped and deliberately wider than the runtime `user-invocable: false` field, which is set only on `code-navigation`.
+
 ### Hooks Table
 
 Include three columns — name, event trigger, and description:

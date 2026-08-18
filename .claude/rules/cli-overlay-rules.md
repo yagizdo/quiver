@@ -2,7 +2,7 @@
 
 Hard rules and learned lessons for branches that add or modify a CLI overlay (Cursor, future Gemini CLI, future Codex CLI, etc.). These rules lock the architecture invariants of the flattened overlay layout.
 
-For skill authoring rules, see `skill-rules.md`. For review-agent rules, see `review-agent-rules.md`.
+For skill authoring rules, see `skill-rules.md`. For review-agent rules, see `review-agent-rules.md`. For agent capability profiles, see `agent-capability-rules.md`.
 
 ---
 

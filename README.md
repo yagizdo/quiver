@@ -180,6 +180,9 @@ Re-review detection: if you run `/review` again on the same branch after fixing 
 > The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
 
 ## Agents
+
+Review, research, and debug agents run with file writes and network access removed -- they read your code and report findings, and cannot modify it. Two agents carry a narrower denylist: `best-practices-researcher` keeps web access so it can check library versions against upstream release notes, and `codex-code-reviewer` can write because it persists the raw output of the external reviewer it wraps.
+
 <!-- agents-start -->
 
 ### Review

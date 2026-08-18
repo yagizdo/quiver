@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "quiver",
   "version": "1.16.0",
   "description": "Composable development lifecycle -- brainstorm, plan, execute, review, and hand over from idea to merged PR",
@@ -8,6 +9,8 @@
   "homepage": "https://github.com/yagizdo/quiver",
   "repository": "https://github.com/yagizdo/quiver",
   "license": "MIT",
+  "displayName": "Quiver",
+  "defaultEnabled": true,
   "skills": [
     "./skills/"
   ],
