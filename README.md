@@ -181,7 +181,15 @@ Re-review detection: if you run `/review` again on the same branch after fixing 
 
 ## Agents
 
-Review, research, and debug agents run with file writes and network access removed -- they read your code and report findings, and cannot modify it. Two agents carry a narrower denylist: `best-practices-researcher` keeps web access so it can check library versions against upstream release notes, and `codex-code-reviewer` can write because it persists the raw output of the external reviewer it wraps.
+Review, research, and debug agents run with the `Edit`, `Write`, `NotebookEdit`,
+`WebSearch`, and `WebFetch` tools denied -- they are built to read your code and
+report findings, not to change it. `Bash` stays enabled because these agents need
+`git diff`, `git log`, and `git blame`, so the denial is a guardrail against
+accidental edits rather than a sandbox: a shell command can still write a file or
+reach the network. Two agents carry a narrower denylist: `best-practices-researcher`
+keeps web access so it can check library versions against upstream release notes,
+and `codex-code-reviewer` can write because it persists the raw output of the
+external reviewer it wraps.
 
 <!-- agents-start -->
 
