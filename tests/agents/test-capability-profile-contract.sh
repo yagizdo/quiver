@@ -47,6 +47,17 @@ fm() {
     }' "$1"
 }
 
+# Count how many times a key appears inside the frontmatter block.
+# YAML resolves duplicates last-wins; fm() reads only the first, so a file
+# carrying both a canonical and a weakened value would otherwise pass.
+fm_count() {
+  awk -v key="$2" '
+    BEGIN { c = 0; n = 0 }
+    /^---[[:space:]]*$/ { c++; if (c == 2) exit; next }
+    c == 1 && index($0, key ":") == 1 { n++ }
+    END { print n + 0 }' "$1"
+}
+
 # Strip surrounding quotes, collapse whitespace around commas, trim ends.
 norm() {
   printf '%s' "$1" \
@@ -86,20 +97,12 @@ assigned() {
     }' "$RULES"
 }
 
-# --- Profile definitions resolve ---
-echo ""
-echo "=== 2. Profile definitions ==="
-for p in read-only read-only-web adapter; do
-  if [ -n "$(canonical "$p")" ]; then
-    pass "profile '$p' has a canonical string"
-  else
-    fail "profile '$p' has no canonical string in the ## Profiles table"
-  fi
-done
-
 # --- Every agent file conforms ---
+# A profile that lost its canonical string is caught here, per agent assigned to it.
+# A standalone profile-definition pass would need the profile names hardcoded a third
+# time, after the ## Profiles and ## Assignments tables, and could not fail alone.
 echo ""
-echo "=== 3. Agent frontmatter matches its assigned profile ==="
+echo "=== 2. Agent frontmatter matches its assigned profile ==="
 agent_count=0
 while IFS= read -r file; do
   agent_count=$((agent_count + 1))
@@ -146,6 +149,12 @@ while IFS= read -r file; do
     *) fail "$rel: effort '$effort_got' is not a legal value" ;;
   esac
 
+  for k in disallowedTools effort tools maxTurns; do
+    if [ "$(fm_count "$file" "$k")" -gt 1 ]; then
+      fail "$rel: '$k' appears more than once in frontmatter -- YAML takes the last, this test reads the first"
+    fi
+  done
+
   if [ -n "$(fm "$file" tools)" ]; then
     fail "$rel: sets 'tools' -- CP3 forbids allowlists on agents"
   fi
@@ -165,7 +174,7 @@ fi
 
 # --- Every table row has a file ---
 echo ""
-echo "=== 4. Assignments table has no orphan rows ==="
+echo "=== 3. Assignments table has no orphan rows ==="
 while IFS= read -r row; do
   [ -n "$row" ] || continue
   if find "$AGENTS_DIR" -name "$row.md" -type f | grep -q .; then
