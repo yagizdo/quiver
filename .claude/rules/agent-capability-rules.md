@@ -20,7 +20,7 @@ Non-negotiable. Every agent file must satisfy all of these, and the verifier fai
 
 **CP3. Denylist only, never an allowlist.** Agents set `disallowedTools`, never `tools`. An allowlist that names an unavailable tool is a launch failure, and `disallowedTools` emptying a `tools` list launches a subagent with zero tools and no refusal from Claude Code.
 
-**CP4. No `mcp__` pattern in any profile.** context7 and codegraph are load-bearing for 10 agents, and an `mcp__*` entry in `disallowedTools` removes every MCP tool from every server, not just the one named.
+**CP4. No `mcp__` pattern in any profile.** context7 and codegraph are load-bearing for 10 agents, and a bare `mcp__*` entry in `disallowedTools` removes every MCP tool from every server. Server-scoped denial (`mcp__<server>` or `mcp__<server>__*`) does work and leaves other servers intact, but no current profile needs it -- add one deliberately if that changes, never as a blanket pattern.
 
 **CP5. Field spelling is per artifact type.** Agents use camelCase `disallowedTools`. Skills use kebab-case `disallowed-tools`. A wrong-case key produces no warning, no error, and applies no restriction. Never document the two as one string.
 
