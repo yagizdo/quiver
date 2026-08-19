@@ -14,7 +14,7 @@ Scaffold a focused, high-quality Claude Code agent file ready to use immediately
 1. Glob `agents/**/*.md` -- existing agent files
 2. Read `.claude-plugin/plugin.json` -- plugin manifest
 3. Read `CLAUDE.md` (first 30 lines) -- project conventions
-4. Read `.claude/rules/agent-capability-rules.md` -- capability profiles, canonical `disallowedTools` strings, and the `## Assignments` table. Without this in context the "copy the canonical string verbatim" instruction has no source and the string gets reproduced from memory, which is the copy-drift failure the contract exists to catch.
+4. Read `.claude/rules/agent-capability-rules.md` -- capability profiles, canonical `disallowedTools` strings, and the `## Assignments` table. This file ships with the Quiver repo, not with a plugin install; when it is absent, use the canonical strings inlined in the [Frontmatter Specification](#frontmatter-specification) below and skip the Assignments write. Never reproduce a denylist from memory -- that is the copy-drift failure the contract exists to catch.
 
 Treat missing files as empty. Proceed regardless.
 
@@ -127,13 +127,15 @@ Write the generated agent to: `agents/{category}/{name}.md`
 
 ### 2. Record the capability assignment
 
-Append a row to the `## Assignments` table in `.claude/rules/agent-capability-rules.md`, immediately after the last existing row:
+**Only if `.claude/rules/agent-capability-rules.md` exists** (it ships with the Quiver repo, not with a plugin install): append a row to its `## Assignments` table, immediately after the last existing row:
 
 ```
 | `{name}` | `{profile}` | `{effort}` |
 ```
 
 Then read the file back and confirm the row landed. The verifier resolves an agent's expected `disallowedTools` through this table; an agent file with no row fails `tests/agents/test-capability-profile-contract.sh` regardless of what its frontmatter says.
+
+If the file does not exist, skip this step -- the agent frontmatter is self-describing and no verifier runs here.
 
 Do not edit the `## Profiles` table. Profiles are added deliberately, not as a side effect of scaffolding an agent -- if none of the three fits, stop and ask the user rather than inventing a fourth.
 
@@ -227,7 +229,7 @@ Every agent is a single Markdown file with YAML frontmatter followed by prompt c
 | `name` | Yes | string | Kebab-case identifier. Must match filename without `.md`. |
 | `description` | Yes | string | Quoted string. Must include "Use when [trigger condition]." clause. |
 | `model` | Yes | string | `inherit` (default -- uses parent model), `haiku` (lightweight/cost-sensitive tasks), `sonnet` (balanced), `opus` (complex reasoning). |
-| `disallowedTools` | Yes | string | Comma-separated. Copy the canonical string for the agent's profile verbatim from `.claude/rules/agent-capability-rules.md`. Agents use camelCase `disallowedTools`; skills use kebab-case `disallowed-tools`, and the wrong case applies no restriction and reports nothing. |
+| `disallowedTools` | Yes | string | Comma-separated, copied verbatim for the chosen profile: `read-only` -> `Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch`; `read-only-web` -> `Edit, Write, NotebookEdit, AskUserQuestion`; `adapter` -> `AskUserQuestion, WebSearch, WebFetch`. Agents use camelCase `disallowedTools`; skills use kebab-case `disallowed-tools`, and the wrong case applies no restriction and reports nothing. |
 | `effort` | Yes | string | `low` (mechanical lookup), `medium` (single analysis pass), `high` (competing hypotheses or adversarial construction). |
 | `color` | No | string | UI accent color. Options: `yellow`, `violet`, `purple`, `cyan`, `blue`, `green`, `red`. |
 
@@ -333,7 +335,7 @@ Before finalizing any generated agent, verify:
 - `model` field is present and valid
 - `disallowedTools` present and byte-identical to the canonical string for the chosen profile
 - `effort` present and one of `low` / `medium` / `high`
-- The new agent is added to the `## Assignments` table in `.claude/rules/agent-capability-rules.md` (the verifier fails otherwise)
+- The new agent is added to the `## Assignments` table in `.claude/rules/agent-capability-rules.md`, when that file exists (the verifier fails otherwise; outside the Quiver repo there is no table and no verifier)
 - Role statement is specific to the agent's domain (not generic)
 - At least one methodology section with actionable instructions
 
