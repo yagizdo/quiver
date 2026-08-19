@@ -2,6 +2,8 @@
 name: environment-checker
 description: "Environment and dependency investigator that checks whether a bug is caused by configuration, dependency versions, or environment setup rather than code logic."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

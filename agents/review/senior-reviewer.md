@@ -2,6 +2,8 @@
 name: senior-reviewer
 description: "Language-aware senior developer review -- evaluates code through a pragmatic team lead lens across 4 phased dimensions (structure, quality, risk, conventions) with optional meta-review of other agents' findings in the review pipeline."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: high
 ---
 
 <examples>

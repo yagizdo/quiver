@@ -2,6 +2,8 @@
 name: waste-detector
 description: "Detects wasted effort in diffs: unnecessary files, dead code paths, redundancy with existing codebase utilities, over-engineered abstractions, and ceremony the framework already handles."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

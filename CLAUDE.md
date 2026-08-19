@@ -14,7 +14,7 @@ Dependencies: `bash`, `claude` CLI.
 - **`agents/`** — 20 agent definitions organized by category (`review/`, `research/`, `debug/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Two hooks: PreCompact (fires before context compaction, saves a handover) and SessionStart (emits the skill routing block from every skill's `when-to-use`).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
-- **Rules** — `.claude/rules/` contains `skill-rules.md` (hard rules and learned lessons for skills, formerly `command-rules.md`), `review-agent-rules.md`, `cli-overlay-rules.md`, and `readme-structure.md`.
+- **Rules** — `.claude/rules/` contains `skill-rules.md` (hard rules and learned lessons for skills, formerly `command-rules.md`), `review-agent-rules.md`, `cli-overlay-rules.md`, `agent-capability-rules.md`, and `readme-structure.md`.
 - **External MCP** — Context7 MCP server (`plugin.json` > `mcpServers`) provides real-time library documentation lookups for review agents.
 
 ## System Behavior
@@ -51,8 +51,9 @@ If a feature only works inside a pipeline (requires prior skill X to have run), 
 3. Agents live in `agents/<category>/<name>.md` with YAML front-matter fields: `name`, `description`, `model`.
 4. Category directories: `review/`, `research/`, `workflow/`, `design/`, `docs/`, or custom.
 5. The `agents/` directory is registered in `plugin.json`'s `agents` array.
-6. If the agent searches the broader codebase (beyond files it already knows about), reference the `code-navigation` skill and include the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`. The dispatching skill must pass `lsp_available` context.
-7. If the agent will be dispatched by `/quiver:review` (anything under `agents/review/` or any cross-category agent listed in `skills/review/SKILL.md` Step 2a Tier 2), follow the hard rules in `.claude/rules/review-agent-rules.md`. In particular, every review agent must carry the hypothetical-language ban rule (canonical text, or a domain-specific exemption variant for adversarial agents like `stress-tester` and `security-audit`).
+6. Assign the agent a capability profile and effort tier, add it to the `## Assignments` table in `.claude/rules/agent-capability-rules.md`, and copy the profile's canonical `disallowedTools` string into the agent's frontmatter. `/quiver:create-agent` does this for you.
+7. If the agent searches the broader codebase (beyond files it already knows about), reference the `code-navigation` skill and include the Code Navigation Strategy block from `skills/code-navigation/SKILL.md`. The dispatching skill must pass `lsp_available` context.
+8. If the agent will be dispatched by `/quiver:review` (anything under `agents/review/` or any cross-category agent listed in `skills/review/SKILL.md` Step 2a Tier 2), follow the hard rules in `.claude/rules/review-agent-rules.md`. In particular, every review agent must carry the hypothetical-language ban rule (canonical text, or a domain-specific exemption variant for adversarial agents like `stress-tester` and `security-audit`).
 
 ### Adding or Modifying a Hook
 
@@ -72,6 +73,7 @@ If a feature only works inside a pipeline (requires prior skill X to have run), 
   ```bash
   echo '{"transcript_path":"/path/to/transcript.json"}' | bash hooks/scripts/pre-compact-handover.sh
   ```
+- **Agent capability contract** — `bash tests/agents/test-capability-profile-contract.sh` checks every agent's `disallowedTools` and `effort` frontmatter against the profiles and assignments in `.claude/rules/agent-capability-rules.md`, and fails when a copy drifts, an agent is missing from the table, or a table row has no file. Like every other test in `tests/`, this is a manual run -- nothing invokes it on commit or merge. Automatic enforcement is deferred to the hook layer.
 - **Syntax check** — `bash -n hooks/scripts/pre-compact-handover.sh`
 - **All skills** — Run each `/quiver:*` slash invocation in a Claude Code session and verify the expected output/side-effects defined in its Test Plan.
 

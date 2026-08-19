@@ -8,9 +8,8 @@
   "homepage": "https://github.com/yagizdo/quiver",
   "repository": "https://github.com/yagizdo/quiver",
   "license": "MIT",
-  "skills": [
-    "./skills/"
-  ],
+  "displayName": "Quiver",
+  "skills": ["./skills/"],
   "agents": [
     "./agents/review/waste-detector.md",
     "./agents/review/security-audit.md",

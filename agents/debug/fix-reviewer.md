@@ -2,6 +2,8 @@
 name: fix-reviewer
 description: "Fix quality gatekeeper that reviews every proposed fix for overengineering, workaround patterns, architectural consistency, side effects, and simplicity -- ensures fixes address root cause without adding unnecessary complexity."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

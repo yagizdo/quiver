@@ -14,6 +14,7 @@ Scaffold a focused, high-quality Claude Code agent file ready to use immediately
 1. Glob `agents/**/*.md` -- existing agent files
 2. Read `.claude-plugin/plugin.json` -- plugin manifest
 3. Read `CLAUDE.md` (first 30 lines) -- project conventions
+4. Read `.claude/rules/agent-capability-rules.md` -- capability profiles, canonical `disallowedTools` strings, and the `## Assignments` table. This file ships with the Quiver repo, not with a plugin install; when it is absent, use the canonical strings inlined in the [Frontmatter Specification](#frontmatter-specification) below and skip the Assignments write. Never reproduce a denylist from memory -- that is the copy-drift failure the contract exists to catch.
 
 Treat missing files as empty. Proceed regardless.
 
@@ -61,6 +62,11 @@ For each required field, check whether it was inferred (Branch A) or needs to be
 3. **Category** -- One of: `review`, `research`, `workflow`, `design`, `docs`, or a custom name. See [Category Definitions](#category-definitions).
 4. **Model** -- `inherit` (default), `haiku`, `sonnet`, or `opus`. See [Model Selection Guide](#model-selection-guide). Only ask if the user's description suggests a non-default choice.
 5. **Persona style** -- What expertise or perspective should the agent embody? Only ask if not obvious from purpose.
+6. **Capability profile** -- Which denylist the agent carries. Always ask with `AskUserQuestion`; never infer it. Options come from the `## Profiles` table in `.claude/rules/agent-capability-rules.md`:
+   - `read-only` -- reads code and git history, emits findings, cannot write files or reach the network. The right answer for almost every agent.
+   - `read-only-web` -- `read-only` plus `WebSearch` and `WebFetch`, for agents that must validate against upstream sources.
+   - `adapter` -- wraps an external reviewer CLI and persists its raw output; the only profile that can write.
+7. **Effort tier** -- `low` (mechanical lookup or single-pass parsing, no hypothesis, no branching), `medium` (one analysis pass over a bounded input), `high` (competing hypotheses, adversarial construction, or cross-file reasoning). Infer from the agent's methodology and state the inference; ask only when the purpose is genuinely between two tiers.
 
 **Asking rules:**
 - Ask one question at a time using `AskUserQuestion` with multiple-choice options when applicable.
@@ -75,6 +81,8 @@ Present all resolved fields and ask the user to confirm or adjust:
 > **Name:** `{name}`
 > **Category:** `{category}`
 > **Model:** `{model}`
+> **Profile:** `{profile}` -- {one-line permission statement for that profile}
+> **Effort:** `{effort}`
 > **Persona:** {one-line persona description}
 > **Key responsibilities:** {bulleted list of 3-5 things the agent will check/do}
 >
@@ -117,14 +125,28 @@ Write the generated agent to: `agents/{category}/{name}.md`
 
 **Verify:** Read back the file and confirm it matches the generated content.
 
-### 2. Context-aware next-steps guidance
+### 2. Record the capability assignment
+
+**Only if `.claude/rules/agent-capability-rules.md` exists** (it ships with the Quiver repo, not with a plugin install): append a row to its `## Assignments` table, immediately after the last existing row:
+
+```
+| `{name}` | `{profile}` | `{effort}` |
+```
+
+Then read the file back and confirm the row landed. The verifier resolves an agent's expected `disallowedTools` through this table; an agent file with no row fails `tests/agents/test-capability-profile-contract.sh` regardless of what its frontmatter says.
+
+If the file does not exist, skip this step -- the agent frontmatter is self-describing and no verifier runs here.
+
+Do not edit the `## Profiles` table. Profiles are added deliberately, not as a side effect of scaffolding an agent -- if none of the three fits, stop and ask the user rather than inventing a fourth.
+
+### 3. Context-aware next-steps guidance
 
 Silently detect the project context from Phase 1 data:
 
 - **Plugin project** (plugin.json exists): Check if `"./agents/"` is already in the `skills` array. If not, note that the user should add it. Then, auto-register the new agent path in plugin.json's `agents` array using `./agents/{category}/{name}.md` format. If the `agents` field doesn't exist yet, create it. Skip if the exact path is already present.
 - **General project** (no plugin.json): Note that the user can reference the agent from their CLAUDE.md or project configuration.
 
-### 3. Update README.md
+### 4. Update README.md
 
 After the agent file is saved and plugin.json is updated, automatically add the new agent to the project's README.md.
 
@@ -158,7 +180,7 @@ After the agent file is saved and plugin.json is updated, automatically add the 
 - Preserve exact spacing and formatting of surrounding content.
 - If any step fails (missing markers, malformed table), warn and skip rather than corrupting the file.
 
-### 4. Output
+### 5. Output
 
 > **Agent created:** `agents/{category}/{name}.md`
 >
@@ -187,7 +209,7 @@ After the agent file is saved and plugin.json is updated, automatically add the 
 - **Don't** generate placeholder sections like "TODO: add methodology" -- ask the user or infer from the description.
 - **Don't** create agents with generic personas like "You are a helpful assistant" -- every agent needs domain-specific expertise.
 - **Don't** skip the summary confirmation when fields were inferred -- the user should validate before file creation.
-- **Don't** modify plugin.json beyond adding the new agent path to the `agents` array -- no other fields or files should be touched.
+- **Don't** modify plugin.json beyond adding the new agent path to the `agents` array. The scaffold writes exactly three things outside the agent file: that array entry, the `## Assignments` row in `.claude/rules/agent-capability-rules.md`, and the README injection markers. Nothing else.
 - **Don't** generate agents longer than 200 lines -- focus on the highest-impact methodology steps.
 
 ---
@@ -207,6 +229,8 @@ Every agent is a single Markdown file with YAML frontmatter followed by prompt c
 | `name` | Yes | string | Kebab-case identifier. Must match filename without `.md`. |
 | `description` | Yes | string | Quoted string. Must include "Use when [trigger condition]." clause. |
 | `model` | Yes | string | `inherit` (default -- uses parent model), `haiku` (lightweight/cost-sensitive tasks), `sonnet` (balanced), `opus` (complex reasoning). |
+| `disallowedTools` | Yes | string | Comma-separated, copied verbatim for the chosen profile: `read-only` -> `Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch`; `read-only-web` -> `Edit, Write, NotebookEdit, AskUserQuestion`; `adapter` -> `AskUserQuestion, WebSearch, WebFetch`. Agents use camelCase `disallowedTools`; skills use kebab-case `disallowed-tools`, and the wrong case applies no restriction and reports nothing. |
+| `effort` | Yes | string | `low` (mechanical lookup), `medium` (single analysis pass), `high` (competing hypotheses or adversarial construction). |
 | `color` | No | string | UI accent color. Options: `yellow`, `violet`, `purple`, `cyan`, `blue`, `green`, `red`. |
 
 ### Model Selection Guide
@@ -309,6 +333,9 @@ Before finalizing any generated agent, verify:
 - `name` field matches the filename (without `.md`)
 - `description` includes a "Use when..." trigger clause
 - `model` field is present and valid
+- `disallowedTools` present and byte-identical to the canonical string for the chosen profile
+- `effort` present and one of `low` / `medium` / `high`
+- The new agent is added to the `## Assignments` table in `.claude/rules/agent-capability-rules.md`, when that file exists (the verifier fails otherwise; outside the Quiver repo there is no table and no verifier)
 - Role statement is specific to the agent's domain (not generic)
 - At least one methodology section with actionable instructions
 

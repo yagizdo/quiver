@@ -2,6 +2,8 @@
 name: logic-reviewer
 description: "Systematic path tracer that finds logic defects by tracing each changed function's inputs through branches to outputs -- verifying correctness at every step rather than scanning for known bug patterns."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: high
 ---
 
 <examples>

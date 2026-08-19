@@ -2,6 +2,8 @@
 name: report-checker
 description: "Independent quality auditor for code review reports -- detects noise, false positives, overkill suggestions, severity inflation, and findings that exist to appear thorough rather than to help the developer."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: medium
 ---
 
 <examples>

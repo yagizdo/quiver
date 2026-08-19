@@ -2,6 +2,8 @@
 name: architecture-strategist
 description: "Evaluates structural integrity via context7-driven convention discovery, diff manifest-aware boundary analysis, and pattern compliance grounded in the project's actual codebase -- not abstract ideals."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: high
 ---
 
 <examples>

@@ -2,6 +2,8 @@
 name: security-audit
 description: "Adversarial 7-phase security auditor with multi-platform mobile coverage (Flutter, Kotlin/Android, Swift/iOS), prompt-vs-code awareness for LLM plugin contexts, and supply chain analysis across CI scripts and dependency resolution."
 model: inherit
+disallowedTools: Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch
+effort: high
 ---
 
 <examples>
