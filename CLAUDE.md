@@ -12,7 +12,7 @@ Dependencies: `bash`, `claude` CLI.
 - **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/skill/agent registration, and MCP servers.
 - **`skills/`** — 25 skill directories (each contains `SKILL.md`). Each `SKILL.md` carries YAML front-matter (`name`, `description`) and is a self-contained prompt; the `name` field doubles as the slash invocation (`/handover`, `/review`, etc.). **Exception:** `visual-companion` also contains `server.py`, a runtime executable -- this is the only skill with non-prompt code.
 - **`agents/`** — 20 agent definitions organized by category (`review/`, `research/`, `debug/`). Agents are persona prompts spawned as subagents.
-- **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Two hooks: PreCompact (fires before context compaction, saves a handover) and SessionStart (emits the skill routing block from every skill's `when-to-use`).
+- **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Three hooks: PreToolUse (matcher `Bash`, classifies a command as deny/ask/silence before it runs), PreCompact (fires before context compaction, saves a handover) and SessionStart (emits the skill routing block from every skill's `when-to-use`).
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`.
 - **Rules** — `.claude/rules/` contains `skill-rules.md` (hard rules and learned lessons for skills, formerly `command-rules.md`), `review-agent-rules.md`, `cli-overlay-rules.md`, `agent-capability-rules.md`, and `readme-structure.md`.
 - **External MCP** — Context7 MCP server (`plugin.json` > `mcpServers`) provides real-time library documentation lookups for review agents.
@@ -20,7 +20,7 @@ Dependencies: `bash`, `claude` CLI.
 ## System Behavior
 
 - **Skills** — Markdown files executed by Claude Code. Shell blocks (`` !`…` ``) run inline and inject output into the prompt. Skills cannot call hook scripts directly; they duplicate save/prune logic as Claude instructions.
-- **Hooks** — Bash scripts invoked by Claude Code on lifecycle events. The PreCompact hook reads `transcript_path` from stdin JSON (via `sed`), pipes the transcript to `claude -p` for summarization, and writes the result to the handovers directory.
+- **Hooks** — Bash scripts invoked by Claude Code on lifecycle events. The PreCompact hook reads `transcript_path` from stdin JSON (via `sed`), pipes the transcript to `claude -p` for summarization, and writes the result to the handovers directory. The PreToolUse hook reads `tool_name` and `tool_input.command` from the same stdin JSON, splits the command on shell separators, and classifies each segment by its first word; a match prints a `hookSpecificOutput` object with a `permissionDecision` of `deny` or `ask`, and everything else prints nothing.
 - **SYNC contract** — The 8 handover section headings are defined in two places that must stay identical: `skills/handover/SKILL.md:96` (the marker comment) plus the headings at lines 99-129, and `hooks/scripts/pre-compact-handover.sh:25`. Both files contain a `SYNC:` comment pointing to the other. If you change headings, update both and verify line numbers in the comments.
 
 ## Development Standards
@@ -74,7 +74,8 @@ If a feature only works inside a pipeline (requires prior skill X to have run), 
   echo '{"transcript_path":"/path/to/transcript.json"}' | bash hooks/scripts/pre-compact-handover.sh
   ```
 - **Agent capability contract** — `bash tests/agents/test-capability-profile-contract.sh` checks every agent's `disallowedTools` and `effort` frontmatter against the profiles and assignments in `.claude/rules/agent-capability-rules.md`, and fails when a copy drifts, an agent is missing from the table, or a table row has no file. Like every other test in `tests/`, this is a manual run -- nothing invokes it on commit or merge. Automatic enforcement is deferred to the hook layer.
-- **Syntax check** — `bash -n hooks/scripts/pre-compact-handover.sh`
+- **Destructive command guard** — `bash tests/hooks/test-destructive-guard.sh` feeds 27 real PreToolUse payloads to `hooks/scripts/pre-tool-use-guard.sh` and asserts the decision each one should produce, including the cases that must stay silent. Like every other test in `tests/`, this is a manual run.
+- **Syntax check** — `bash -n hooks/scripts/pre-compact-handover.sh` and `bash -n hooks/scripts/pre-tool-use-guard.sh`
 - **All skills** — Run each `/quiver:*` slash invocation in a Claude Code session and verify the expected output/side-effects defined in its Test Plan.
 
 ## Known Gotchas
@@ -84,3 +85,7 @@ If a feature only works inside a pipeline (requires prior skill X to have run), 
 - `ls -1r` in the prune loop relies on filenames being timestamps for correct sort order -- non-timestamp filenames break pruning.
 - The hook silently exits 0 on any failure (missing transcript, empty claude output) -- check handover directory contents to verify it ran.
 - Changing the timestamp format (`date '+%Y-%m-%d_%H-%M-%S'`) breaks lexicographic sort ordering of existing handover files.
+- The PreToolUse guard is an accident brake, not a security boundary. It reads the literal command string before the shell ever sees it, so shell escapes, variable expansion, aliases, base64, and any deliberate obfuscation are outside its threat model by construction. It exists to catch a slip, and a determined bypass is not a bug in it.
+- The guard classifies each segment by its FIRST WORD, and that anchoring is what keeps `grep -rn "rm -rf /" docs/` from being denied -- a command this repository's own documentation work runs. Never replace the segment split with a substring match on the whole command: it would deny that grep, and every future doc edit that quotes a destructive command as an example.
+- The guard uses `set -uf`, never `set -e`. It runs before every single Bash call, so an internal hiccup under `set -e` would exit nonzero on a path where that breaks the session rather than one command. Every exit in the script is an explicit `exit 0`.
+- `claude plugin validate ./ --strict` fails in plugin-manifest mode (the mode chosen when `.claude-plugin/marketplace.json` is absent) on a warning that `CLAUDE.md` at the plugin root is not loaded as project context. This predates the guard -- it reproduces on `master` at `6f74e11` -- and marketplace-manifest mode, which is how the plugin actually ships, passes clean.
