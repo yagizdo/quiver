@@ -83,7 +83,7 @@ already use it in another harness.
 
 | Component | Count |
 |-----------|-------|
-| Hooks | 2 |
+| Hooks | 3 |
 | Skills | 25 |
 | Agents | 20 |
 
@@ -174,10 +174,11 @@ Re-review detection: if you run `/review` again on the same branch after fixing 
 
 | Hook | Event | Description |
 |------|-------|-------------|
+| `pre-tool-use-guard` | PreToolUse | Classifies every Bash command before it runs -- refuses the handful that are irreversible, prompts on the destructive-but-recoverable ones, stays silent otherwise |
 | `pre-compact-handover` | PreCompact | Summarizes the conversation and saves a handover before the CLI compacts context |
 | `session-start-auto-dispatch` | SessionStart | Reads every skill's `when-to-use` and emits a routing block so intent matches invoke the right skill |
 
-> The hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
+> The handover hook keeps the 3 most recent handovers in `.claude/handovers/` and prunes older ones automatically. Filenames are timestamps, so sort order is lexicographic.
 
 ## Agents
 

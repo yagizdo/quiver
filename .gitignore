@@ -60,7 +60,8 @@ docs/
 .worktrees/
 
 # Local scripts (release helpers, etc.)
-scripts/
+# The leading slash is load-bearing -- see the packaging case in tests/hooks/test-destructive-guard.sh.
+/scripts/
 
 # Codegraph
 .codegraph/
