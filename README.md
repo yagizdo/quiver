@@ -83,7 +83,7 @@ already use it in another harness.
 
 | Component | Count |
 |-----------|-------|
-| Hooks | 2 |
+| Hooks | 3 |
 | Skills | 25 |
 | Agents | 20 |
 

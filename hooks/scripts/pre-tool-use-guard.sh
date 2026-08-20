@@ -8,6 +8,11 @@
 #
 # This is an accident brake, not a security boundary. See the Known Gotchas entry in CLAUDE.md.
 #
+# Two audiences for the reason strings: an ask reason is rendered in the confirmation prompt and
+# is read by the user, while a deny reason is sent to Claude instead, because the call is
+# cancelled and never reaches a prompt. Both are written as plain prose, which reads correctly
+# either way, but an edit that assumes only a human sees these is wrong for the deny tier.
+#
 # set -u only, deliberately. set -e would turn any internal hiccup into a nonzero exit on the
 # path of every single Bash call in the session, which is a far worse failure than a missed
 # classification. Every exit below is an explicit exit 0.
@@ -19,14 +24,33 @@ set -uf
 
 INPUT="$(cat)"
 
+# The command arrives as a JSON string literal, so its quotes, backslashes, newlines and tabs are
+# all escaped. Field extraction below captures with [^"]*, which would stop dead at the first
+# escaped quote and discard the rest of the command -- and nothing downstream would ever see a
+# newline, because a multi-line command is carrying the two characters \ n rather than a line
+# break. Mask each escape to a control character first, extract, then decode the masks back.
+#
+# \\ is masked first, on purpose. Doing it last would let a literal backslash-n typed in the
+# command (\\n in the payload) be read as an encoded newline and split a segment that is not one.
+#
+# The mask script is built with printf so the control characters are literal bytes. Writing them
+# as \001 inside a sed replacement is not portable -- both GNU and BSD sed read a leading
+# backslash-digit there as a backreference.
+SED_MASK="$(printf 's/\\\\\\\\/\001/g; s/\\\\"/\002/g; s/\\\\n/\003/g; s/\\\\t/\004/g')"
+MASKED="$(printf '%s' "$INPUT" | sed "$SED_MASK")"
+
 # The payload shape is recorded under ## Spike Results in
 # .claude/plans/2026-08-20-destructive-command-guard-plan.md: tool_name is top-level, and the
 # command string is at tool_input.command. sed matches both flat, because "command" is the only
 # key by that name in a PreToolUse payload.
 json_field() {
-  printf '%s' "$INPUT" \
+  printf '%s' "$MASKED" \
     | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" \
     | head -n 1
+}
+
+unmask() {
+  printf '%s' "$1" | tr '\001\002\003\004' '\\"\n\t'
 }
 
 TOOL_NAME="$(json_field tool_name)"
@@ -34,22 +58,32 @@ if [ "$TOOL_NAME" != "Bash" ]; then
   exit 0
 fi
 
-# The command arrives JSON-escaped, and [^"]* stops at the first embedded quote. That truncation
-# is intentional and load-bearing: `echo "rm -rf /"` arrives as "echo \"rm -rf /\"" and truncates
-# to `echo \`, whose first word is echo, so it classifies silent for the right reason.
-COMMAND="$(json_field command)"
+COMMAND_MASKED="$(json_field command)"
+if [ -z "$COMMAND_MASKED" ]; then
+  exit 0
+fi
+
+# A double-quoted span that contains a newline is a block of text being printed or written, not an
+# argument list -- `echo "note:<newline>rm -rf / is bad"` is a sentence about a command, and once
+# newlines segment, line two of it looks exactly like the command it describes. Drop those spans.
+#
+# Single-line quoted spans are kept, because a target needs its quotes: `rm -rf "$HOME"` must
+# still resolve to $HOME. This is why the drop runs before unmask -- afterwards a quote written by
+# the command and a quote wrapping a target are the same byte.
+SED_DROP_TEXT_BLOCK="$(printf 's/\002[^\002]*\003[^\002]*\002//g')"
+COMMAND="$(unmask "$(printf '%s' "$COMMAND_MASKED" | sed "$SED_DROP_TEXT_BLOCK")")"
 if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
 # The static half of every reason is authored ASCII with no double quote and no backslash, so
 # this printf is the whole JSON encoder. But reasons interpolate a target path lifted from the
-# command, and a path can carry either character -- `rm -rf "my dir"` truncates to a lone
-# backslash at extraction time. Dropping both is enough, because they are the only two characters
-# a JSON string literal cannot hold raw, and a mangled path in a prompt is better than a hook
-# whose output the CLI cannot parse.
+# command, and a decoded path can now carry a real quote, a real backslash, or a control
+# character -- `rm -rf "my dir"` yields the target "my dir" with its quotes intact. Those are the
+# characters a JSON string literal cannot hold raw, and a mangled path in a prompt is better than
+# a hook whose output the CLI cannot parse.
 emit() {
-  REASON="$(printf '%s' "$2" | tr -d '"\\')"
+  REASON="$(printf '%s' "$2" | tr -d '"\\' | tr -d '\001-\037')"
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$1" "$REASON"
   exit 0
 }
@@ -62,19 +96,49 @@ emit() {
 # documentation work runs. `foo $(rm -rf /)` splits at the paren and yields a segment whose first
 # word is rm, so nesting is still covered.
 #
+# A newline is a shell separator too, and the decode above turned every encoded one back into a
+# real line break, so the read loop below splits on it with no help from tr.
+#
 # Splitting also breaks quoted strings that contain a separator: `echo "a;b"` yields two segments.
 # The second one's first word is not a command name, so it classifies silent. Harmless, not fixed.
+#
+# A heredoc body is data being written, not commands being run: `cat <<EOF > notes.md` followed
+# by a line reading `rm -rf /` is a documentation edit. Before newlines segmented, that body was
+# invisible; now the first-word anchoring cannot tell it apart from a real command, and a wrong
+# deny is the one decision a user cannot override. So classification stops at the first heredoc
+# or herestring opener.
+#
+# The cost is a miss, never a wrong answer: anything destructive that follows a heredoc in the
+# same command goes unclassified. Anything before it still classifies, so `rm -rf / && cat <<EOF`
+# is still denied.
+case "$COMMAND" in
+  *'<<'*) COMMAND="${COMMAND%%<<*}" ;;
+esac
+
 SEGMENTS="$(printf '%s\n' "$COMMAND" | tr ';&|()`' '\n\n\n\n\n\n')"
 
 # Directories a build regenerates. Deleting one costs a rebuild, not work, so these stay silent --
 # otherwise the guard prompts on the single most common legitimate rm -rf and gets muted wholesale.
 SAFE_TARGETS=" node_modules dist build .next target __pycache__ .pytest_cache .venv DerivedData coverage "
 
-# Strip a trailing slash then a leading ./ so build/, ./build, and ./build/ all reduce to build.
+# Reduce a target to its comparable form: strip a surrounding quote pair, then one trailing slash,
+# then one leading ./ -- so "build/", ./build and build all reduce to build, and "$HOME" reduces
+# to $HOME. Quotes come first because they sit outside the slash.
+#
+# Writes NORM_TARGET rather than echoing a value. The rm branch calls this once per target, and a
+# subshell fork per target put a 1000-target delete past the 5s timeout in hooks/hooks.json.
 normalize_target() {
-  NORM="${1%/}"
-  NORM="${NORM#./}"
-  printf '%s' "$NORM"
+  NORM_TARGET="$1"
+  case "$NORM_TARGET" in
+    \"*\") NORM_TARGET="${NORM_TARGET#\"}"; NORM_TARGET="${NORM_TARGET%\"}" ;;
+    \'*\') NORM_TARGET="${NORM_TARGET#\'}"; NORM_TARGET="${NORM_TARGET%\'}" ;;
+  esac
+  # A bare / is exempt: stripping its trailing slash would leave nothing to compare.
+  case "$NORM_TARGET" in
+    /) : ;;
+    */) NORM_TARGET="${NORM_TARGET%/}" ;;
+  esac
+  NORM_TARGET="${NORM_TARGET#./}"
 }
 
 is_safe_target() {
@@ -84,10 +148,13 @@ is_safe_target() {
   esac
 }
 
-# Targets that must never be the argument of a recursive force delete.
+# Targets that must never be the argument of a recursive force delete. The /* spellings are here
+# because `rm -rf /*` is the canonical accidental form and erases exactly what `rm -rf /` does.
+# The trailing-slash spellings (~/, $HOME/) are absent on purpose: normalize_target already
+# reduced them.
 is_catastrophic_target() {
   case "$1" in
-    /|'~'|'~/'|'$HOME'|'$HOME/'|'${HOME}'|'${HOME}/') return 0 ;;
+    /|'/*'|'~'|'~/*'|'$HOME'|'$HOME/*'|'${HOME}'|'${HOME}/*') return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -113,6 +180,22 @@ while IFS= read -r SEGMENT; do
   fi
   if [ "$1" = "sudo" ]; then
     shift
+    # sudo's own options sit between sudo and the real command: sudo -E rm, sudo -u root rm. Skip
+    # them, and skip the value of the short options that take one, so the real command lands in $1.
+    # A --long value spelling (as opposed to --long=value) leaves the value as the first word,
+    # which costs a missed prompt and never a wrong one.
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -[CDghpRrTtUu])
+          shift
+          if [ $# -gt 0 ]; then
+            shift
+          fi
+          ;;
+        -*) shift ;;
+        *) break ;;
+      esac
+    done
     if [ $# -eq 0 ]; then
       continue
     fi
@@ -143,10 +226,10 @@ while IFS= read -r SEGMENT; do
       UNSAFE=""
       # shellcheck disable=SC2086
       for TARGET in $TARGETS; do
-        if is_catastrophic_target "$TARGET"; then
-          emit deny "Refusing a recursive force delete of $TARGET. This erases the whole filesystem or the whole home directory and nothing recovers it."
+        normalize_target "$TARGET"
+        if is_catastrophic_target "$NORM_TARGET"; then
+          emit deny "Refusing a recursive force delete of $NORM_TARGET. This erases the whole filesystem or the whole home directory and nothing recovers it."
         fi
-        NORM_TARGET="$(normalize_target "$TARGET")"
         if ! is_safe_target "$NORM_TARGET"; then
           UNSAFE="$UNSAFE $NORM_TARGET"
         fi
@@ -158,9 +241,10 @@ while IFS= read -r SEGMENT; do
 
   elif [ "$FIRST_WORD" = "git" ]; then
     # The subcommand is taken as the first argument, not the first non-flag argument. A global
-    # option before the subcommand (git -C path status) is rare enough in agent-written commands
-    # that handling it would cost more than it buys, and getting it wrong only ever costs a
-    # missed prompt, never a wrong one.
+    # option before the subcommand (git -C path status) is handled nowhere, so `git -C dir reset
+    # --hard` classifies silent. That shape is written by hand often enough that the concession is
+    # a real gap -- tests/hooks/test-destructive-guard.sh uses `git -C` itself -- and it stands
+    # only because getting it wrong costs a missed prompt, never a wrong one.
     GIT_SUB="${1:-}"
     if [ $# -gt 0 ]; then
       shift
@@ -186,20 +270,25 @@ while IFS= read -r SEGMENT; do
         done
         ;;
       clean)
+        # -f alone only removes untracked files git already knows are untracked; adding d reaches
+        # directories. Both bits accumulate across arguments, because `git clean -f -d` is the
+        # spelling git's own hint text prints, and --force is the long form of the same bit.
+        CLEAN_F=0
+        CLEAN_D=0
         for ARG in "$@"; do
           case "$ARG" in
+            --force) CLEAN_F=1 ;;
+            # Every other long flag, --dry-run included, must not reach the letter test below.
             --*) : ;;
-            -*f*)
-              # A cluster carrying both f and d, so -fd, -fdx, -df. -f alone only removes
-              # untracked files git already knows are untracked; adding d reaches directories.
-              case "$ARG" in
-                *d*)
-                  set_ask "This deletes every untracked file and directory here, including ones git has never seen. They are in no commit and no stash, so nothing recovers them."
-                  ;;
-              esac
+            -*)
+              case "$ARG" in *f*) CLEAN_F=1 ;; esac
+              case "$ARG" in *d*) CLEAN_D=1 ;; esac
               ;;
           esac
         done
+        if [ "$CLEAN_F" -eq 1 ] && [ "$CLEAN_D" -eq 1 ]; then
+          set_ask "This deletes every untracked file and directory here, including ones git has never seen. They are in no commit and no stash, so nothing recovers them."
+        fi
         ;;
       checkout|restore)
         for ARG in "$@"; do
@@ -209,14 +298,25 @@ while IFS= read -r SEGMENT; do
         done
         ;;
       branch)
+        # -D is the shorthand for --delete --force. Both bits accumulate, so -d -f and
+        # --delete --force reach the same prompt as -D.
+        BRANCH_DELETE=0
+        BRANCH_FORCE=0
         for ARG in "$@"; do
           case "$ARG" in
+            --delete) BRANCH_DELETE=1 ;;
+            --force) BRANCH_FORCE=1 ;;
             --*) : ;;
-            -*D*)
-              set_ask "This force-deletes the branch whether or not its commits are merged anywhere. Any commit only reachable from it becomes unreachable."
+            -*)
+              case "$ARG" in *D*) BRANCH_DELETE=1; BRANCH_FORCE=1 ;; esac
+              case "$ARG" in *d*) BRANCH_DELETE=1 ;; esac
+              case "$ARG" in *f*) BRANCH_FORCE=1 ;; esac
               ;;
           esac
         done
+        if [ "$BRANCH_DELETE" -eq 1 ] && [ "$BRANCH_FORCE" -eq 1 ]; then
+          set_ask "This force-deletes the branch whether or not its commits are merged anywhere. Any commit only reachable from it becomes unreachable."
+        fi
         ;;
     esac
   fi

@@ -60,10 +60,7 @@ docs/
 .worktrees/
 
 # Local scripts (release helpers, etc.)
-# Anchored with a leading slash on purpose. A bare `scripts/` matches at any depth, which silently
-# ignored every new file under hooks/scripts/ -- the two hook scripts there survive only because
-# they were tracked before this rule landed. Unanchoring it again would ship hooks.json pointing
-# at scripts that are not in the repo.
+# The leading slash is load-bearing -- see the packaging case in tests/hooks/test-destructive-guard.sh.
 /scripts/
 
 # Codegraph
