@@ -10,7 +10,6 @@
   "license": "MIT",
   "displayName": "Quiver",
   "skills": ["./skills/"],
-  "workflows": ["./workflows/"],
   "agents": [
     "./agents/review/waste-detector.md",
     "./agents/review/security-audit.md",

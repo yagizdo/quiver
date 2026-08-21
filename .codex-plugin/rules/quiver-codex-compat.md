@@ -47,7 +47,6 @@ Quiver skills dispatch specialized agents using the Agent tool with a `subagent_
 
 When a skill dispatches multiple agents in parallel (e.g., `/review` dispatches up to 10 agents), spawn them as parallel workers. Collect all results before continuing to the synthesis step.
 
-Codex exposes no Workflow tool, so `/review --workflow` degrades to this same prompt fan-out path instead of running the deterministic dispatcher.
 
 ## AskUserQuestion substitution
 

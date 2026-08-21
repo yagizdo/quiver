@@ -126,30 +126,18 @@ already use it in another harness.
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report; `--workflow` runs the same fan-out through a deterministic dispatcher |
+| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report |
 | Want a quick senior dev sanity check | `/senior-review` | One pragmatic reviewer evaluates structure, quality, risks |
 | Got a review report, not sure which findings matter | `/report-check` | Audits the report for noise, false positives, and overkill |
 
 ```
 /review                    # fast review (5 agents, prompts for base branch)
 /review --deep             # full pipeline: all agents + quality check + senior review
-/review --workflow         # same agents, dispatched by a deterministic script
 /review --base main        # review against a specific base branch
 /review <PR-URL>           # review a pull request by URL
 ```
 
 Pass `--comment-pr` to post the report as a PR comment. Use `--deep --with-codex` for cross-model coverage (requires `codex` CLI).
-
-#### What `--workflow` changes
-
-`--workflow` changes **how** agents are spawned, never which ones qualify, what context each receives, or what they report. The finding set is identical on both paths; filtering stays in the synthesis step where it already lived.
-
-Two things it buys, both invisible on a clean run:
-
-- **Repeatable dispatch.** The same diff selects the same agents every time, because a script applies the gate table instead of the model re-reasoning about it per run.
-- **Resumable fan-out.** When agents fail mid-run -- server overload is the common case -- the run resumes and re-runs only the failures instead of the whole pipeline. On a measured run that lost six of nine agents, this was a net token saving.
-
-Cost is roughly the same as the prompt path. It does not add agents.
 
 Re-review detection: if you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
 

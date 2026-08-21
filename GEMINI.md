@@ -27,7 +27,6 @@ When a Quiver agent or skill references a Claude Code tool name, use the Gemini 
 | Grep | grep_search | Gemini has native regex grep. |
 | Glob | glob | Gemini has native glob. |
 | Agent | (runtime injection) | See the Agent dispatch section below. |
-| Workflow | (unsupported) | Gemini CLI has no Workflow tool. `/review --workflow` degrades to the prompt fan-out path. |
 | AskUserQuestion | ask_user | Native -- map the tool name. |
 | WebSearch | google_web_search | Native. |
 | WebFetch | web_fetch | Native. |
@@ -50,7 +49,6 @@ Quiver skills dispatch specialized agents using the Agent tool with a `subagent_
 
 When a skill dispatches multiple agents in parallel, execute them sequentially. Collect all results before continuing to the synthesis step.
 
-Gemini CLI exposes no Workflow tool, so `/review --workflow` degrades to this same prompt fan-out path instead of running the deterministic dispatcher.
 
 ## PreCompress hook
 

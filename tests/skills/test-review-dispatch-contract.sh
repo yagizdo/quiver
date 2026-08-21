@@ -3,9 +3,8 @@
 # Guards the review dispatch contract:
 #   producer  .claude/rules/review-agent-rules.md -- canonical ## Dispatch Gates table (Agent | Gate | Modes)
 #   consumer  skills/review/SKILL.md              -- Step 2b prose restates every row for the prompt path
-#   consumer  workflows/review-fanout.js          -- DISPATCH_GATES restates every row for the workflow path
 #
-# The table lives in three places by construction. This test fails mechanically when a copy
+# The table lives in two places by construction. This test fails mechanically when a copy
 # drifts, when an agent in dispatch scope has no canonical row, or when a canonical row names
 # no agent file.
 #
@@ -19,7 +18,6 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RULES="$REPO_ROOT/.claude/rules/review-agent-rules.md"
 SKILL="$REPO_ROOT/skills/review/SKILL.md"
-SCRIPT="$REPO_ROOT/workflows/review-fanout.js"
 AGENTS_DIR="$REPO_ROOT/agents"
 
 # Dispatch scope: every file under agents/review/ plus the two cross-category paths
@@ -43,10 +41,6 @@ if [ ! -f "$SKILL" ]; then
   fail "missing $SKILL -- the prompt-path copy of the table lives here."
   MISSING=1
 fi
-if [ ! -f "$SCRIPT" ]; then
-  fail "missing $SCRIPT -- the workflow-path copy of the table lives here."
-  MISSING=1
-fi
 if [ ! -d "$AGENTS_DIR/review" ]; then
   fail "missing $AGENTS_DIR/review -- cannot check for ungated agents."
   MISSING=1
@@ -68,13 +62,6 @@ if [ "$ANCHORS" -eq 1 ]; then
   pass "'## Dispatch Gates' appears exactly once as a heading in the rules file"
 else
   fail "'## Dispatch Gates' appears $ANCHORS times as a heading in the rules file -- expected exactly 1"
-fi
-
-ANCHORS="$(grep -c 'const DISPATCH_GATES' "$SCRIPT")"
-if [ "$ANCHORS" -eq 1 ]; then
-  pass "'const DISPATCH_GATES' appears exactly once in the workflow script"
-else
-  fail "'const DISPATCH_GATES' appears $ANCHORS times in the workflow script -- expected exactly 1"
 fi
 
 # --- Shared normalizers ---
@@ -231,106 +218,19 @@ skill_norm() {
 # following colon so a single-quoted value is never captured as a key, and match()
 # returns only the first hit per line -- which is why the table is written one key per
 # line, single-quoted, exactly one entry per row of the canonical table.
-script_norm() {
-  awk -v q="'" "$AWK_NORM"'
-    match($0, /const DISPATCH_GATES[[:space:]]*=[[:space:]]*\{/) { s = 1; next }
-    s && /^[[:space:]]*\};/ { s = 0; next }
-    s && match($0, q "[^" q "]+" q "[[:space:]]*:") {
-      key = substr($0, RSTART, RLENGTH)
-      sub("^" q, "", key)
-      sub(q "[[:space:]]*:$", "", key)
-      rest = substr($0, RSTART + RLENGTH)
-
-      gate = ""
-      p = index(rest, "gate:")
-      if (p > 0) {
-        g = substr(rest, p + 5)
-        b = index(g, q)
-        if (b > 0) {
-          g = substr(g, b + 1)
-          e = index(g, q)
-          if (e > 0) gate = substr(g, 1, e - 1)
-        }
-      }
-
-      modes = ""
-      p = index(rest, "modes:")
-      if (p > 0) {
-        m = substr(rest, p + 6)
-        b = index(m, "[")
-        e = index(m, "]")
-        if (b > 0 && e > b) {
-          modes = substr(m, b + 1, e - b - 1)
-          gsub(q, "", modes)
-        }
-      }
-
-      print key "\t" classnorm(gate) "\t" modenorm(modes)
-    }' "$SCRIPT"
-}
 
 CANON_NORM="$(canonical_norm)"
 SKILL_ROWS="$(skill_norm)"
-SCRIPT_ROWS="$(script_norm)"
-
-# --- Canonical table vs the workflow script table ---
-# A two-file awk pass: order-independent by construction, and it keeps sort and its
-# locale exposure out of the comparison entirely. The modes half is not optional --
-# the workflow reads the mode field at runtime, so without it, flipping an agent from
-# deep-only to fast in the script leaves this verifier green.
-echo ""
-echo "=== 2. Canonical table matches the workflow script table ==="
-while IFS= read -r line; do
-  [ -n "$line" ] || continue
-  case "$line" in
-    "OK "*) pass "${line#OK }" ;;
-    *) fail "$line" ;;
-  esac
-done < <(awk -F'\t' '
-  $1 == "" { next }
-  NR == FNR { cg[$1] = $2; cm[$1] = $3; corder[++cn] = $1; next }
-  {
-    if ($1 in sg) { sdup[$1] = 1 } else { sg[$1] = $2; sm[$1] = $3; sorder[++sn] = $1 }
-  }
-  END {
-    if (cn == 0) { print "no rows extracted from ## Dispatch Gates -- the table or its heading moved"; }
-    if (sn == 0) { print "no keys extracted from DISPATCH_GATES -- check the identifier, the brace form, and the single-quoted one-key-per-line format"; }
-    for (i = 1; i <= cn; i++) {
-      a = corder[i]
-      if (!(a in sg)) {
-        print "`" a "`: canonical row has no key in DISPATCH_GATES"
-        continue
-      }
-      if (a in sdup) {
-        print "`" a "`: DISPATCH_GATES states this key more than once"
-        continue
-      }
-      if (cg[a] != sg[a]) {
-        print "`" a "`: gate drift -- rules say [" cg[a] "], script says [" sg[a] "]"
-        continue
-      }
-      if (cm[a] != sm[a]) {
-        print "`" a "`: modes drift -- rules say [" cm[a] "], script says [" sm[a] "]"
-        continue
-      }
-      print "OK `" a "`: gate [" cg[a] "], modes [" cm[a] "]"
-    }
-    for (i = 1; i <= sn; i++) {
-      a = sorder[i]
-      if (!(a in cg)) print "`" a "`: DISPATCH_GATES key has no row in ## Dispatch Gates"
-    }
-    if (cn > 0 && sn > 0) print "OK compared " cn " canonical rows against " sn " script keys"
-  }' <(printf '%s\n' "$CANON_NORM") <(printf '%s\n' "$SCRIPT_ROWS"))
 
 # --- Canonical table vs the Step 2b prose ---
 # The class comparison is the load-bearing half. The prose is the only path any
 # non-Claude CLI ever takes, so widening one agent's gate there and nowhere else is
 # the divergence that matters most, and the one an agent-set-only comparison cannot
-# see. The mode comparison is the same shape as section 2's and exists for the same
+# see. The mode comparison exists for the same
 # reason: an agent dropped from the fast block reviews nothing on the prompt path
-# while both other copies still claim it runs.
+# while the canonical table still claims it runs.
 echo ""
-echo "=== 3. Canonical table matches Step 2b prose in skills/review/SKILL.md ==="
+echo "=== 2. Canonical table matches Step 2b prose in skills/review/SKILL.md ==="
 while IFS= read -r line; do
   [ -n "$line" ] || continue
   case "$line" in
@@ -378,7 +278,7 @@ done < <(awk -F'\t' '
 # dispatch scope with no row is dispatched on every diff at runtime, and a row naming
 # no agent file is a gate for something that no longer exists.
 echo ""
-echo "=== 4. Every agent in dispatch scope has a canonical row ==="
+echo "=== 3. Every agent in dispatch scope has a canonical row ==="
 
 # Extract a frontmatter field, bounded to the block between the first two --- delimiters.
 fm() {

@@ -45,7 +45,7 @@ When adding a new adversarial agent, draft an exemption variant that names its a
 
 ## Dispatch Gates
 
-Which agents `/quiver:review` Step 2 dispatches, and what must be true of the diff before each one runs. This table is canonical. `skills/review/SKILL.md` Step 2b prose and `workflows/review-fanout.js` both carry copies of it, and a copy that drifts changes which agents review a diff without changing anything a reader would notice. Verified by `bash tests/skills/test-review-dispatch-contract.sh`.
+Which agents `/quiver:review` Step 2 dispatches, and what must be true of the diff before each one runs. This table is canonical. `skills/review/SKILL.md` Step 2b prose carries a copy of it, and a copy that drifts changes which agents review a diff without changing anything a reader would notice. Verified by `bash tests/skills/test-review-dispatch-contract.sh`.
 
 | Agent | Gate | Modes |
 |-------|------|-------|
