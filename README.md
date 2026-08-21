@@ -133,11 +133,29 @@ already use it in another harness.
 ```
 /review                    # fast review (5 agents, prompts for base branch)
 /review --deep             # full pipeline: all agents + quality check + senior review
+/review --workflow         # same agents, dispatched by a deterministic script
 /review --base main        # review against a specific base branch
 /review <PR-URL>           # review a pull request by URL
 ```
 
 Pass `--comment-pr` to post the report as a PR comment. Use `--deep --with-codex` for cross-model coverage (requires `codex` CLI).
+
+#### What `--workflow` costs
+
+`--workflow` changes **how** agents are spawned, never which ones qualify or what they report. On its own it costs about the same as a normal run, and it makes the dispatch repeatable: the same diff picks the same agents every time, because a script applies the gates instead of the model re-reasoning about them.
+
+Combined with `--deep` it does more, and costs more. Every finding an agent produces is handed to three independent refuters, and a finding two of them reject never reaches the report:
+
+| Invocation | Agents dispatched | Refutation | Rough cost |
+|------------|-------------------|------------|------------|
+| `/review` | 5 | none | baseline |
+| `/review --deep` | full pipeline | none | higher, scales with agent count |
+| `/review --workflow` | 5 | none | about baseline |
+| `/review --workflow --deep` | full pipeline | 3 refuters per finding | highest, scales with **findings**, not just agents |
+
+The last row is the one to think about before running. A review that surfaces 20 findings spawns 60 additional refuter calls on top of the full pipeline. That buys a report with far fewer false positives, and it is the right tool before a release or on a diff you cannot afford to get wrong. It is the wrong tool for a routine three-file change.
+
+The trade is not free in the other direction either: three skeptics told to reject when uncertain will occasionally drop a real finding whose evidence is thin. `--workflow --deep` optimizes for precision over recall on purpose.
 
 Re-review detection: if you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
 

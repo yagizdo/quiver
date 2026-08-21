@@ -228,14 +228,14 @@ while IFS= read -r SEGMENT; do
       for TARGET in $TARGETS; do
         normalize_target "$TARGET"
         if is_catastrophic_target "$NORM_TARGET"; then
-          emit deny "Refusing a recursive force delete of $NORM_TARGET. This erases the whole filesystem or the whole home directory and nothing recovers it."
+          emit deny "REFUSED, NOT ASKED -- recursive force delete of $NORM_TARGET. This erases the whole filesystem or the whole home directory and nothing recovers it."
         fi
         if ! is_safe_target "$NORM_TARGET"; then
           UNSAFE="$UNSAFE $NORM_TARGET"
         fi
       done
       if [ -n "$UNSAFE" ]; then
-        set_ask "This deletes$UNSAFE and everything under it. rm does not use the trash, so nothing here comes back."
+        set_ask "PERMANENT DELETE --$UNSAFE and everything under it. rm does not use the trash, so nothing here comes back."
       fi
     fi
 
@@ -255,7 +255,7 @@ while IFS= read -r SEGMENT; do
         for ARG in "$@"; do
           case "$ARG" in
             --force|-f|--force-with-lease|--force-with-lease=*|--force-if-includes)
-              set_ask "This overwrites the remote branch history. Any commits on the remote that are not in your local branch are lost, for everyone using that branch, not only for you."
+              set_ask "REWRITES REMOTE HISTORY -- the branch you are pushing to. Any commits on the remote that are not in your local branch are lost, for everyone using that branch, not only for you."
               ;;
           esac
         done
@@ -264,7 +264,7 @@ while IFS= read -r SEGMENT; do
         for ARG in "$@"; do
           case "$ARG" in
             --hard)
-              set_ask "This throws away every uncommitted change in the working tree and the index. Those changes were never committed, so no git command brings them back."
+              set_ask "DISCARDS UNCOMMITTED WORK -- every change in the working tree and the index. Those changes were never committed, so no git command brings them back."
               ;;
           esac
         done
@@ -287,13 +287,13 @@ while IFS= read -r SEGMENT; do
           esac
         done
         if [ "$CLEAN_F" -eq 1 ] && [ "$CLEAN_D" -eq 1 ]; then
-          set_ask "This deletes every untracked file and directory here, including ones git has never seen. They are in no commit and no stash, so nothing recovers them."
+          set_ask "DELETES UNTRACKED FILES -- every untracked file and directory here, including ones git has never seen. They are in no commit and no stash, so nothing recovers them."
         fi
         ;;
       checkout|restore)
         for ARG in "$@"; do
           if [ "$ARG" = "." ]; then
-            set_ask "This overwrites every uncommitted change in the working tree with the committed version. Those edits were never committed, so nothing recovers them."
+            set_ask "DISCARDS UNCOMMITTED WORK -- every change in the working tree, overwritten with the committed version. Those edits were never committed, so nothing recovers them."
           fi
         done
         ;;
@@ -315,7 +315,7 @@ while IFS= read -r SEGMENT; do
           esac
         done
         if [ "$BRANCH_DELETE" -eq 1 ] && [ "$BRANCH_FORCE" -eq 1 ]; then
-          set_ask "This force-deletes the branch whether or not its commits are merged anywhere. Any commit only reachable from it becomes unreachable."
+          set_ask "FORCE-DELETES A BRANCH -- whether or not its commits are merged anywhere. Any commit only reachable from it becomes unreachable."
         fi
         ;;
     esac
