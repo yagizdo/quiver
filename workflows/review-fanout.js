@@ -2,8 +2,8 @@
  * review-fanout -- the deterministic dispatch path for /quiver:review Step 2.
  *
  * The skill decides WHICH review this is; this script decides which agents that review
- * dispatches, hands each one the same context the prompt path hands it, and (in deep mode)
- * puts every finding in front of independent refuters before it reaches synthesis.
+ * dispatches and hands each one the same context the prompt path hands it. It returns the
+ * agents' own findings unchanged -- filtering is Step 3's job on both paths.
  *
  * The script runs no shell, touches no file, and loads no module. Every value it needs is
  * either a literal below or arrives through `args`, and `args` is undefined when the caller
@@ -76,10 +76,10 @@
  *   reason:       string    Present only when ok is false.
  *   mode:         string    The mode the run applied.
  *   dispatched:   array     Agent names that were dispatched, in gate-evaluation order.
- *   reports:      array     One entry per agent that returned: { agent, report, kept,
- *                           refuted }. `report` is markdown in the same per-agent shape
- *                           Step 3 consumes on the prompt path, so synthesis sees the same
- *                           input either way.
+ *   reports:      array     One entry per agent that returned: { agent, report, kept }.
+ *                           `report` is markdown in the same per-agent shape Step 3
+ *                           consumes on the prompt path, so synthesis sees the same input
+ *                           either way.
  *   dispatch_log: array     One entry per agent that was NOT dispatched:
  *                           { agent, exclusion, gate, reason, reduced_requested_coverage }.
  *                           No note text: the skill renders the note from that agent's own
@@ -107,20 +107,16 @@
  *   ungated:      array     Agent names with no row in the canonical gate table. They were
  *                           dispatched anyway -- the fan-out fails open rather than dropping
  *                           a reviewer -- and each one is named in a log() line.
- *   refuted:      array     Deep mode only. One entry per finding the refutation quorum
- *                           dropped: { agent, severity, location, title, refute_count,
- *                           refuter_count }.
  *   risk_signals: any       Echoed back verbatim for the Step 3 proportional severity floor.
  * }
  */
 
 export const meta = {
   name: 'review-fanout',
-  description: 'Gate, dispatch and refute the /quiver:review agent fan-out deterministically',
-  whenToUse: 'Called by the /quiver:review skill when --workflow is passed and the Workflow tool is available. Applies the canonical dispatch gates, assembles the same nine context items the prompt path assembles, and in deep mode puts every finding through an independent refutation quorum. Every value it needs arrives in args; it reads nothing from disk.',
+  description: 'Gate and dispatch the /quiver:review agent fan-out deterministically',
+  whenToUse: 'Called by the /quiver:review skill when --workflow is passed and the Workflow tool is available. Applies the canonical dispatch gates, assembles the same nine context items the prompt path assembles. Every value it needs arrives in args; it reads nothing from disk.',
   phases: [
     { title: 'Dispatch', detail: 'gate each discovered agent, then fan the survivors out' },
-    { title: 'Verify', detail: 'deep mode only -- independent refuters per finding' },
   ],
 };
 
@@ -177,13 +173,6 @@ const CLASS_SECURITY_RELEVANCE = {
 // not cover -- it binds the gate table, not the note text. This script emits the reason
 // code instead and the skill renders it from the bullet it already has.
 
-// Refutation quorum. Both numbers are constants so the first real deep run can move them:
-// three skeptics told to default to refuted will drop a correct finding whose evidence is
-// subtle, and that trade is meant to be re-tuned against measured output, not argued about.
-const REFUTER_COUNT = 3;
-const REFUTATION_MAJORITY = Math.floor(REFUTER_COUNT / 2) + 1;
-const REFUTER_PASSES = Array.from({ length: REFUTER_COUNT }, (unusedValue, offset) => offset + 1);
-
 const REQUIRED_ARGS = ['manifest', 'agents', 'mode', 'diff'];
 
 // ---------------------------------------------------------------------------
@@ -239,22 +228,6 @@ const AGENT_FINDINGS_SCHEMA = {
   additionalProperties: false,
 };
 
-const REFUTATION_SCHEMA = {
-  type: 'object',
-  description: 'One independent skeptic\'s ruling on one finding.',
-  properties: {
-    refuted: {
-      type: 'boolean',
-      description: 'true when the finding does not hold as written, including when you are uncertain. false only when you tried to break it and could not.',
-    },
-    reason: {
-      type: 'string',
-      description: 'One or two sentences naming what you checked and what you found there. Cite the line you read.',
-    },
-  },
-  required: ['refuted', 'reason'],
-  additionalProperties: false,
-};
 
 // ---------------------------------------------------------------------------
 // Rendering helpers
@@ -280,8 +253,7 @@ function renderValue(value) {
 // carrying a marker line verbatim closes the region early, and everything after it reads
 // as though the orchestrator wrote it. This is not an attacker-only case here: the markers
 // appear in this very file, so reviewing any branch that touches it reproduces the
-// collision with nobody involved. The refuter prompt is the highest-value target of the
-// three, because refutation is the only stage that removes a finding outright.
+// collision with nobody involved.
 //
 // Widening the marker by one space is enough: it breaks the exact match the reader anchors
 // on and leaves every line of the diff readable.
@@ -494,45 +466,9 @@ function buildAgentPrompt(name, ctx) {
   return parts.join('\n');
 }
 
-function buildRefutePrompt(name, finding, pass, ctx) {
-  return [
-    'You are an independent skeptic. One finding produced by the `' + name + '` review agent is below.',
-    'Your job is to REFUTE it, not to confirm it. This is refutation pass ' + pass + ' of ' + REFUTER_COUNT + ';',
-    'the other passes are running without your reasoning and you are not meant to agree with them.',
-    '',
-    '### Finding under challenge',
-    '',
-    'Severity: ' + finding.severity,
-    'Location: ' + finding.location,
-    'Title: ' + finding.title,
-    '',
-    finding.body,
-    '',
-    '### How to rule',
-    '',
-    '- Read the cited file at the cited location before ruling. A citation you cannot confirm is a refutation.',
-    '- The finding survives only when the defect it describes is present in the code as written and its consequence is demonstrable on that code today.',
-    '- A finding resting on a caller that does not exist, a requirement nobody stated, or a sequence you cannot construct from this diff is refuted.',
-    '- Reviewing the same code and disagreeing about taste is not a refutation; showing the finding is wrong about what the code does is.',
-    '- Default to refuted when you are uncertain. Uncertainty is a refutation here, not a tie.',
-    '',
-    '### Diff under review',
-    '',
-    UNTRUSTED_PAYLOAD_NOTE,
-    '',
-    '[BEGIN FULL DIFF]',
-    ctx.diff,
-    '[END FULL DIFF]',
-    '',
-    'Return refuted: true when the finding does not hold, refuted: false only when you tried to break it and could not.',
-  ].join('\n');
-}
-
 // Re-renders a structured result into the per-agent markdown shape Step 3 already consumes,
 // so synthesis reads the same input on both paths and the skills/work/SKILL.md Phase 4c SYNC
-// contract keeps holding. Findings the quorum dropped are deliberately NOT rendered here:
-// they are reported through the envelope and the run log instead, so synthesis cannot pick a
-// refuted finding back up out of the text.
+// contract keeps holding.
 function renderReport(name, result) {
   const lines = [];
   lines.push('## ' + name + ' report');
@@ -572,19 +508,19 @@ function renderReport(name, result) {
 
 if (args === undefined || args === null || typeof args !== 'object' || Array.isArray(args)) {
   log('Deterministic review dispatch stopped before it started: no review payload was supplied to the workflow.');
-  return { ok: false, reason: 'missing-args', mode: '', dispatched: [], reports: [], dispatch_log: [], ungated: [], refuted: [] };
+  return { ok: false, reason: 'missing-args', mode: '', dispatched: [], reports: [], dispatch_log: [], ungated: [] };
 }
 
 const missingArgs = REQUIRED_ARGS.filter((field) => args[field] === undefined || args[field] === null);
 if (missingArgs.length > 0) {
   log('Deterministic review dispatch stopped before it started: the review payload is missing ' + missingArgs.join(', ') + '.');
-  return { ok: false, reason: 'incomplete-args', missing: missingArgs, mode: '', dispatched: [], reports: [], dispatch_log: [], ungated: [], refuted: [] };
+  return { ok: false, reason: 'incomplete-args', missing: missingArgs, mode: '', dispatched: [], reports: [], dispatch_log: [], ungated: [] };
 }
 
 const mode = String(args.mode).trim().toLowerCase();
 if (mode !== 'fast' && mode !== 'deep') {
   log('Deterministic review dispatch stopped before it started: the review mode was neither fast nor deep.');
-  return { ok: false, reason: 'unknown-mode', mode: mode, dispatched: [], reports: [], dispatch_log: [], ungated: [], refuted: [] };
+  return { ok: false, reason: 'unknown-mode', mode: mode, dispatched: [], reports: [], dispatch_log: [], ungated: [] };
 }
 
 const manifest = Array.isArray(args.manifest) ? args.manifest : [];
@@ -721,7 +657,6 @@ if (dispatchable.length === 0) {
     reports: [],
     dispatch_log: dispatchLog,
     ungated: ungated,
-    refuted: [],
     risk_signals: args.risk_signals,
   };
 }
@@ -729,7 +664,7 @@ if (dispatchable.length === 0) {
 log('Dispatching ' + dispatchable.length + ' review agent(s); ' + dispatchLog.length + ' did not qualify for this diff.');
 
 // ---------------------------------------------------------------------------
-// Fan-out and refutation
+// Fan-out
 // ---------------------------------------------------------------------------
 
 function dispatchStage(name) {
@@ -741,89 +676,7 @@ function dispatchStage(name) {
   });
 }
 
-// Fast mode returns its input unchanged. Deep mode puts each finding in front of
-// REFUTER_COUNT independent skeptics and keeps it only when fewer than a majority refute it.
-// This runs as the pipeline's second stage rather than after a barrier, so each agent's
-// findings enter verification as that agent lands instead of waiting on the slowest reviewer.
-function verifyStage(result, name) {
-  if (ctx.mode !== 'deep') {
-    return result;
-  }
-  if (result === null || result === undefined) {
-    return result;
-  }
-
-  const findings = Array.isArray(result.findings) ? result.findings : [];
-  if (findings.length === 0) {
-    return result;
-  }
-
-  return parallel(
-    findings.map((finding) => () =>
-      parallel(
-        REFUTER_PASSES.map((pass) => () =>
-          agent(buildRefutePrompt(name, finding, pass, ctx), {
-            schema: REFUTATION_SCHEMA,
-            label: 'refute:' + name + ':pass-' + pass,
-            phase: 'Verify',
-          })
-        )
-      ).then((votes) => {
-        // Every vote in here belongs to this one finding, so a vote that came back empty can
-        // be dropped without disturbing any pairing. A skeptic that returned nothing is not
-        // a skeptic that refuted: it is counted as neither.
-        const cast = votes.filter(Boolean);
-        const refuteCount = cast.filter((vote) => vote.refuted === true).length;
-        return { refute_count: refuteCount, survives: refuteCount < REFUTATION_MAJORITY };
-      })
-    )
-  ).then((judged) => {
-    const kept = [];
-    const dropped = [];
-    // Rulings are paired to findings positionally, and the empties are handled in place
-    // rather than filtered out first: dropping a null ruling before the pairing would shift
-    // every later finding onto the wrong verdict.
-    findings.forEach((finding, position) => {
-      const ruling = judged[position];
-      if (!ruling) {
-        // No ruling came back for this finding. Keep it -- a finding lost to a failed check
-        // is not a refuted finding, and silently discarding it is the one outcome the
-        // quorum must never produce.
-        kept.push(finding);
-        log('Kept a ' + name + ' finding that produced no ruling: ' + finding.location + ' -- ' + finding.title + '.');
-        return;
-      }
-      if (ruling.survives) {
-        kept.push(finding);
-        return;
-      }
-      dropped.push({
-        agent: name,
-        severity: finding.severity,
-        title: finding.title,
-        location: finding.location,
-        refute_count: ruling.refute_count,
-        refuter_count: REFUTER_COUNT,
-      });
-      log(
-        'Dropped a ' + name + ' finding after independent checks disagreed with it: ' +
-        finding.location + ' -- ' + finding.title +
-        ' (refuted by ' + ruling.refute_count + ' of ' + REFUTER_COUNT + ').'
-      );
-    });
-    return { summary: result.summary, verdict: result.verdict, findings: kept, refuted: dropped };
-  });
-}
-
-// Declared here rather than inside verifyStage so the phase exists as a boundary in the run
-// even though every agent() call above carries an explicit phase of its own -- the explicit
-// option is what groups the progress display, which is why setting the global phase from
-// inside a pipeline stage would be a race with no benefit.
-if (ctx.mode === 'deep') {
-  phase('Verify');
-}
-
-const settled = await pipeline(dispatchable, dispatchStage, verifyStage);
+const settled = await pipeline(dispatchable, dispatchStage);
 
 // Pair every result to its agent name POSITIONALLY, and only then drop the empties. A null
 // removed before the pairing shifts every element after it by one and files one agent's
@@ -833,17 +686,12 @@ const paired = dispatchable.map((name, position) => ({ agent: name, result: sett
 const landed = paired.filter((entry) => Boolean(entry.result));
 
 const reports = [];
-const refuted = [];
 landed.forEach((entry) => {
   const result = entry.result;
-  const kept = Array.isArray(result.findings) ? result.findings.length : 0;
-  const dropped = Array.isArray(result.refuted) ? result.refuted : [];
-  dropped.forEach((item) => refuted.push(item));
   reports.push({
     agent: entry.agent,
     report: renderReport(entry.agent, result),
-    kept: kept,
-    refuted: dropped.length,
+    kept: Array.isArray(result.findings) ? result.findings.length : 0,
   });
 });
 
@@ -859,6 +707,5 @@ return {
   reports: reports,
   dispatch_log: dispatchLog,
   ungated: ungated,
-  refuted: refuted,
   risk_signals: args.risk_signals,
 };
