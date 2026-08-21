@@ -301,22 +301,31 @@ echo "=== 8b. Tier precedence: deny wins across segments, first ask wins ==="
 # that way, replacing set_ask with an immediate emit would pass every other test in this file.
 run_case 'rm -rf src && rm -rf /'  deny
 run_case 'git push --force && rm -rf /' deny
-run_reason 'rm -rf src && git push --force' ask 'This deletes src'
+run_reason 'rm -rf src && git push --force' ask 'PERMANENT DELETE -- src'
 
 echo ""
 echo "=== 8c. Reason text: the prompt must name what is about to be lost ==="
 # A tier with an empty or wrong target tells the user nothing the CLI's own prompt does not.
-run_reason 'rm -rf /'                deny 'delete of /.'
-run_reason 'rm -rf "$HOME"'          deny 'delete of $HOME.'
-run_reason 'rm -rf /*'               deny 'delete of /*.'
-run_reason 'rm -rf src'              ask  'This deletes src and'
-run_reason 'rm -rf node_modules src' ask  'This deletes src and'
+run_reason 'rm -rf /'                deny 'REFUSED, NOT ASKED -- recursive force delete of /.'
+run_reason 'rm -rf "$HOME"'          deny 'REFUSED, NOT ASKED -- recursive force delete of $HOME.'
+run_reason 'rm -rf /*'               deny 'REFUSED, NOT ASKED -- recursive force delete of /*.'
+run_reason 'rm -rf src'              ask  'PERMANENT DELETE -- src and'
+run_reason 'rm -rf node_modules src' ask  'PERMANENT DELETE -- src and'
 run_reason_excludes 'rm -rf node_modules src' ask 'node_modules'
-run_reason 'git push --force'        ask  'overwrites the remote branch history'
-run_reason 'git reset --hard'        ask  'every uncommitted change'
-run_reason 'git clean -f -d'         ask  'every untracked file'
-run_reason 'git branch -D feature'   ask  'force-deletes the branch'
-run_reason 'git checkout .'          ask  'overwrites every uncommitted change'
+run_reason 'git push --force'        ask  'REWRITES REMOTE HISTORY --'
+run_reason 'git reset --hard'        ask  'DISCARDS UNCOMMITTED WORK --'
+run_reason 'git clean -f -d'         ask  'DELETES UNTRACKED FILES --'
+run_reason 'git branch -D feature'   ask  'FORCE-DELETES A BRANCH --'
+
+# The all-caps label alone is not the warning. Asserting only the label lets the body be
+# replaced with anything -- "totally fine, go ahead." included -- while the suite stays green,
+# and the body is the half that says what is lost. Each label above is paired with the
+# consequence clause it must carry.
+run_reason 'git push --force'        ask  'lost, for everyone using that branch'
+run_reason 'git reset --hard'        ask  'no git command brings them back'
+run_reason 'git clean -f -d'         ask  'in no commit and no stash'
+run_reason 'git branch -D feature'   ask  'becomes unreachable'
+run_reason 'git checkout .'          ask  'DISCARDS UNCOMMITTED WORK -- every change in the working tree, overwritten'
 
 echo ""
 echo "=== 8d. Output is valid JSON the CLI can parse ==="

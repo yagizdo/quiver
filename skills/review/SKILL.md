@@ -38,7 +38,6 @@ Parse `$ARGUMENTS` for the `--deep` flag:
 
 1. If `$ARGUMENTS` contains `--deep`, set `review_mode = deep`. Strip `--deep` from `$ARGUMENTS` before passing to subsequent steps.
 2. Otherwise, set `review_mode = fast`.
-
 This flag affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
 
 Announce the mode:
@@ -195,6 +194,8 @@ For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missin
 
 Apply dispatch rules based on the Diff Manifest from Step 1.5.
 
+The canonical gate for every agent is the `## Dispatch Gates` table in `.claude/rules/review-agent-rules.md`. The per-agent rules restated below are a copy of it for the orchestrator's use, and `tests/skills/test-review-dispatch-contract.sh` is the binding that fails when the copies diverge. When a gate changes, change the table first.
+
 ### Review depth dispatch
 
 **If `review_mode = fast`:** Dispatch only these 5 agents:
@@ -236,7 +237,7 @@ Then continue the fast review without Codex.
   > Skipping codex-code-reviewer: diff exceeds 2000 lines ({actual_count} lines). Codex review is skipped for large diffs to avoid excessive token consumption and timeouts.
 - **`report-checker`**: Never dispatched in Step 2. This agent is a post-synthesis quality gate, dispatched only in Step 3.5 after the report is assembled. Skip silently during agent discovery.
 - **`senior-reviewer`**: Never dispatched in Step 2. This agent is a post-quality-check senior review, dispatched only in Step 3.75 after report-checker completes. Skip silently during agent discovery.
-- **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
+- **Future agents**: Add a row to the `## Dispatch Gates` table in `.claude/rules/review-agent-rules.md` before the agent's first review run, then restate that row here. The table row is the gate. Until a row exists, the agent is dispatched on every diff regardless of what changed, and `tests/skills/test-review-dispatch-contract.sh` fails until one is added -- dispatching too much is recoverable, silently reviewing nothing is not.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
 

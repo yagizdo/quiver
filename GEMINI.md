@@ -49,6 +49,7 @@ Quiver skills dispatch specialized agents using the Agent tool with a `subagent_
 
 When a skill dispatches multiple agents in parallel, execute them sequentially. Collect all results before continuing to the synthesis step.
 
+
 ## PreCompress hook
 
 The handover auto-save hook maps to Gemini CLI's PreCompress event via `hooks/hooks-gemini.json`. PreCompress fires before history compression -- the same trigger point as Claude Code's PreCompact. No guard condition is needed. The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
