@@ -2,7 +2,8 @@
 
 Hard rules and learned lessons for writing agents that participate in `/quiver:review`.
 
-**Scope:**
+**Scope:** This file governs two things for the agents named below -- the authoring discipline in `## Hard Rules` and the dispatch policy in `## Dispatch Gates`; an agent exempted from a discipline rule by one of the classes below is not thereby exempted from carrying a dispatch gate.
+
 - Everything under `agents/review/` is covered by the full rule set (RA1-RA8) without exception.
 - Cross-category research agents dispatched by `skills/review/SKILL.md` (currently `agents/research/best-practices-researcher.md` and `agents/research/project-context-analyst.md`) are a research-shaped exemption class, analogous to RA3's adversarial-agent exemptions. They MUST carry RA2 (hypothetical ban) in its canonical form, and SHOULD carry an RA1-equivalent discipline section, an RA5 zero-findings clause, an RA7 relevance/diff-scoping clause, and an RA8-equivalent citation rule. RA4 (stability test) and RA6 (severity earned, not assigned) do not apply because these agents surface context and facts rather than severity-graded findings -- the stability and severity-tier framings have no target to act on. When writing or editing a research agent, name this exemption explicitly in its discipline section so reviewers do not treat the missing rules as drift.
 - Transport-adapter agents (currently `agents/review/codex-code-reviewer.md`) are an adapter-shaped exemption class. These agents do NOT review the diff -- they relay another reviewer's findings verbatim (e.g., the OpenAI Codex CLI). Because the agent emits no judgment of its own, RA1-RA8 review-discipline rules have no target and do not apply: there is no discipline section governing trace methodology (the agent traces nothing), no hypothetical-language ban applicable to passthrough output, no stability test on findings the agent did not author, no severity-tier rubric on severities the agent did not assign. The adapter's own discipline -- a passthrough contract forbidding interpretation, summarization, filtering, or rephrasing of the wrapped reviewer's output -- replaces the standard review discipline. When writing a transport-adapter agent, the agent file MUST contain a top-level "Adapter Discipline" section that names this exemption explicitly, so reviewers do not treat the missing review-discipline rules as drift. If a future adapter starts emitting its own analysis on top of the wrapped reviewer's findings, the exemption no longer holds and RA1-RA8 apply automatically.
@@ -39,6 +40,43 @@ When adding a new adversarial agent, draft an exemption variant that names its a
 **RA7. Diff-scoped findings.** Findings must target code changed in the diff. Reading surrounding code is allowed for context; flagging pre-existing issues is not, unless the diff worsens them or makes them newly reachable.
 
 **RA8. Citation verification rule.** Every agent must have a "cite what you read, not what you assume" rule that requires reading the file before including a `file:line` reference. This catches phantom citations.
+
+---
+
+## Dispatch Gates
+
+Which agents `/quiver:review` Step 2 dispatches, and what must be true of the diff before each one runs. This table is canonical. `skills/review/SKILL.md` Step 2b prose and `workflows/review-fanout.js` both carry copies of it, and a copy that drifts changes which agents review a diff without changing anything a reader would notice. Verified by `bash tests/skills/test-review-dispatch-contract.sh`.
+
+| Agent | Gate | Modes |
+|-------|------|-------|
+| `waste-detector` | `UNCONDITIONAL` | fast, deep |
+| `project-context-analyst` | `UNCONDITIONAL` | fast, deep |
+| `security-audit` | `SCRIPT, CODE, CONFIG-APP` | fast, deep |
+| `logic-reviewer` | `SCRIPT, CODE` | fast, deep |
+| `best-practices-researcher` | `SCRIPT, CODE` | fast, deep |
+| `architecture-strategist` | `SCRIPT, CODE, CONFIG-APP` | deep |
+| `developer-experience-auditor` | `SCRIPT, CODE` | deep |
+| `test-reviewer` | `SCRIPT, CODE` | deep |
+| `stress-tester` | `SCRIPT, CODE` | deep |
+| `codex-code-reviewer` | `PRECONDITION` | deep |
+| `report-checker` | `NEVER` | -- |
+| `senior-reviewer` | `NEVER` | -- |
+
+The `Gate` cell takes one of four forms.
+
+`UNCONDITIONAL` dispatches on every diff, whatever the Diff Manifest contains.
+
+A class list dispatches when the manifest contains at least one file of any listed class. The classes are alternatives, not a conjunction -- one `CODE` file satisfies `SCRIPT, CODE, CONFIG-APP` on its own.
+
+`PRECONDITION` means the gate is not manifest-expressible. The conditions are documented at that agent's bullet in `skills/review/SKILL.md` Step 2b, because they read state no manifest carries; this table records only that a gate exists and which modes it applies in.
+
+`NEVER` means the agent is not a Step 2 participant. `report-checker` and `senior-reviewer` run at later steps of `/quiver:review`, so their `Modes` cell is `--`: naming a mode would imply a fan-out they never join.
+
+`PROMPT`, `DOCS`, and `CONFIG-MANIFEST` satisfy no class gate. A diff made only of those classes dispatches the `UNCONDITIONAL` agents and nothing else.
+
+The `Modes` cell is part of the contract, not a note. An agent whose cell omits `fast` is not dispatched in fast mode even when its class gate is satisfied, and mode exclusions produce no user-visible skip note.
+
+An agent in scope with no row here is dispatched unconditionally at runtime -- the fan-out fails open rather than dropping a reviewer -- and fails the verifier. Add the row in the same change that adds the agent.
 
 ---
 

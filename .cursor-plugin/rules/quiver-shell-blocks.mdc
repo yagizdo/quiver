@@ -35,6 +35,7 @@ When a Quiver agent or skill references a Claude Code tool name, use the Cursor 
 | Grep | Grep | Identical. |
 | Glob | (use Shell) | Cursor does not expose Glob. Run `find` or `fd` via Shell. |
 | Agent | Task | Cursor's sub-agent dispatch tool is named Task. |
+| Workflow | (unsupported) | Cursor has no Workflow tool. `/review --workflow` degrades to the prompt fan-out path. |
 | Skill | (native) | SKILL.md format loads automatically; no tool call needed. |
 | AskUserQuestion | (polyfill) | See the section below. |
 | WebFetch | (unsupported) | Use the context7 MCP for docs lookups. |

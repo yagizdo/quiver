@@ -3,6 +3,7 @@
 # Guards the agent capability contract:
 #   producer  .claude/rules/agent-capability-rules.md -- canonical disallowedTools strings + assignments
 #   consumer  agents/**/*.md                          -- each agent restates its profile's string verbatim
+#   consumer  workflows/*.js                          -- no maxTurns (CP8), no tools allowlist (CP3) in agent options
 #
 # The string lives in two places by construction. This test fails mechanically when a copy drifts,
 # when an agent is missing from the Assignments table, or when a table row has no agent file.
@@ -17,6 +18,7 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RULES="$REPO_ROOT/.claude/rules/agent-capability-rules.md"
 AGENTS_DIR="$REPO_ROOT/agents"
+WORKFLOWS_DIR="$REPO_ROOT/workflows"
 
 EXIT=0
 pass() { echo "  PASS: $1"; }
@@ -191,6 +193,42 @@ done < <(awk '
     gsub(/[` ]/, "", v)
     print v
   }' "$RULES")
+
+# --- Workflow scripts carry no per-call capability overrides ---
+# CP3 and CP8 are agent-frontmatter rules, but a workflow script passes agent options
+# in JavaScript, where the frontmatter checks above cannot see them. The grep is textual
+# on purpose: a `maxTurns` inside a comment is still a `maxTurns` a reader will copy.
+echo ""
+echo "=== 4. Workflow scripts respect CP3 and CP8 ==="
+workflow_count=0
+if [ ! -d "$WORKFLOWS_DIR" ]; then
+  pass "no workflows/ directory -- nothing to check"
+else
+  while IFS= read -r file; do
+    workflow_count=$((workflow_count + 1))
+    rel="${file#"$REPO_ROOT"/}"
+
+    if grep -q 'maxTurns' "$file"; then
+      fail "$rel: sets 'maxTurns' -- CP8 bans it on synthesis-feeding agents"
+    else
+      pass "$rel: no maxTurns"
+    fi
+
+    # Anchored on a non-identifier char so disallowedTools, allowedTools, and the like
+    # are not read as an allowlist.
+    if grep -qE '(^|[^[:alnum:]_$])tools[[:space:]]*:' "$file"; then
+      fail "$rel: sets 'tools' -- CP3 forbids allowlists, use disallowedTools"
+    else
+      pass "$rel: no tools allowlist"
+    fi
+  done < <(find "$WORKFLOWS_DIR" -name '*.js' -type f | LC_ALL=C sort)
+
+  if [ "$workflow_count" -eq 0 ]; then
+    pass "workflows/ has no .js files -- nothing to check"
+  else
+    pass "scanned $workflow_count workflow files"
+  fi
+fi
 
 echo ""
 echo "================================"

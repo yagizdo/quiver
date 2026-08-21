@@ -86,6 +86,7 @@ already use it in another harness.
 | Hooks | 3 |
 | Skills | 25 |
 | Agents | 20 |
+| Workflows | 1 |
 
 ## What Do I Use?
 
@@ -125,7 +126,7 @@ already use it in another harness.
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report |
+| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report; `--workflow` runs the same fan-out through a deterministic dispatcher |
 | Want a quick senior dev sanity check | `/senior-review` | One pragmatic reviewer evaluates structure, quality, risks |
 | Got a review report, not sure which findings matter | `/report-check` | Audits the report for noise, false positives, and overkill |
 

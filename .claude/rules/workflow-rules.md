@@ -1,0 +1,41 @@
+# Workflow Rules
+
+Hard rules and learned lessons for the JavaScript workflow scripts under `workflows/`: what a workflow file is allowed to reference, how its `meta` block is written, and which of its failures are silent rather than loud. The rules exist because a workflow fails differently from every other Quiver artifact -- a broken skill still runs and misbehaves in front of the user, while a broken workflow is skipped at load and presents at the call site as a workflow that was never there.
+
+For skill authoring rules, see `skill-rules.md`. For review-agent discipline, see `review-agent-rules.md`. For CLI overlay rules, see `cli-overlay-rules.md`. For agent capability profiles, see `agent-capability-rules.md`.
+
+**Scope:** Workflow scripts and the Workflow tool exist on Claude Code only. `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `gemini-extension.json`, and `.opencode/plugins/quiver.js` carry no `workflows` key and no equivalent primitive, so on those four CLIs these rules are documentation rather than enforcement, and every skill that offers a workflow path keeps its prompt path as the fallback. This is a coverage limitation of the overlays, not a violation of the contract -- the same files ship to every CLI and no overlay forks them.
+
+Nothing runs the checks automatically. There is no CI in this repo and every test under `tests/` is a documented manual run: `tests/skills/test-review-dispatch-contract.sh` binds the dispatch table a workflow carries to its canonical source, and `tests/agents/test-capability-profile-contract.sh` scans `workflows/*.js` textually for the WF5 and CP3 violations. The rest of the rules below have no automated check at all and are author discipline enforced at review time. Drift between manual runs is possible, and most violations surface as a run that produced nothing rather than as a test failure.
+
+---
+
+## Hard Rules
+
+Non-negotiable. Every file under `workflows/` must satisfy all of these.
+
+**WF1. No filesystem, no shell, no Node APIs, no module loading.** A workflow script is plain JavaScript evaluated without `fs`, `child_process`, `process`, `require`, or `import`. Every value it needs is either a literal in the file or arrives through `args`; every read and every write happens in the calling skill, before or after the Workflow call, or inside an `agent()`. Reaching for a Node API aborts the run before the first phase opens, so the caller gets an error instead of a result. `args` is `undefined` when the caller omits it, which makes destructuring it directly (`const { mode } = args`) a TypeError at the top of the file -- the run dies before a single agent is dispatched, and the message names the destructure rather than the missing payload. Guard `args`, never destructure it unguarded.
+
+**WF2. `meta` is a pure object literal and the first statement.** No variables, no function calls, no spreads, no template interpolation inside it. The loader parses `meta` statically, before the file is evaluated, and a `meta` it cannot parse produces a warning and skips the workflow instead of failing the plugin load. The plugin still installs, every other workflow still registers, and the broken one is simply absent -- so the failure reaches the user as "that workflow does not exist", not as a syntax error pointing at the line that caused it.
+
+**WF3. The literals `import(`, `Date.now`, `Math.random`, and `new Date()` never appear in the file.** This includes inside prompt strings and inside comments. The check is textual, so a comment explaining that `Math.random` is banned trips it exactly like a call would. The consequence is total rather than partial: the run fails before it starts, no phase opens, no agent is dispatched, and there is no partial result to salvage or inspect. A prompt that would otherwise contain one of these strings gets reworded -- the cost is a word choice, and the cost of violating it is the whole run.
+
+**WF4. No clock and no entropy source, whether or not it appears on WF3's list.** WF3 names the strings that are checked; WF4 names the behavior that is banned. Any other route to the current time or to a random value is a violation even though nothing greps for it. A workflow that reads a clock or draws a random value produces a different result on two runs over the same input, which destroys the property the deterministic path exists to provide: when the workflow path and the prompt path disagree, the disagreement has to be attributable to the gating logic, not to the run. A timestamp arrives through `args`, computed by the caller.
+
+**WF5. No `maxTurns` on any `agent()` call.** This is CP8 in `agent-capability-rules.md` applied at the JavaScript call site, where no frontmatter verifier can see it. An agent that hits the cap terminates with result subtype `error_max_turns` and returns no text at all, not a partial report, and a synthesizer cannot distinguish that from a legitimate zero-findings result -- the run silently loses one reviewer and reports as though that reviewer had found nothing. Set no `model` and no `effort` either: effort is per-agent frontmatter that already has a home, and a second copy here is a second drift surface. The verifier's scan is textual, so cite CP8 by rule ID rather than writing the banned field name into a comment that explains the ban.
+
+**WF6. Never run `node --check` on a workflow file.** The body ends in a top-level `return`, which is legal in the workflow runtime and a SyntaxError under Node's module goal. `node --check` therefore reports a syntax error on a correct file. The danger is not the false failure itself but what it invites: the reported error names a real line, reads like a genuine defect, and the obvious "fix" is to delete the `return` that the runtime requires. The syntax gate is `claude plugin validate ./ --strict` in marketplace-manifest mode, which is the mode chosen when `.claude-plugin/marketplace.json` is present -- how the plugin actually ships.
+
+**WF7. Results are collected by index and paired to agent names positionally, and `.filter(Boolean)` runs after pairing, never before.** Dropping a `null` before the pairing shifts every element after it by one position and attributes one agent's findings to another. This failure has no symptom: the report is fully populated, every section has content, and the only evidence is that a finding cites a file the named agent was never asked about. A misattributed report is worse than an empty one, because nothing about it looks broken. For the same reason, never key a collection by an integer-like value -- integer-like object keys iterate before string keys regardless of insertion order, which reorders the pairing on its own.
+
+**WF8. No locale-sensitive comparison.** Use a bare `.sort()` or an explicit comparator; never `localeCompare`, `toLocaleString`, or `Intl`. Locale-sensitive ordering depends on the environment the run happens in, so the same input produces a different order on a different machine and the workflow stops being reproducible in exactly the way WF4 protects. This is not theoretical on this repository's own data: `['CONFIG-APP','CONFIGAPP','config-app','CODE']` -- the manifest class vocabulary -- orders differently under `localeCompare` than under a bare `.sort()`.
+
+**WF9. One workflow file is capped at 512KB.** The cap is a load-time limit, not a truncation, so an oversized file registers nothing and fails in WF2's shape: absent rather than reported. Size is the one budget a workflow cannot manage by refactoring, because WF1 forbids both reading prompt text from disk and splitting it across modules -- every prompt string a workflow sends is a literal in the same file, and a workflow that approaches the cap has to shed prompt text rather than move it elsewhere.
+
+Measured on Claude Code 2.1.233: the per-file limit is 524288 bytes. The largest file currently shipped anywhere in the repository is a 716-line skill, so the cap is not a live constraint today -- it is recorded because prompt-carrying workflows are the one artifact class in Quiver whose size grows with the text it sends rather than with the logic it runs.
+
+---
+
+## Learned Lessons
+
+No lessons recorded yet. Add `LW1`, `LW2`, ... as issues surface, following the `*Prevention:*` format used in the other rules files.

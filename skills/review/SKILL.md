@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-agent code review. Default fast mode (5 agents); pass --deep for full pipeline (all agents + quality check + senior review). Pass --with-codex for cross-model coverage.
-argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
+argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--workflow] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 disable-model-invocation: true
 when-to-use: "user wants a multi-agent code review of a PR or diff -- '/review', 'review my changes', 'review this PR', 'code review', 'audit the diff' (not: 'senior review')"
 ---
@@ -34,12 +34,13 @@ Print: `> No git repository detected. /review requires a git repo.`
 
 ## Step 0.5 -- Detect Review Depth
 
-Parse `$ARGUMENTS` for the `--deep` flag:
+Parse `$ARGUMENTS` for the `--deep` and `--workflow` flags:
 
 1. If `$ARGUMENTS` contains `--deep`, set `review_mode = deep`. Strip `--deep` from `$ARGUMENTS` before passing to subsequent steps.
 2. Otherwise, set `review_mode = fast`.
+3. If `$ARGUMENTS` contains `--workflow`, set `use_workflow = true`. Strip `--workflow` from `$ARGUMENTS` before passing to subsequent steps, exactly the way `--deep` is stripped. Otherwise, set `use_workflow = false`.
 
-This flag affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
+This flag affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. `--workflow` affects Step 2 only -- unlike `--deep`, it selects how the qualifying agents are spawned, never which agents qualify, which findings they produce, or how those findings are synthesized. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
 
 Announce the mode:
 - Fast: `Running review (5 core agents)...`
@@ -195,6 +196,8 @@ For Tier 2 agents, read the frontmatter the same way. If a Tier 2 file is missin
 
 Apply dispatch rules based on the Diff Manifest from Step 1.5.
 
+The canonical gate for every agent is the `## Dispatch Gates` table in `.claude/rules/review-agent-rules.md`. The per-agent rules restated below are a copy of it for the orchestrator's use, and `tests/skills/test-review-dispatch-contract.sh` is the binding that fails when the copies diverge. When a gate changes, change the table first.
+
 ### Review depth dispatch
 
 **If `review_mode = fast`:** Dispatch only these 5 agents:
@@ -236,7 +239,32 @@ Then continue the fast review without Codex.
   > Skipping codex-code-reviewer: diff exceeds 2000 lines ({actual_count} lines). Codex review is skipped for large diffs to avoid excessive token consumption and timeouts.
 - **`report-checker`**: Never dispatched in Step 2. This agent is a post-synthesis quality gate, dispatched only in Step 3.5 after the report is assembled. Skip silently during agent discovery.
 - **`senior-reviewer`**: Never dispatched in Step 2. This agent is a post-quality-check senior review, dispatched only in Step 3.75 after report-checker completes. Skip silently during agent discovery.
-- **Future agents**: Check the agent's description against the file classifications in the manifest. Skip agents whose scope does not overlap with any changed file type. Treat `CONFIG-MANIFEST` files as low-signal — only agents specifically concerned with project structure or dependency management should trigger on them.
+- **Future agents**: Add a row to the `## Dispatch Gates` table in `.claude/rules/review-agent-rules.md` before the agent's first review run, then restate that row here. The table row is the gate. Until a row exists, the agent is dispatched on every diff regardless of what changed, and `tests/skills/test-review-dispatch-contract.sh` fails until one is added -- dispatching too much is recoverable, silently reviewing nothing is not.
+
+**Dispatch path.** The gating rules above decide which agents qualify. The choice below decides only how the qualifying agents are spawned -- it never changes the set, the per-agent context, or the report shape Step 3 consumes. Evaluate in order:
+
+1. Deterministic path -- `use_workflow` is `true` and the `Workflow` tool is available in this session. Call the `Workflow` tool with `name: "quiver:review-fanout"` and the `args` payload documented below. The workflow applies the same gates, dispatches the same agents, and assembles the same nine context items listed further down for each one. Wait for the harness's completion notification before moving on: the **No fallback polling** paragraph at the end of this step applies unchanged. When the workflow returns, continue to Step 3 with the per-agent reports it produced and skip the prompt-path dispatch instruction below.
+2. Deterministic path requested but unavailable -- `use_workflow` is `true` and the `Workflow` tool is not available in this session. Print exactly one line:
+   > Deterministic dispatch is not available in this session. Running the standard parallel agent fan-out instead.
+   Then continue on the prompt path below. Say nothing further about it -- the review itself is unaffected.
+3. Prompt path -- `use_workflow` is `false`. Use the dispatch instruction below. This is the default and is unchanged.
+
+**Failure arm.** If the workflow call returns an error, or returns results for zero agents, print one plain-language line saying what happened, then run the fan-out on the prompt path below exactly as if `use_workflow` were `false`. Never synthesize a report from zero agent output while the prompt path is still available: an empty review caused by an orchestration failure is worse than a slow review, because the user reads it as "nothing was found" rather than "nothing ran".
+
+**`args` payload.** Arm 1 passes a single `args` object. The workflow has no filesystem, no shell, and no way to re-derive anything, so every value it needs is computed here and passed in:
+
+- `manifest`: the Diff Manifest from Step 1.5 as structured data -- one entry per changed file carrying its path and its class (`PROMPT`, `SCRIPT`, `CONFIG-APP`, `CONFIG-MANIFEST`, `CODE`, `DOCS`). Pass the data, not the rendered text.
+- `risk_signals`: the risk signals detected in Step 1.5 (new dependencies, auth changes, secrets handling, new endpoints). Two consumers depend on them -- stress-tester's depth calibration and the Low-finding floor in Step 3.
+- `diff`: the full diff obtained in Step 1.
+- `delta_diff`: the delta diff (`git diff {previous_head_sha}...HEAD`) when this is a re-review. Omit otherwise.
+- `agents`: the agent list discovered in Step 2a, each entry carrying its frontmatter `name` so the workflow can build the `quiver:{name}` identifier.
+- `mode`: `fast` or `deep`, from `review_mode`.
+- `review_context`: the branches compared, the diff source used, and the PR/MR URL when Mode 1 supplied one.
+- `iteration`: the re-review iteration number when this is a re-review. Omit on a first review.
+- `codegraph_available` and `lsp_available`: the two booleans from Step 1.75.
+- `root_listing`: the `ls` of the project root that `architecture-strategist` needs for its convention mapping.
+- `changed_files_with_languages`: the changed-file list tagged with detected languages and frameworks, which `best-practices-researcher` needs to target its lookups.
+- `codex_requested`, `codex_on_path`, `codex_diff_within_limit`: the three `codex-code-reviewer` preconditions resolved here to booleans -- `$ARGUMENTS` contains `--with-codex`, `command -v codex` found the CLI on PATH, and the diff is 2000 lines or fewer. The workflow cannot run a shell, so it can compute none of the three itself.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.
 
@@ -659,7 +687,7 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 
 ## Test Plan
 
-**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
+**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--workflow`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
 
 **Setup:**
 - Current directory is a git repo with at least one diff source (PR URL, branch ahead of base, or uncommitted changes).
@@ -692,8 +720,12 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 - [ ] Fast mode report includes `(fast)` in the Mode line of Review Context.
 - [ ] Fast mode report's Agents Dispatched section does not list deep-mode-only agents as skipped.
 - [ ] Deep mode report includes `(deep)` in the Mode line of Review Context.
+- [ ] `/review --workflow` with the `Workflow` tool available dispatches the same agent set as a default `/review` run on the same diff.
+- [ ] `/review --workflow` with no `Workflow` tool available prints exactly one line about it and completes the review on the prompt path.
+- [ ] A workflow that errors or returns results for zero agents completes the review on the prompt path instead of reporting an empty review.
 
 **Known gotchas:**
 - Bitbucket/Azure DevOps PR URLs fall back to Mode 2 because there is no diff CLI; PR commenting also skips on those platforms with a manual-paste hint.
 - Two-dot `git diff <base>..<head>` is wrong for branch diffs; the skill uses three-dot `git diff <base>...HEAD` instead.
 - The synthesized report SYNC contract pairs with `skills/work/SKILL.md` Phase 4c parsing; changing section headings or finding-ID format requires updating the work skill verification logic.
+- Reviewing a diff that touches `workflows/review-fanout.js` hits a filter gap. The file classifies as `CODE`, but its prompt-assembly function holds the densest block of prompt text anywhere outside `skills/`, sitting inside JavaScript string literals. The prompt-vs-code false-positive filter in Step 3 keys on the `PROMPT` class, so it does not fire on those strings, and agents can flag review instructions as if they were executable code. Judge such findings by hand on that file rather than widening the filter -- widening it would suppress genuine code findings in every `CODE` file that happens to contain a long string.

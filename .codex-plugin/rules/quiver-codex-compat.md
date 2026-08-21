@@ -47,6 +47,8 @@ Quiver skills dispatch specialized agents using the Agent tool with a `subagent_
 
 When a skill dispatches multiple agents in parallel (e.g., `/review` dispatches up to 10 agents), spawn them as parallel workers. Collect all results before continuing to the synthesis step.
 
+Codex exposes no Workflow tool, so `/review --workflow` degrades to this same prompt fan-out path instead of running the deterministic dispatcher.
+
 ## AskUserQuestion substitution
 
 Codex does not expose an action-button question API. When a Quiver skill says `AskUserQuestion(...)` or asks you to present action-button prompts, render a numbered text prompt and wait for the user's reply.
