@@ -86,7 +86,6 @@ already use it in another harness.
 | Hooks | 3 |
 | Skills | 25 |
 | Agents | 20 |
-| Workflows | 1 |
 
 ## What Do I Use?
 

@@ -10,7 +10,7 @@ For skill authoring rules, see `skill-rules.md`. For review-agent rules, see `re
 
 Non-negotiable. Every CLI overlay branch must follow all of these. Violations break the source-of-truth invariant or force duplication.
 
-**OR1. Source-of-truth invariant.** `agents/`, `skills/`, `hooks/`, `workflows/`, and `.claude-plugin/plugin.json` are byte-identical regardless of which CLIs are supported. CLI overlay work must never modify these. Verified by `git diff --stat master...HEAD -- agents/ skills/ hooks/ workflows/ .claude-plugin/`.
+**OR1. Source-of-truth invariant.** `agents/`, `skills/`, `hooks/`, and `.claude-plugin/plugin.json` are byte-identical regardless of which CLIs are supported. CLI overlay work must never modify these. Verified by `git diff --stat master...HEAD -- agents/ skills/ hooks/ .claude-plugin/`.
 
 **OR2. Dependency direction.** A CLI's manifest dir or root manifest file references the canonical sources (agents, skills, hooks). The reverse is forbidden: no `requires:`, `platforms:`, or `cli:` field in canonical frontmatter; no conditional branches in skill bodies based on the running CLI. Verified by `grep -rn '\.cursor-plugin\|\.codex-plugin\|gemini-extension' agents skills hooks` returning no matches.
 

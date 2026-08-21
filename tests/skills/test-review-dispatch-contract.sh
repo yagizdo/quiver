@@ -51,7 +51,7 @@ if [ "$MISSING" -ne 0 ]; then
   echo "Some tests FAILED."
   exit $EXIT
 fi
-pass "rules file, skill file, workflow script, and agents/review/ all present"
+pass "rules file, skill file, and agents/review/ all present"
 
 # fm_count()'s single-occurrence discipline, ported. Both region extractors below stop
 # at their first anchor, so a second copy of either one would be silently ignored and
@@ -212,13 +212,6 @@ skill_norm() {
     }' "$SKILL"
 }
 
-# --- Extraction C: the workflow script table ---
-# awk, not grep -o: grep cannot be scoped to a block, so it would silently widen the
-# input to any other object literal in the file. The key match is anchored on the
-# following colon so a single-quoted value is never captured as a key, and match()
-# returns only the first hit per line -- which is why the table is written one key per
-# line, single-quoted, exactly one entry per row of the canonical table.
-
 CANON_NORM="$(canonical_norm)"
 SKILL_ROWS="$(skill_norm)"
 
@@ -226,9 +219,9 @@ SKILL_ROWS="$(skill_norm)"
 # The class comparison is the load-bearing half. The prose is the only path any
 # non-Claude CLI ever takes, so widening one agent's gate there and nowhere else is
 # the divergence that matters most, and the one an agent-set-only comparison cannot
-# see. The mode comparison exists for the same
-# reason: an agent dropped from the fast block reviews nothing on the prompt path
-# while the canonical table still claims it runs.
+# see. The mode comparison exists for the same reason: an agent dropped from the
+# fast block reviews nothing on the prompt path while the canonical table still
+# claims it runs.
 echo ""
 echo "=== 2. Canonical table matches Step 2b prose in skills/review/SKILL.md ==="
 while IFS= read -r line; do
