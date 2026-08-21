@@ -169,10 +169,23 @@ canonical_norm() {
 # Each agent is stated twice in the region, once in the fast block and once in the deep
 # block. Identical (agent, gate) pairs are deduped; a disagreeing pair survives as a
 # second row and section 3 reports it.
+#
+# The enclosing block is the ONLY place the prose encodes an agent's modes, so it is
+# tracked and emitted as a third field. Dropping it is not a cosmetic loss: deleting an
+# agent's fast-mode bullet leaves the canonical table and the script both saying
+# "fast, deep" while the prompt path -- the path every non-Claude CLI takes -- silently
+# reviews with one agent fewer, which is the failure direction Step 2b itself calls
+# unrecoverable. Section 2 compares modes for the script copy; this must be symmetric.
+#
+# report-checker and senior-reviewer sit in the deep block but carry a canonical Modes
+# cell of --, because they join no fan-out. A NEVER gate therefore maps to the empty mode
+# list here, the same normalization modenorm() applies to -- on the canonical side.
 skill_norm() {
   awk "$AWK_NORM"'
     index($0, "### 2b -- Conditional Dispatch") == 1 { s = 1; next }
     index($0, "### Adding future agents") == 1 { s = 0 }
+    s && index($0, "**If `review_mode = fast`:**") == 1 { blk = "fast"; next }
+    s && index($0, "### Deep mode dispatch rules") == 1 { blk = "deep"; next }
     s && /^- \*\*`/ {
       line = $0
       name = line
@@ -197,10 +210,17 @@ skill_norm() {
         gate = "UNPARSED"
       }
 
-      row = name "\t" classnorm(gate)
-      if (!(row in emitted)) {
-        emitted[row] = 1
-        print row
+      key = name "\t" classnorm(gate)
+      if (!(key in blocks)) { border[++bn] = key; blocks[key] = "" }
+      if (blk != "" && index(blocks[key], blk) == 0) blocks[key] = blocks[key] blk ","
+    }
+    END {
+      for (bi = 1; bi <= bn; bi++) {
+        key = border[bi]
+        split(key, kf, "\t")
+        m = ""
+        if (kf[2] != "NEVER") m = modenorm(blocks[key])
+        print key "\t" m
       }
     }' "$SKILL"
 }
@@ -306,7 +326,9 @@ done < <(awk -F'\t' '
 # The class comparison is the load-bearing half. The prose is the only path any
 # non-Claude CLI ever takes, so widening one agent's gate there and nowhere else is
 # the divergence that matters most, and the one an agent-set-only comparison cannot
-# see.
+# see. The mode comparison is the same shape as section 2's and exists for the same
+# reason: an agent dropped from the fast block reviews nothing on the prompt path
+# while both other copies still claim it runs.
 echo ""
 echo "=== 3. Canonical table matches Step 2b prose in skills/review/SKILL.md ==="
 while IFS= read -r line; do
@@ -317,9 +339,9 @@ while IFS= read -r line; do
   esac
 done < <(awk -F'\t' '
   $1 == "" { next }
-  NR == FNR { cg[$1] = $2; corder[++cn] = $1; next }
+  NR == FNR { cg[$1] = $2; cm[$1] = $3; corder[++cn] = $1; next }
   {
-    if ($1 in pg) { pdup[$1] = 1 } else { pg[$1] = $2; porder[++pn] = $1 }
+    if ($1 in pg) { pdup[$1] = 1 } else { pg[$1] = $2; pm[$1] = $3; porder[++pn] = $1 }
   }
   END {
     if (cn == 0) { print "no rows extracted from ## Dispatch Gates -- the table or its heading moved"; }
@@ -338,7 +360,11 @@ done < <(awk -F'\t' '
         print "`" a "`: gate drift -- rules say [" cg[a] "], Step 2b prose says [" pg[a] "]"
         continue
       }
-      print "OK `" a "`: gate [" cg[a] "]"
+      if (cm[a] != pm[a]) {
+        print "`" a "`: modes drift -- rules say [" cm[a] "], Step 2b prose says [" pm[a] "]"
+        continue
+      }
+      print "OK `" a "`: gate [" cg[a] "], modes [" cm[a] "]"
     }
     for (i = 1; i <= pn; i++) {
       a = porder[i]

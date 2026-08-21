@@ -215,8 +215,13 @@ else
     fi
 
     # Anchored on a non-identifier char so disallowedTools, allowedTools, and the like
-    # are not read as an allowlist.
-    if grep -qE '(^|[^[:alnum:]_$])tools[[:space:]]*:' "$file"; then
+    # are not read as an allowlist. The optional quote on each side is load-bearing:
+    # quoted keys are the prevailing style in workflows/review-fanout.js, and a pattern
+    # that only tolerates a bare key misses 'tools': and "tools": entirely. The leading
+    # quote is optional rather than required so a bare key still matches, and the
+    # anchor still rejects 'disallowedTools': because the character before "tools"
+    # there is an identifier char, not the quote.
+    if grep -qE '(^|[^[:alnum:]_$])['"'"'"]?tools['"'"'"]?[[:space:]]*:' "$file"; then
       fail "$rel: sets 'tools' -- CP3 forbids allowlists, use disallowedTools"
     else
       pass "$rel: no tools allowlist"

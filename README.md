@@ -126,7 +126,7 @@ already use it in another harness.
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report; `--workflow` runs the same fan-out through a deterministic dispatcher |
+| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report; `--workflow` runs the same fan-out through a deterministic dispatcher, which under `--deep` also refutes each finding before synthesis |
 | Want a quick senior dev sanity check | `/senior-review` | One pragmatic reviewer evaluates structure, quality, risks |
 | Got a review report, not sure which findings matter | `/report-check` | Audits the report for noise, false positives, and overkill |
 
