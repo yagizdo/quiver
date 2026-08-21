@@ -316,6 +316,15 @@ run_reason 'git push --force'        ask  'REWRITES REMOTE HISTORY --'
 run_reason 'git reset --hard'        ask  'DISCARDS UNCOMMITTED WORK --'
 run_reason 'git clean -f -d'         ask  'DELETES UNTRACKED FILES --'
 run_reason 'git branch -D feature'   ask  'FORCE-DELETES A BRANCH --'
+
+# The all-caps label alone is not the warning. Asserting only the label lets the body be
+# replaced with anything -- "totally fine, go ahead." included -- while the suite stays green,
+# and the body is the half that says what is lost. Each label above is paired with the
+# consequence clause it must carry.
+run_reason 'git push --force'        ask  'lost, for everyone using that branch'
+run_reason 'git reset --hard'        ask  'no git command brings them back'
+run_reason 'git clean -f -d'         ask  'in no commit and no stash'
+run_reason 'git branch -D feature'   ask  'becomes unreachable'
 run_reason 'git checkout .'          ask  'DISCARDS UNCOMMITTED WORK -- every change in the working tree, overwritten'
 
 echo ""
