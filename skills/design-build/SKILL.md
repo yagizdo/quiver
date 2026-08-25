@@ -122,6 +122,11 @@ it hands `/design-verify` the previous task's binary.
 | Flutter | write `r` to the running `flutter run` process (`R` after a change it cannot hot reload, such as a new asset or a `main()` edit) |
 | Web dev server | nothing to run -- the dev server's own HMR already reloaded |
 | iOS or Android | no hot reload exists; reinstall and relaunch with that target's command |
+| Any other target | assume no hot reload: restart the session with the command that started it. When restarting is not possible, tear the session down and fall through to "No session owned" below. |
+
+A stack this table does not name is not an error. It takes the last row, and a stack whose
+session could not start or restart takes the no-session path -- the run still builds every
+task and still verifies each one.
 
 **Teardown on every exit path.** Kill the process this run started when the run ends --
 after the last task, after a stop, after a task is skipped or its gate fails, when the

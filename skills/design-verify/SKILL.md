@@ -209,6 +209,13 @@ gets one targeted fix -- read the error, change one thing -- and one retry.
 | iOS | `xcodebuild -scheme <scheme> -destination 'platform=iOS Simulator,name=<device>' build`, then `xcrun simctl install booted <app-path>` and `xcrun simctl launch booted <bundle-id>` |
 | Android | `./gradlew installDebug`, then `adb -s <SERIAL> shell am start -n <package>/<activity>` |
 | Web | the dev server script named in `package.json` -- `dev`, then `start` |
+| Any other stack | the run command the project itself documents -- a README quickstart, a `Makefile` target, a package-manager script. When none is discoverable, run no launch at all and continue on the spec read. |
+
+The four named rows are the stacks with a standard command, not the stacks that are
+allowed. An unlisted one -- Kotlin/JVM, Go, a Makefile-driven build -- resolves through
+the last row and the run continues.
+**A stack with no discoverable run command costs zero attempts.** An attempt is a launch
+that ran and failed; a launch that was never possible is not one.
 
 **After the third failed attempt, continue without a capture on the level 3 spec read.**
 There is no fourth attempt and there is no stop: a launch failure lowers confidence, it

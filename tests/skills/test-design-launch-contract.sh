@@ -45,6 +45,16 @@ assert_in "$VERIFY" 'an already-running instance is accepted' "standalone accept
 assert_in "$VERIFY" 'never trusted as fresh' "build never trusts a running app"
 
 echo ""
+echo "=== 1b. An unnamed stack still resolves ==="
+
+# The tables name four stacks. A fifth -- Kotlin/JVM, Go, a Makefile build -- must take a
+# fallback row instead of hitting undefined behavior.
+assert_in "$VERIFY" '| Any other stack |' "the build-and-launch table has a fallback row"
+assert_in "$VERIFY" 'costs zero attempts' "an impossible launch spends no attempt"
+assert_in "$BUILD" '| Any other target |' "the refresh table has a fallback row"
+assert_in "$BUILD" 'is not an error' "an unnamed stack is stated to be no error"
+
+echo ""
 echo "=== 2. The optional MCP capture row keeps a CLI fallback ==="
 
 assert_in "$VERIFY" 'xcbuild or marionette MCP (optional)' "the MCP capture row is marked optional"
