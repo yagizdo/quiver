@@ -6,7 +6,7 @@ For skill authoring rules, see `skill-rules.md`. For review-agent discipline, se
 
 **Scope:** The contract is enforced at runtime on Claude Code only. `.cursor-plugin/plugin.json` registers 10 of the 20 agents and `.codex-plugin/plugin.json` and `gemini-extension.json` register none, so on those CLIs the `disallowedTools` and `effort` fields are documentation rather than enforcement. This is a coverage limitation of the overlays, not a violation of the contract -- the same values ship to every CLI, and no overlay forks them. The verifier checks text, not behavior: it proves the frontmatter matches the assignment, not that the runtime honored it. Behavioral confirmation is a manual `/review --deep` transcript read.
 
-Nothing runs the verifier automatically. There is no CI in this repo and every test under `tests/` is a documented manual run. Automatic enforcement is deferred to the hook layer of sub-project B; until that ships, the verifier is a manual gate and drift between runs is possible.
+The verifier runs in CI. `.github/workflows/tests.yml` calls `tests/run-all.sh` on every pull request and on every push to `master`, and the runner discovers this test along with the rest of `tests/`. It also stays directly invocable on its own: `bash tests/agents/test-capability-profile-contract.sh`. The deferral to sub-project B's hook layer is resolved -- CI is the enforcement point, and no PostToolUse hook is needed for it.
 
 ---
 
