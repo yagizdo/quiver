@@ -89,6 +89,50 @@ On the default branch, resolve `design/<slug>` from the plan's slug, then check 
 
 Read `git branch --show-current` back afterwards and print the branch the build actually runs on. A silent checkout failure otherwise puts the whole run on the default branch.
 
+## Phase 2b -- Open the Run Session
+
+`/design-verify --mode build` never trusts an already-running instance as fresh -- its
+"The app must be running and fresh" section is the contract, and this phase is what
+satisfies it. Rebuilding from scratch once per task satisfies it too, and is the slowest
+way to.
+
+Open **one** run session for the whole run, hot reload it after each task's
+implementation, and tear it down when the run ends.
+
+**Start.** After the branch is resolved and before the first task, launch the app in the
+background with the Bash tool, using the build-and-launch command `/design-verify` lists
+for the resolved target. Record that this run owns the session and print once:
+`> Run session: {target}`, or `> Run session: none -- each verify rebuilds.`
+
+Start no session when no run target resolves. Which plans capture at all is
+`/design-verify`'s decision and this skill does not read the field that carries it -- a
+run whose verify never captures pays one launch and no reloads.
+
+**A failed launch costs an attempt.** A launch that fails consumes one attempt from the
+first task's 3c budget, exactly as a deviation fix does. It never adds an attempt and it
+never gets a budget of its own -- only the user's "Try 3 more attempts" resets the
+counter. Once the budget is spent on launches, stop trying to own a session for the rest
+of the run.
+
+**Hot reload after 3a, before 3b.** The reload is what makes the session fresh; skipping
+it hands `/design-verify` the previous task's binary.
+
+| Target | Refresh |
+|--------|---------|
+| Flutter | write `r` to the running `flutter run` process (`R` after a change it cannot hot reload, such as a new asset or a `main()` edit) |
+| Web dev server | nothing to run -- the dev server's own HMR already reloaded |
+| iOS or Android | no hot reload exists; reinstall and relaunch with that target's command |
+
+**Teardown on every exit path.** Kill the process this run started when the run ends --
+after the last task, after a stop, after a task is skipped or its gate fails, when the
+user picks "Stop here", and when the user cancels any `AskUserQuestion`. A cancelled
+question is an exit path, not a pause. Never kill a process this run did not start: a
+simulator or dev server the user had open before the run stays open.
+
+**No session owned.** When the session never started, its budget was spent, or teardown
+already ran, each 3b invocation falls back on `/design-verify`'s own build-and-launch
+under its own 3-attempt cap. The run continues; it is slower, not blocked.
+
 ## Phase 3 -- Build Loop
 
 Work the plan's `### Tasks` in order. New-token tasks come first -- later tasks reference those tokens.
@@ -162,6 +206,9 @@ enter -- both go straight to 3d.
 Fix the largest delta in the report's deviation table first, then re-run 3b --
 re-invoke `design-verify` and re-read the report. **Three attempts maximum per task**,
 counting the initial implementation as attempt one.
+
+A failed run-session launch (Phase 2b) spends an attempt from this same budget. There is
+one counter per task, not one per failure kind.
 
 After the third attempt still leaves deviations, **stop and ask**. Do not keep looping. Call `AskUserQuestion`:
 
@@ -306,6 +353,10 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 15. `commit_strategy: per-task` produces one commit per task, skipping any task whose gate verdict is `failed`; `single` produces exactly one commit after the last task, and none at all if any task's gate failed. The plan and `screenshot_dir` are never staged.
 15b. "Skip this task" restores the modified files and deletes the created ones when git is available, and leaves them in place with a stated reason under `NO_GIT` or on files an earlier task also wrote.
 16. Phase 4 prints the status table, lists every accepted deviation with its delta and report path, and ends with the four-button handoff.
+16b. Phase 2b starts exactly one run session for the whole run, hot reloads it after each task's 3a, and tears it down at the end. A project with no resolvable run target starts none and the run continues.
+16c. Teardown runs on every exit path, including a skipped task, a failed gate, "Stop here", and a cancelled `AskUserQuestion`. A simulator or dev server the user had open before the run is left running.
+16d. A failed run-session launch consumes an attempt from the task's 3c budget rather than getting its own, and three failures stop session ownership for the rest of the run without stopping the run.
+16e. With no session owned, each 3b invocation still verifies -- `/design-verify` rebuilds and relaunches under its own cap.
 
 **Verification checklist:**
 - [ ] `/design-build` and `/quiver:design-build` both appear in the slash menu after plugin reload.
@@ -315,6 +366,8 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] No screenshot binary or capture MCP server is named anywhere in this file.
 - [ ] The plan frontmatter fence is not reproduced; only the fields this skill reads are listed, each with a default.
 - [ ] The retry budget is capped at 3 and only the user can reset it.
+- [ ] Exactly one run session per run: started once, hot reloaded per task, torn down on every exit path.
+- [ ] Launch failures draw from the 3c budget and never create a second counter.
 - [ ] The gate runs at most twice per task and never re-runs after "Accept as-is".
 - [ ] Report freshness is checked by `created:`, not by the file existing.
 - [ ] Every empty-table outcome is classified from `comparison_path` and `confidence`.
@@ -329,6 +382,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 
 **Known gotchas:**
 - The retry budget is a cross-file loop: 3c counts attempts here, but each attempt's measurement happens in `/design-verify`. The counter never lives in the report file -- it is this skill's state.
+- Teardown is easy to write only on the happy path. The exit paths that skip it -- a cancelled question, a skipped task, a stop -- are the ones that leave an orphaned simulator or dev server behind.
 - An absent deviation report and a report with zero deviations mean opposite things. `/design-verify` writes a report on every path precisely so the difference is unambiguous.
 - Deviation reports and captures land under `.claude/plans/assets/<slug>/`. If `.claude/` is gitignored they stay local, which is intended -- never stage them.
 - Undoing a skipped task's changes only removes what that task wrote, and only when git can restore them. A task whose files an earlier task also touched cannot be cleanly skipped; when that happens, say so rather than hand-unpicking interleaved edits.
