@@ -128,13 +128,16 @@ Naming the command is the only record of what ran: an unattended run prints no p
 and for a stack the launch table does not name, the command is resolved out of the
 repository's own docs rather than from a fixed binary.
 
-**A Flutter session prints a VM service URI -- keep it.** `flutter run` writes a
-`ws://127.0.0.1:<port>/<token>/ws` URI to its output once the app is up, and that URI is
-what lets `/design-verify` capture through marionette. It is the difference between
+**A Flutter session prints a VM service URI -- keep it.** `flutter run` writes
+`A Dart VM Service on <device> is available at: http://127.0.0.1:<port>/<token>/` to its
+output once the app is up. That address is printed in its HTTP form and the capture step
+needs the WebSocket form, so convert it before passing it on: swap the `http` scheme for
+`ws` and append `ws`, giving `ws://127.0.0.1:<port>/<token>/ws`. That URI is what lets
+`/design-verify` capture the app it was launched on. It is the difference between
 measuring the app on the phone it was launched on and falling back to a simulator-only
 screenshot path. Read it out of the session's streamed output, hold it for the run, and
-pass it on every 3b invocation. Re-read it after a session restart: the port changes, and
-a stale URI fails to connect rather than reconnecting.
+pass it on every 3b invocation. Re-read it after a session restart: the port and the token
+are both regenerated, and a stale URI fails to connect rather than reconnecting.
 
 Start no session when no run target resolves, and none when the plan's
 `capture_preference` is `skip` or `manual`. `/design-verify` runs no build-and-launch on
@@ -209,9 +212,10 @@ This skill does not capture and does not compare. It delegates, then reads a fil
    ID, and mode `build`:
    `/design-verify <plan path> --nodes <this task's node IDs> --task <task id> --mode build`
 
-   Add `--vm-uri <uri>` when the run session holds one. Without it `/design-verify` looks
-   for a registered marionette instance and then gives up on that capture row, which on a
-   physical device means no capture at all.
+   Add `--vm-uri <uri>` when the run session holds one. Without it `/design-verify` has
+   to resolve the URI on its own, which only works when it ran the launch itself -- and
+   when this run owns the session, it did not. On a physical device that means no capture
+   at all.
 3. Re-read `<screenshot_dir>/verify/<task-id>.md`.
 
 **The report path is fixed per task, so the file's existence proves nothing on a re-run.**

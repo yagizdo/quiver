@@ -177,6 +177,7 @@ reports could change a decision:
 |-------|---------|
 | `command -v marionette` | can a Flutter app be captured wherever it runs, physical device included |
 | `command -v pymobiledevice3` | can a physical iOS device be captured on a non-Flutter stack |
+| `command -v adb` | can an Android device or emulator be captured, and detected at all |
 | `magick -version` | will the comparison be measured or structural (Phase 5 re-reads this) |
 
 `command -v` rather than a version flag: the question is whether the binary resolves, and
@@ -311,17 +312,14 @@ below already follow. `flutter run` stays in the foreground until the app exits,
 in the background and read its output; a build error prints `Error:` lines and never
 returns an exit status you can wait on.
 
-Print the launch result once: `> Launch: {target}`, or
-`> Launch: failed after 3 attempts -- continuing on the spec read.`
-
 ### Per-target capture commands
 
 | Target | Capture command | Absence probe |
 |--------|-----------------|---------------|
-| Flutter app on any target, physical device included | `marionette --uri <vm-service-uri> take-screenshots --output <path>` | `marionette --version`, then a `connect` that resolves a URI (see below) |
+| Flutter app on any target, physical device included | `marionette --uri <vm-service-uri> take-screenshots --output <path>` | `command -v marionette` from the probe block, then a URI that resolves through the ladder below |
 | iOS simulator | `xcrun simctl io booted screenshot --type=png <path>` | `xcrun simctl list devices booted -j`, parse the JSON for a non-empty booted list |
 | Android emulator or device | `adb -s <SERIAL> exec-out screencap -p > <path>` | `adb devices -l`, parse the device lines |
-| Physical iOS device | `pymobiledevice3 developer dvt screenshot <path>`, or `pymobiledevice3 developer core-device screen-capture screenshot <path>` on iOS 17+ | `idevice_id -l`, parse the output for a UDID |
+| Physical iOS device | `pymobiledevice3 developer dvt screenshot <path>`, or `pymobiledevice3 developer core-device screen-capture screenshot <path>` on iOS 17+ | `pymobiledevice3 usbmux list`, parse the output for a UDID |
 | Flutter without marionette | resolve the run target from `flutter devices --machine`, then use that platform's row above | parse the JSON array's length, never the exit code |
 | Web | Playwright MCP `browser_take_screenshot` with `filename`; add `element` and `target` for a clipped capture | `ToolSearch` for `browser_take_screenshot` |
 
@@ -334,15 +332,25 @@ answers:
 
 1. **`--vm-uri <uri>`** on this skill's own invocation. `/design-build` owns the run
    session, reads the URI out of its `flutter run` output, and forwards it here.
-2. **A registered marionette instance** -- `marionette doctor` lists the registered
-   instances and their connectivity. When exactly one is reachable, capture with
-   `marionette -i <instance> take-screenshots --output <path>`.
-3. **Neither** -- skip this row and fall to the next one. Do not prompt for a URI: a
+2. **This run's own launch output.** When this skill ran the `flutter run` under "The app
+   must be running and fresh", the address is in the streamed output it is already reading
+   for `Error:` lines. `flutter run` prints it in its HTTP form --
+   `A Dart VM Service on <device> is available at: http://127.0.0.1:<port>/<token>/` --
+   so convert it: swap the `http` scheme for `ws` and append `ws`. Re-read it after any
+   relaunch; the port and the token are both regenerated.
+3. **A registered marionette instance** -- `marionette doctor` lists the registered
+   instances and their connectivity. When exactly one is reachable *and* it is the target
+   this run resolved, capture with
+   `marionette -i <instance> take-screenshots --output <path>`. An instance registered by
+   some other Flutter app on this machine is not this run's app; skip the row rather than
+   photograph the wrong one.
+4. **None of them** -- skip this row and fall to the next one. Do not prompt for a URI: a
    missing URI is missing tooling, and missing tooling never stops this skill.
 
 With the marionette MCP loaded in the session, `connect` followed by `take_screenshots`
 is equivalent to the CLI row and may be used instead. The CLI is listed first because it
-needs no MCP server, which is the same reason every other row here is a CLI command.
+needs no MCP server, which is the same reason every other native row here is a CLI
+command.
 
 Notes that change what these commands mean:
 
@@ -361,15 +369,18 @@ Notes that change what these commands mean:
 - **marionette needs the app prepared and running in debug.** The app must depend on
   `marionette_flutter` and call `MarionetteBinding.ensureInitialized()`, and the VM
   service only exists in debug or profile builds. A release build has no URI to connect
-  to. When `connect` fails, print the install hint once and fall to the next row.
+  to. When the capture fails to attach, print the install hint once and fall to the next
+  row.
 - **marionette downscales large screenshots by default**, to fit within 2000x2000
   physical px. Phase 4 checks for it; the app-side fix is `maxScreenshotSize: null` in
   `MarionetteConfiguration`.
-- **No MCP server is required for any target.** Every row above is a CLI command run with
-  the Bash tool. This is not a preference -- no iOS MCP captures from a physical device.
-  The xcodebuild-wrapping servers expose build, install, launch, and test for devices and
-  stop there, and their screenshot tools are simulator-only, so an MCP row here would
-  duplicate `simctl` under a second name and still leave the device uncovered.
+- **No MCP server is required for any native target.** Every native row above --
+  simulator, emulator, and physical device -- is a CLI command run with the Bash tool.
+  This is not a preference: no iOS MCP captures from a physical device. The
+  xcodebuild-wrapping servers expose build, install, launch, and test for devices and stop
+  there, and their screenshot tools are simulator-only, so an MCP row there would duplicate
+  `simctl` under a second name and still leave the device uncovered. Web is the one row
+  that goes through an MCP, because the browser is where the app runs.
 
 ### Exit codes lie here -- route on parsed output
 
@@ -392,11 +403,11 @@ each side independently.
 
 ### Missing tooling is informational, never terminal
 
-When a tool is absent, print exactly one line naming what to install, then continue down
+When a tool is absent, print exactly one line naming what is missing, then continue down
 the precedence ladder:
 
 ```
-> pymobiledevice3 not found -- install with: pipx install pymobiledevice3
+> marionette not found -- install with: dart pub global activate marionette_cli
 > Continuing without a device capture.
 ```
 
@@ -405,8 +416,21 @@ The hint names the install command for the tool that was actually missing:
 | Tool | Install hint |
 |------|--------------|
 | `marionette` | `dart pub global activate marionette_cli` |
-| `pymobiledevice3` | `pipx install pymobiledevice3` |
+| `adb` | ships with the Android SDK -- name the SDK, not a package |
 | `magick` | `brew install imagemagick` |
+| `pymobiledevice3` | none -- report the absence, see below |
+
+**`pymobiledevice3` is used when it resolves and never recommended.** Every other tool
+here installs with one command and needs no elevated privileges. That one does not: on
+iOS 17+ it also needs a root tunnel daemon (`sudo pymobiledevice3 remote tunneld`) and a
+mounted Developer Disk Image, which is a larger ask than one screenshot is worth from a
+tool the user did not choose. It stays in the capture table because a machine that already
+has it gets a real device capture out of it. When it is absent, report that and move on --
+no install command, no second line:
+
+```
+> pymobiledevice3 not found -- capturing the simulator instead.
+```
 
 Do not print an install hint more than once per run. Do not stop.
 
@@ -829,7 +853,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] The report is written in both modes and in every comparison path.
 - [ ] The build-and-launch attempt cap reads 3 and the degrade path continues without a
       capture rather than stopping.
-- [ ] Every capture row is a CLI command; no row requires an MCP server.
+- [ ] Every native capture row is a CLI command; only Web requires an MCP server.
 - [ ] The capture-tooling probe appears before the target resolution, not after it.
 - [ ] The launch table and the capture table resolve the same target.
 - [ ] `capture_surface` is written into every report's frontmatter.

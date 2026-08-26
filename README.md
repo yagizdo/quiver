@@ -309,15 +309,17 @@ Device capture is optional in the same way. `/design-verify` uses a connected ph
 |--------|------|---------|
 | iOS simulator | `xcrun simctl` | ships with Xcode |
 | Android phone or emulator | `adb` | ships with the Android SDK |
-| Physical iOS device | `pymobiledevice3` | `pipx install pymobiledevice3` |
+| Physical iOS device | `pymobiledevice3` | not suggested -- used only when it already resolves |
 | Flutter app anywhere it runs, phone included | `marionette` | `dart pub global activate marionette_cli`, plus `marionette_flutter` in the app |
 | Web | Playwright MCP | MCP config |
 
 marionette connects to the running app's Dart VM service instead of the device, which is how it screenshots a physical phone with no device tooling installed. The app has to be running in debug with `MarionetteBinding` initialized in `main.dart`.
 
-The skill probes for these before it picks a target. When nothing on the machine can screenshot the attached phone, it drops the phone from the order and uses the simulator, since building on a device you cannot photograph loses the measurement the step exists for. Each absent tool prints one install hint and the run continues to the next option.
+The skill probes for these before it picks a target. When nothing on the machine can screenshot the attached phone, it drops the phone from the order and uses the simulator, since building on a device you cannot photograph loses the measurement the step exists for. An absent tool prints one line and the run continues to the next option.
 
-No MCP server screenshots a physical device. The xcodebuild-wrapping servers build, install, launch, and test on one, and their screenshot tools only cover the simulator, so every row above is a plain CLI command.
+`pymobiledevice3` is the one row with no install hint. On iOS 17+ it needs a root tunnel daemon and a mounted Developer Disk Image, which is more than a screenshot is worth from a tool you did not pick, so the skill uses it when it is already on the machine and never suggests installing it. Apple ships no alternative -- `xcrun devicectl` has no screenshot subcommand -- so a non-Flutter iOS project without it captures the simulator.
+
+No iOS MCP server screenshots a physical device. The xcodebuild-wrapping servers build, install, launch, and test on one, and their screenshot tools only cover the simulator, so every native row above is a plain CLI command. Web is the exception: the browser is where the app runs, so that row goes through the Playwright MCP.
 
 ## CLI Notes
 

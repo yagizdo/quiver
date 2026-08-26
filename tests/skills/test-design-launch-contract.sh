@@ -60,7 +60,7 @@ echo "=== 2. Every capture path is a CLI command, and the device rows are gated 
 # No MCP server captures a physical iOS device -- the xcodebuild-wrapping ones stop at
 # build, install, launch, and test. A capture row that needs an MCP is therefore a row
 # that silently drops to a spec read on the one target the device order exists to reach.
-assert_in "$VERIFY" 'No MCP server is required for any target' "capture rows need no MCP server"
+assert_in "$VERIFY" 'No MCP server is required for any native target' "native capture rows need no MCP server"
 assert_in "$VERIFY" 'marionette --uri' "the Flutter device capture row names its CLI"
 assert_in "$VERIFY" 'pymobiledevice3 developer' "the physical iOS capture row names its CLI"
 
