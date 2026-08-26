@@ -108,7 +108,7 @@ Detailed docs: [`.opencode/README.md`](.opencode/README.md)
 | A Figma frame is ready to become code | `/design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
 | Want the frame built and measured without babysitting it | `/design --auto` | Same extraction and same questions, then straight through the build and the fidelity measurement with no further prompt |
 | Design plan is ready, want it built pixel-accurate | `/design-build` | Implements each node against its embedded spec, then fixes whatever `/design-verify` reports, under a bounded retry budget |
-| Built UI is on screen, want to know how far off it is | `/design-verify` | Captures the running app, normalizes both images to a common logical width, measures the deviations, and writes a report to disk |
+| Built UI is on screen, want to know how far off it is | `/design-verify` | Captures the running app on a connected phone when there is one and the simulator otherwise, normalizes both images to a common logical width, measures the deviations, and writes a report to disk |
 
 ```
 /design                    # extract whatever is selected in Figma
@@ -121,7 +121,7 @@ Detailed docs: [`.opencode/README.md`](.opencode/README.md)
 
 `--auto` removes the handoffs between the three stages, not the questions that decide what gets built.
 
-- `/design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and whether to overwrite a plan that already exists for the same screen.
+- `/design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and whether to overwrite a plan that already exists for the same screen. When a selection expands into many nodes and you described none of them, it also asks which of those nodes the build should implement.
 - Those questions all arrive in one call. After that the run stays quiet until the fidelity summary.
 - One node still gets three fix attempts. Auto mode records whatever deviation is left over and moves on rather than asking.
 
@@ -303,7 +303,23 @@ brew install imagemagick
 
 The skill probes `magick -version` and `magick -list metric`, picks the `PDC` metric when the build has it, and records which comparison path produced each report. Nothing breaks without it; the reports simply carry fewer numbers.
 
-Device capture is optional in the same way. `/design-verify` uses `xcrun simctl` for iOS simulators, `adb` for Android, `pymobiledevice3` for physical iOS devices, and the Playwright MCP for web -- whichever is already on the machine. Each absent tool prints one install hint and the run continues down to the next option.
+Device capture is optional in the same way. `/design-verify` uses a connected phone when one is attached and falls back to the simulator when there is not, because a phone renders the real safe-area insets and display scaling. Which tool takes the screenshot depends on the stack:
+
+| Target | Tool | Install |
+|--------|------|---------|
+| iOS simulator | `xcrun simctl` | ships with Xcode |
+| Android phone or emulator | `adb` | ships with the Android SDK |
+| Physical iOS device | `pymobiledevice3` | not suggested -- used only when it already resolves |
+| Flutter app anywhere it runs, phone included | `marionette` | `dart pub global activate marionette_cli`, plus `marionette_flutter` in the app |
+| Web | Playwright MCP | MCP config |
+
+marionette connects to the running app's Dart VM service instead of the device, which is how it screenshots a physical phone with no device tooling installed. The app has to be running in debug with `MarionetteBinding` initialized in `main.dart`.
+
+The skill probes for these before it picks a target. When nothing on the machine can screenshot the attached phone, it drops the phone from the order and uses the simulator, since building on a device you cannot photograph loses the measurement the step exists for. An absent tool prints one line and the run continues to the next option.
+
+`pymobiledevice3` is the one row with no install hint. On iOS 17+ it needs a root tunnel daemon and a mounted Developer Disk Image, which is more than a screenshot is worth from a tool you did not pick, so the skill uses it when it is already on the machine and never suggests installing it. Apple ships no alternative -- `xcrun devicectl` has no screenshot subcommand -- so a non-Flutter iOS project without it captures the simulator.
+
+No iOS MCP server screenshots a physical device. The xcodebuild-wrapping servers build, install, launch, and test on one, and their screenshot tools only cover the simulator, so every native row above is a plain CLI command. Web is the exception: the browser is where the app runs, so that row goes through the Playwright MCP.
 
 ## CLI Notes
 

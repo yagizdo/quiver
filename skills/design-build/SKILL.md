@@ -128,6 +128,17 @@ Naming the command is the only record of what ran: an unattended run prints no p
 and for a stack the launch table does not name, the command is resolved out of the
 repository's own docs rather than from a fixed binary.
 
+**A Flutter session prints a VM service URI -- keep it.** `flutter run` writes
+`A Dart VM Service on <device> is available at: http://127.0.0.1:<port>/<token>/` to its
+output once the app is up. That address is printed in its HTTP form and the capture step
+needs the WebSocket form, so convert it before passing it on: swap the `http` scheme for
+`ws` and append `ws`, giving `ws://127.0.0.1:<port>/<token>/ws`. That URI is what lets
+`/design-verify` capture the app it was launched on. It is the difference between
+measuring the app on the phone it was launched on and falling back to a simulator-only
+screenshot path. Read it out of the session's streamed output, hold it for the run, and
+pass it on every 3b invocation. Re-read it after a session restart: the port and the token
+are both regenerated, and a stale URI fails to connect rather than reconnecting.
+
 Start no session when no run target resolves, and none when the plan's
 `capture_preference` is `skip` or `manual`. `/design-verify` runs no build-and-launch on
 those plans, so a session would have nothing to keep fresh. Print
@@ -200,6 +211,11 @@ This skill does not capture and does not compare. It delegates, then reads a fil
 2. Invoke the `design-verify` skill with the plan path, this task's node IDs, this task's
    ID, and mode `build`:
    `/design-verify <plan path> --nodes <this task's node IDs> --task <task id> --mode build`
+
+   Add `--vm-uri <uri>` when the run session holds one. Without it `/design-verify` has
+   to resolve the URI on its own, which only works when it ran the launch itself -- and
+   when this run owns the session, it did not. On a physical device that means no capture
+   at all.
 3. Re-read `<screenshot_dir>/verify/<task-id>.md`.
 
 **The report path is fixed per task, so the file's existence proves nothing on a re-run.**
@@ -425,6 +441,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 16c. Teardown runs on every exit path -- the last task, a stop, "Stop here", and a cancelled `AskUserQuestion`. A skipped task and a failed gate keep the session and the run moves to the next task. A simulator or dev server the user had open before the run is left running.
 16d. A failed run-session launch spends a session attempt rather than one from the task's 3c budget, and three failures stop session ownership for the rest of the run without stopping the run. Task 1 still enters 3a with a full 3-attempt budget after three failed launches.
 16e. With no session owned, each 3b invocation still verifies -- `/design-verify` rebuilds and relaunches under its own cap.
+16f. A Flutter run session's VM service URI is read from its output and forwarded on every 3b invocation as `--vm-uri`. After a session restart the URI is re-read, and a non-Flutter session forwards none.
 17. `--auto` is stripped before a plan path is resolved, and `/design-build --auto` with several plans on disk takes the most recent and names the count instead of asking.
 18. A full `/design --auto` run reaches no `AskUserQuestion` after `/design` Step 8, all the way to the Phase 4 summary.
 19. The auto handoff prints the `/review`, `/commit`, and `/create-pr` commands as text and invokes none of them.

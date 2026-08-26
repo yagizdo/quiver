@@ -375,6 +375,39 @@ Buttons: `["Update the existing plan", "Write a new plan file"]`
 Record as `plan_write: update` / `new`. This one is a routing answer, not plan
 frontmatter -- Step 9 consumes it and it is never written into the plan.
 
+**Question 5 -- Build scope.** Asked only when all four of these hold: Step 3 resolved
+exactly one top-level node, that node has more than one extracted child, `$ARGUMENTS`
+describes nothing, and the Glob above matched no existing plan. Strip the flags and the
+node IDs from `$ARGUMENTS`; what remains is the description. When the user wrote what they
+wanted -- "this card on the settings screen", with or without a screenshot -- they already
+answered this, and asking again is the interruption Step 8 exists to avoid.
+
+**Question 4 and Question 5 never share a call.** `AskUserQuestion` carries four questions
+and Questions 1 through 3 hold three of the slots, so an existing plan and an open scope
+decision cannot both be asked. The existing plan wins: a re-run inherits the scope its
+plan already recorded in the `### Goal` line, and asking again would let one button
+silently rescope a plan the user is updating.
+
+> {top-level node name} expands to {N} node specs. Build the whole screen, or one
+> component out of it?
+
+Buttons: `"The whole {top-level node name}"`, then one `"Only {child name}"` button per
+direct child of the top-level node. Four options is the ceiling, so carry the three
+largest children by node box and let the user name any other through the free-text option.
+
+Record as `scope: all`, or `scope: <chosen node id>`. This one is a routing answer, not
+plan frontmatter -- Step 9 consumes it when it writes the `### Goal` line, the `Scope:`
+lines in the node specs, and the task list.
+
+**The narrowing button names a child, never the top-level node.** The top-level node is
+the selection root and every other spec is its descendant, so scoping to it marks its own
+children as reference and leaves a task list that builds an empty frame. Scoping to a
+child is what the question is for: it keeps that child's subtree and turns its siblings
+into reference.
+
+Default it to `all` when the question was not asked. A described selection is a scoped
+selection, and Step 9 scopes it from the description rather than from a button.
+
 The three build preferences are distinct build paths, not shades of one: `skip` never attempts a capture
 at all and so never triggers a build-and-launch cycle, `manual` waits for a supplied
 path, `auto` attempts capture per task.
@@ -445,7 +478,9 @@ The last three come from Step 8.
 Body sections, in order:
 
 ### Goal
-One sentence: what screen or component gets built, and where it lives.
+One sentence: what screen or component gets built, and where it lives. When the scope is
+narrower than the extraction -- one component out of a whole page -- add a second
+sentence naming what is in scope and what the rest of the nodes are there for.
 
 ### Stack and Conventions
 From Step 6. Where components live, how styles attach, which token files apply.
@@ -498,6 +533,18 @@ Three of those lines are new and each closes a specific failure:
   with no reachable route (a pure leaf component) writes `Route: not independently
   reachable` rather than omitting the line.
 
+A node the build must not implement carries one more line:
+
+```
+- Scope: reference only -- not built by this plan
+```
+
+It exists because a page selection extracts every child, and a child nobody asked for is
+still context worth keeping: it carries the anchors and spacing its siblings are measured
+against. Without this line, `/design-build` implements it and `/design-verify` measures
+it, and the run reports real deviations on parts of the screen the user never asked to
+touch. The line is what makes "extracted" and "in scope" two different things.
+
 Omit properties the node does not have. Never write a placeholder.
 
 ### Assets
@@ -519,6 +566,12 @@ icons or images -- write `No assets exported`, not an empty table.
 
 ### Tasks
 Numbered. Each task names its files, its node IDs, and its acceptance criterion. Order: new tokens first, then leaf components, then composition, then the screen. Each task is 2-10 minutes and independently verifiable.
+
+**Only in-scope nodes get tasks.** A node carrying `Scope: reference only` appears in the
+node specs and in no task. The task list is what `/design-build` walks, so this is where
+the scope decision actually takes effect -- the `### Goal` sentence records it and the
+`Scope:` lines mark it, but a reference node with a task would be built regardless of
+both.
 
 ### Acceptance Criteria
 One criterion per task, plus one fidelity criterion per top-level node stated in measurable terms, for example: "the card's vertical center sits within 2px of the chrome-excluded region's center".
@@ -631,6 +684,8 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 12. Step 7 auto-maps every value-matched variable and asks exactly one approval question regardless of how many rows are unmapped.
 13. Step 7's table carries a `Mode` column with one row per mode for any multi-mode variable, and alias values are resolved before matching.
 14. Step 8 asks commit strategy, verification gate, and capture preference in one grouped `AskUserQuestion`.
+14b. Step 8 asks the scope question only when Step 3 resolved exactly one top-level node with more than one extracted child, `$ARGUMENTS` carries no description beyond flags and node IDs, and no existing plan matched the slug. A described selection reaches no scope question, and Question 4 and Question 5 never appear in the same call -- the call carries four questions at most.
+14c. Answering "Only {child}" writes `Scope: reference only -- not built by this plan` on every node spec outside the chosen child's subtree, gives those nodes no task, and names the scope in the `### Goal` section. The chosen child and its own descendants stay in scope. Answering "The whole {node}" writes no `Scope:` line anywhere.
 15. Step 8 finds an existing plan for the same slug, summarizes the differences, and carries the overwrite question in that same call; Step 9 writes on that answer without asking again.
 16. Step 9 writes the plan with `design_source`, `figma_file_key`, `figma_node_ids`, `screenshot_dir`, `figma_frame_size`, `screenshot_scale`, `commit_strategy`, `verify_gate`, and `capture_preference` in frontmatter.
 17. Every applicable node spec carries `Fit:`, `Content:`, and `Route:` lines.
