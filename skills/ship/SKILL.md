@@ -351,7 +351,7 @@ Increment `execution.current_tick` by 1. Update `execution.last_tick_at` to the 
 
 Write the manifest. Read it back to verify (L3).
 
-Then proceed to the Anti-Loop and Scheduling logic below.
+Then proceed to the Anti-Loop and Termination logic below.
 
 **Gap state machine (ASCII):**
 
@@ -419,21 +419,29 @@ Pacing is the one thing `/loop` gave this mode that in-invocation ticks do not, 
 
 **Never poll by re-running the expensive command.** Re-running a build to find out whether the build finished, or re-running `flutter run` to find out whether the device came up, is not a check -- it is the work, done again, at full cost. That is the failure mode this whole mode is shaped against.
 
-**Wait like this instead.** Use the **Bash tool with `run_in_background`** and an `until` loop whose condition is cheap and specific. It exits the moment the condition holds, and exiting produces exactly one notification:
+**Wait like this instead.** Use the **Bash tool with `run_in_background`** and an `until` loop whose condition is cheap and specific, wrapped in a deadline and a failure check. It exits the moment either the success condition or the failure signature holds, and exiting produces exactly one notification:
 
-```
-until xcrun simctl list devices booted -j | grep -q '"state" : "Booted"'; do sleep 2; done
+```bash
+DEADLINE=$((SECONDS + 120))
+until curl -sf http://localhost:3000 >/dev/null; do
+  [ "$SECONDS" -ge "$DEADLINE" ] && { echo "WAIT_TIMEOUT"; exit 1; }
+  grep -q 'EADDRINUSE\|Error:' dev.log 2>/dev/null && { echo "WAIT_FAILED"; exit 1; }
+  sleep 1
+done
+echo "WAIT_OK"
 ```
 
-```
-until curl -sf http://localhost:3000 >/dev/null; do sleep 1; done
-```
+Swap the two conditions per target. The deadline line, the failure line, and the three markers stay:
 
-```
-until grep -q "Ready in" dev.log; do sleep 0.5; done
-```
+| Target | Success condition | Failure signature |
+|--------|-------------------|-------------------|
+| iOS simulator | `xcrun simctl list devices booted -j \| grep -q '"state" : "Booted"'` | `grep -q 'Unable to boot' boot.log` |
+| Dev server | `curl -sf http://localhost:3000 >/dev/null` | `grep -q 'EADDRINUSE' dev.log` |
+| Bundler or compiler | `grep -q "Ready in" dev.log` | `grep -q "Failed to compile" dev.log` |
 
 Foreground `sleep` is blocked by the harness, so a wait is always a background command, never an inline pause.
+
+**A timed-out or failed wait is a failed attempt.** `WAIT_TIMEOUT` and `WAIT_FAILED` each spend one from the 3-attempt cap, and the tick continues. Never dispatch a wait without a deadline: an unbounded background wait produces no notification, so Step 7 is never reached, `execution.current_tick` never increments, and no row of the Anti-Loop table can fire.
 
 Four rules bound every wait:
 

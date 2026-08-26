@@ -80,8 +80,23 @@ echo "=== 4. every prompt site in /design-build is guarded ==="
 # The instruction body only. Anti-Patterns and Test Plan mention AskUserQuestion to forbid
 # and to verify it; neither is a call site.
 BODY="$(mktemp)"
-trap 'rm -f "$BODY"' EXIT
+MENTIONS="$(mktemp)"
+trap 'rm -f "$BODY" "$MENTIONS"' EXIT
 awk '/^# Instructions/{f=1} /^## Anti-Patterns/{f=0} f' "$BUILD" > "$BODY"
+
+# Match `AskUserQuestion` anywhere in the body rather than on a verb phrase. Phrase
+# matching defaults a new call site to invisible -- the test passes green on exactly the
+# drift it exists to catch. Matching the tool name defaults it to checked instead, and
+# the three body lines that name the tool without calling it are exempted by name.
+grep -n 'AskUserQuestion' "$BODY" > "$MENTIONS"
+
+# The exemption count is itself a tripwire. A stale pattern fails loudly (the line becomes
+# a checked site with no Otherwise). A pattern that widens onto a real call site would
+# fail silently, which this count is what catches.
+EXEMPT_FOUND=$(grep -c -e 'sets \*\*auto mode\*\*' -e 'call site in this skill sits on' -e 'cancels any' "$MENTIONS")
+if [ "$EXEMPT_FOUND" -ne 3 ]; then
+  fail "expected 3 non-call-site AskUserQuestion mentions, found $EXEMPT_FOUND -- update the exemption list"
+fi
 
 SITES=0
 UNGUARDED=0
@@ -101,7 +116,7 @@ while IFS=: read -r n line; do
     fail "prompt site at body line $n has no auto-mode branch within 20 lines"
     UNGUARDED=$((UNGUARDED + 1))
   fi
-done < <(grep -n -i -e 'call `AskUserQuestion`' -e 'use `AskUserQuestion`' "$BODY")
+done < <(grep -v -e 'sets \*\*auto mode\*\*' -e 'call site in this skill sits on' -e 'cancels any' "$MENTIONS")
 
 if [ "$SITES" -eq 0 ]; then
   fail "found no AskUserQuestion call sites -- the grep pattern has drifted"

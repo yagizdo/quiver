@@ -149,12 +149,16 @@ assert_in "$VERIFY" "capture_preference" "/design-verify reads capture_preferenc
 assert_not_in "$VERIFY" "commit_strategy" "/design-verify does not read commit_strategy"
 assert_not_in "$VERIFY" "verify_gate" "/design-verify does not read verify_gate"
 
-# /design-build reads the commit-side fields and none of the capture-side ones.
+# /design-build reads the commit-side fields, plus capture_preference for the one capture
+# decision that is its own: whether Phase 2b opens a run session at all. A plan that
+# captures nothing has nothing for a session to keep fresh, and starting one costs a full
+# build and launch whose output nothing consumes. The capture path itself stays
+# /design-verify's -- the frame size and the scale are still never read here.
 assert_in "$BUILD" "commit_strategy" "/design-build reads commit_strategy"
 assert_in "$BUILD" "verify_gate" "/design-build reads verify_gate"
+assert_in "$BUILD" "capture_preference" "/design-build reads capture_preference for the session gate"
 assert_not_in "$BUILD" "figma_frame_size" "/design-build does not read figma_frame_size"
 assert_not_in "$BUILD" "screenshot_scale" "/design-build does not read screenshot_scale"
-assert_not_in "$BUILD" "capture_preference" "/design-build does not read capture_preference"
 
 # The schema fence is declared once. figma_file_name: is unique to that fence.
 FENCE_HITS=$(grep -l "figma_file_name:" "$REPO_ROOT"/skills/*/SKILL.md 2>/dev/null | wc -l | tr -d ' ')

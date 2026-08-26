@@ -71,11 +71,15 @@ assert_in "$BUILD" 'cancels any `AskUserQuestion`' "a cancelled question is an e
 assert_in "$BUILD" '\*\*No session owned\.\*\*' "the no-session fallback is defined"
 
 echo ""
-echo "=== 4. Launch failures draw from the existing 3c budget ==="
+echo "=== 4. Launch failures draw on the session's own budget, not a task's ==="
 
-assert_in "$BUILD" 'spends an attempt from this same budget' "3c states that a launch failure costs an attempt"
-assert_in "$BUILD" 'one counter per task' "3c states there is one counter, not one per failure kind"
-assert_in "$BUILD" 'never gets a budget of its own' "Phase 2b refuses a second budget"
+# The two budgets must stay named apart in both places that describe them. Charging a
+# launch to 3c drains task 1's counter before its implementation attempt exists, so the
+# task's own mandatory first step lands over budget.
+assert_in "$BUILD" 'spends a session attempt, not one of these' "3c keeps launch failures off the task counter"
+assert_in "$BUILD" 'one counter per task' "3c states there is one counter for every other failure kind"
+assert_in "$BUILD" '\*\*A failed launch costs a session attempt\.\*\*' "Phase 2b names the session budget"
+assert_in "$BUILD" 'separate from 3c' "Phase 2b states the two budgets are separate"
 
 echo ""
 echo "=== 5. The consumer cites the producer, and the citation resolves ==="

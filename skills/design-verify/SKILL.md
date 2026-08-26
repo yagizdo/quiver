@@ -217,6 +217,11 @@ the last row and the run continues.
 **A stack with no discoverable run command costs zero attempts.** An attempt is a launch
 that ran and failed; a launch that was never possible is not one.
 
+**Print the launch result once, naming the command that ran.** `> Launch: {target} -- {command}`,
+or `> Launch: failed after 3 attempts -- continuing on the spec read.` The last row resolves its
+command out of repository content rather than a fixed binary, and an unattended run reaches no
+`AskUserQuestion` -- this line is the only record of what was executed.
+
 **After the third failed attempt, continue without a capture on the level 3 spec read.**
 There is no fourth attempt and there is no stop: a launch failure lowers confidence, it
 does not end verification. Record `capture_method: none -- launch failed after 3 attempts`

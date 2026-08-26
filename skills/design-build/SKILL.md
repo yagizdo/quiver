@@ -86,6 +86,7 @@ absent:
 |-------|----------|---------------------|
 | `commit_strategy` | Phase 3d's commit policy | `none` |
 | `verify_gate` | which command must pass before a commit | `none` |
+| `capture_preference` | whether Phase 2b opens a run session at all | `auto` |
 | `screenshot_dir` | where the deviation reports land | `.claude/plans/assets/<slug>/`, slug derived from the plan filename |
 
 Plans written before these fields existed carry none of them, and they live in
@@ -122,17 +123,21 @@ implementation, and tear it down when the run ends.
 **Start.** After the branch is resolved and before the first task, launch the app in the
 background with the Bash tool, using the build-and-launch command `/design-verify` lists
 for the resolved target. Record that this run owns the session and print once:
-`> Run session: {target}`, or `> Run session: none -- each verify rebuilds.`
+`> Run session: {target} -- {command}`, or `> Run session: none -- each verify rebuilds.`
+Naming the command is the only record of what ran: an unattended run prints no prompt,
+and for a stack the launch table does not name, the command is resolved out of the
+repository's own docs rather than from a fixed binary.
 
-Start no session when no run target resolves. Which plans capture at all is
-`/design-verify`'s decision and this skill does not read the field that carries it -- a
-run whose verify never captures pays one launch and no reloads.
+Start no session when no run target resolves, and none when the plan's
+`capture_preference` is `skip` or `manual`. `/design-verify` runs no build-and-launch on
+those plans, so a session would have nothing to keep fresh. Print
+`> Run session: none -- this plan captures nothing.`
 
-**A failed launch costs an attempt.** A launch that fails consumes one attempt from the
-first task's 3c budget, exactly as a deviation fix does. It never adds an attempt and it
-never gets a budget of its own -- only the user's "Try 3 more attempts" resets the
-counter. Once the budget is spent on launches, stop trying to own a session for the rest
-of the run.
+**A failed launch costs a session attempt.** Three failed launches end session ownership
+for the rest of the run. That budget is the session's own and is separate from 3c's
+per-task counter -- a task that has not started has no attempt to spend, and a run that
+could not launch must not silently cost the first task its fix budget. Once it is spent,
+stop trying to own a session and fall through to "No session owned" below.
 
 **Hot reload after 3a, before 3b.** The reload is what makes the session fresh; skipping
 it hands `/design-verify` the previous task's binary.
@@ -149,10 +154,11 @@ session could not start or restart takes the no-session path -- the run still bu
 task and still verifies each one.
 
 **Teardown on every exit path.** Kill the process this run started when the run ends --
-after the last task, after a stop, after a task is skipped or its gate fails, when the
-user picks "Stop here", and when the user cancels any `AskUserQuestion`. A cancelled
-question is an exit path, not a pause. Never kill a process this run did not start: a
-simulator or dev server the user had open before the run stays open.
+after the last task, after a stop, when the user picks "Stop here", and when the user
+cancels any `AskUserQuestion`. A cancelled question is an exit path, not a pause. A
+skipped task and a failed gate are not exit paths -- the run continues to the next task
+and keeps the session. Never kill a process this run did not start: a simulator or dev
+server the user had open before the run stays open.
 
 **No session owned.** When the session never started, its budget was spent, or teardown
 already ran, each 3b invocation falls back on `/design-verify`'s own build-and-launch
@@ -232,8 +238,9 @@ Fix the largest delta in the report's deviation table first, then re-run 3b --
 re-invoke `design-verify` and re-read the report. **Three attempts maximum per task**,
 counting the initial implementation as attempt one.
 
-A failed run-session launch (Phase 2b) spends an attempt from this same budget. There is
-one counter per task, not one per failure kind.
+A failed run-session launch (Phase 2b) spends a session attempt, not one of these. That
+is the one budget kept separate: a task that has not started yet has no attempt to spend.
+Every other failure kind draws on this counter -- one counter per task.
 
 After the third attempt still leaves deviations, **stop**. Do not keep looping.
 
@@ -414,9 +421,9 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 15. `commit_strategy: per-task` produces one commit per task, skipping any task whose gate verdict is `failed`; `single` produces exactly one commit after the last task, and none at all if any task's gate failed. The plan and `screenshot_dir` are never staged.
 15b. "Skip this task" restores the modified files and deletes the created ones when git is available, and leaves them in place with a stated reason under `NO_GIT` or on files an earlier task also wrote.
 16. Phase 4 prints the status table, lists every accepted deviation with its delta and report path, and ends with the four-button handoff.
-16b. Phase 2b starts exactly one run session for the whole run, hot reloads it after each task's 3a, and tears it down at the end. A project with no resolvable run target starts none and the run continues.
-16c. Teardown runs on every exit path, including a skipped task, a failed gate, "Stop here", and a cancelled `AskUserQuestion`. A simulator or dev server the user had open before the run is left running.
-16d. A failed run-session launch consumes an attempt from the task's 3c budget rather than getting its own, and three failures stop session ownership for the rest of the run without stopping the run.
+16b. Phase 2b starts exactly one run session for the whole run, hot reloads it after each task's 3a, and tears it down at the end. A project with no resolvable run target starts none and the run continues, and so does a plan whose `capture_preference` is `skip` or `manual`.
+16c. Teardown runs on every exit path -- the last task, a stop, "Stop here", and a cancelled `AskUserQuestion`. A skipped task and a failed gate keep the session and the run moves to the next task. A simulator or dev server the user had open before the run is left running.
+16d. A failed run-session launch spends a session attempt rather than one from the task's 3c budget, and three failures stop session ownership for the rest of the run without stopping the run. Task 1 still enters 3a with a full 3-attempt budget after three failed launches.
 16e. With no session owned, each 3b invocation still verifies -- `/design-verify` rebuilds and relaunches under its own cap.
 17. `--auto` is stripped before a plan path is resolved, and `/design-build --auto` with several plans on disk takes the most recent and names the count instead of asking.
 18. A full `/design --auto` run reaches no `AskUserQuestion` after `/design` Step 8, all the way to the Phase 4 summary.
