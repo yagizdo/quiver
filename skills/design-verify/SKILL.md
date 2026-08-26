@@ -46,6 +46,7 @@ Parse `$ARGUMENTS`:
 | `--screenshot <path>` | a capture the user already has | none |
 | `--nodes <id,id>` | restrict verification to these node IDs | every node in the plan |
 | `--task <id>` | names the report file | the first node ID |
+| `--vm-uri <ws-uri>` | the Dart VM service URI a marionette capture attaches to | a registered marionette instance, else the row is skipped |
 | `--mode standalone` or `--mode build` | who is running this | `standalone` |
 
 **Mode arrives as an argument. Never detect the caller.** There is no inspection of the
@@ -89,6 +90,16 @@ missing, print:
 ```
 
 **Stop here.**
+
+### Nodes marked reference only are not verified
+
+A node spec carrying `Scope: reference only -- not built by this plan` was extracted for
+context, not built. Skip it and record it under the report's `## Notes` with that reason.
+Measuring it reports real deviations against code nobody wrote, and in a build loop those
+deviations enter a fix cycle that edits working parts of the screen.
+
+An explicit `--nodes` list wins: a node named on the command line is verified whatever its
+`Scope:` line says, because naming it is the stronger signal.
 
 ### Frontmatter fields this skill reads
 
@@ -154,6 +165,30 @@ Buttons: `["Verify against the spec by reading the code", "I'll supply a screens
 
 When mode is `build`, skip that question and fall through silently.
 
+### Probe the capture tooling once, before resolving the target
+
+The target order below drops a physical-device row when nothing can photograph that
+device, so what is installed has to be known before the target is chosen, not after a
+capture fails. Run these probes once per run, with the Bash tool. Skip the block entirely
+when `capture_preference` is `skip` -- that plan attempts no capture, so nothing it
+reports could change a decision:
+
+| Probe | Answers |
+|-------|---------|
+| `command -v marionette` | can a Flutter app be captured wherever it runs, physical device included |
+| `command -v pymobiledevice3` | can a physical iOS device be captured on a non-Flutter stack |
+| `magick -version` | will the comparison be measured or structural (Phase 5 re-reads this) |
+
+`command -v` rather than a version flag: the question is whether the binary resolves, and
+a wrong flag guess reports a present tool as missing.
+
+Print one line naming everything absent, then continue -- this block decides which rows
+are reachable, it never stops the run:
+
+```
+> Capture tooling: marionette missing, pymobiledevice3 missing, magick present.
+```
+
 ### Resolve the target once per run
 
 Resolve the target once, before the first capture, never per node. Detect the project
@@ -161,21 +196,51 @@ type from its manifest, then take the first live target in that type's order:
 
 | Manifest at the project root | Project type | Target order |
 |------------------------------|--------------|--------------|
-| `pubspec.yaml` | Flutter | the device named by `flutter devices --machine`, then that device's platform row below |
-| `*.xcodeproj`, `*.xcworkspace`, or `Package.swift` | iOS | iOS simulator, then physical iOS device |
-| `build.gradle` or `build.gradle.kts` declaring an Android plugin | Android | Android emulator or device |
+| `pubspec.yaml` | Flutter | wired physical device, then wireless physical device, then simulator or emulator |
+| `*.xcodeproj`, `*.xcworkspace`, or `Package.swift` | iOS | wired physical device, then wireless physical device, then iOS simulator |
+| `build.gradle` or `build.gradle.kts` declaring an Android plugin | Android | wired physical device, then wireless physical device, then Android emulator |
 | `package.json` naming `next`, `react`, `vue`, `svelte`, or `vite` | Web | Web |
+
+**A physical device outranks a simulator because it is the only target that renders what
+ships** -- real safe-area insets, real fonts, real display scaling. The simulator is the
+fallback, not the default.
+
+**A device row is only reachable when a capture path for it resolved** in the tooling
+probe above, and which tool that is depends on the stack:
+
+| Physical device | Captured by |
+|-----------------|-------------|
+| Android | `adb`, the same binary the emulator row uses -- nothing extra to install |
+| Flutter, any platform | `marionette`, or the platform's own tool below |
+| iOS, non-Flutter | `pymobiledevice3` only |
+
+With none of them present for the stack in hand, the device can still be built to and
+launched on, and nothing can photograph it -- so the device rows are dropped and the run
+continues at the simulator row. Building on a target that cannot be captured trades a
+measured comparison for a spec read, which is the opposite of why the device ranks first.
+
+**Wired before wireless.** Both answer the same probes and both capture through the same
+tooling; a wireless capture crosses the network for every frame and drops mid-run more
+often. Resolve the transport per platform:
+
+- **iOS:** `xcrun devicectl list devices --json-output <tmp-path>`, then read each
+  device's `connectionProperties.transportType` -- `wired` sorts before `localNetwork`.
+  The JSON file is devicectl's only supported interface for scripts; its stdout table is
+  documented as human-readable output and must not be parsed.
+- **Android:** `adb devices -l`. A serial shaped `host:port` is a wireless connection; a
+  bare serial is USB.
+- **Flutter:** `flutter devices --machine` names the target, then its platform's rule
+  above resolves the transport.
 
 Then resolve the tie:
 
 - **One live target:** use it.
-- **Several live** -- a booted simulator and an attached phone, or `flutter devices
-  --machine` returning more than one entry. In `standalone` mode ask with
-  `AskUserQuestion`, one button per live target. In `build` mode never ask: take the
-  first live target in the order above and name the choice in the report's
-  `capture_method`.
-- **No manifest matches:** walk the four command rows below top to bottom and take the
-  first target whose absence probe reports something live.
+- **Several live** -- two attached phones, or a phone and a booted simulator. In
+  `standalone` mode ask with `AskUserQuestion`, one button per live target. In `build`
+  mode never ask: take the first live target in the order above and name the choice in
+  the report's `capture_method`.
+- **No manifest matches:** walk the command rows below top to bottom and take the first
+  target whose absence probe reports something live.
 
 An Android capture compared against an iOS-frame export produces a deviation on every
 row, so the resolved target is recorded in the report rather than left implicit.
@@ -205,11 +270,25 @@ gets one targeted fix -- read the error, change one thing -- and one retry.
 
 | Target | Build-and-launch command |
 |--------|--------------------------|
-| Flutter | `flutter run -d <device-id>` |
-| iOS | `xcodebuild -scheme <scheme> -destination 'platform=iOS Simulator,name=<device>' build`, then `xcrun simctl install booted <app-path>` and `xcrun simctl launch booted <bundle-id>` |
-| Android | `./gradlew installDebug`, then `adb -s <SERIAL> shell am start -n <package>/<activity>` |
+| Flutter | `flutter run -d <device-id>` -- the same `<device-id>` the target resolution picked, physical device or simulator |
+| iOS simulator | `xcodebuild -scheme <scheme> -destination 'platform=iOS Simulator,name=<device>' build`, then `xcrun simctl install booted <app-path>` and `xcrun simctl launch booted <bundle-id>` |
+| iOS physical device | `xcodebuild -scheme <scheme> -destination 'id=<udid>' build`, then `xcrun devicectl device install app --device <udid> <app-path>` and `xcrun devicectl device process launch --device <udid> <bundle-id>` |
+| Android | `./gradlew installDebug`, then `adb -s <SERIAL> shell am start -n <package>/<activity>` -- `<SERIAL>` is the resolved target, device or emulator |
 | Web | the dev server script named in `package.json` -- `dev`, then `start` |
 | Any other stack | the run command the project itself documents -- a README quickstart, a `Makefile` target, a package-manager script. When none is discoverable, run no launch at all and continue on the spec read. |
+
+**The launch row and the capture row resolve to the same target.** They are two halves of
+one decision made once in the target resolution above, and splitting them is the failure
+this rule exists to prevent: launching a simulator build while capturing an attached
+phone photographs whatever that phone was already running, and every deviation afterwards
+describes a binary this run never wrote.
+
+**A device build that fails on code signing falls back to the simulator once.** Read the
+error: a signing, provisioning, or `no eligible devices` failure is a machine-setup
+problem no code fix reaches, so retrying it on the device spends the whole budget on the
+same wall. Re-resolve to the simulator row, print
+`> Device build failed on code signing -- falling back to the simulator.`, and continue.
+The fallback costs one attempt, and it happens once per run.
 
 The four named rows are the stacks with a standard command, not the stacks that are
 allowed. An unlisted one -- Kotlin/JVM, Go, a Makefile-driven build -- resolves through
@@ -239,12 +318,31 @@ Print the launch result once: `> Launch: {target}`, or
 
 | Target | Capture command | Absence probe |
 |--------|-----------------|---------------|
+| Flutter app on any target, physical device included | `marionette --uri <vm-service-uri> take-screenshots --output <path>` | `marionette --version`, then a `connect` that resolves a URI (see below) |
 | iOS simulator | `xcrun simctl io booted screenshot --type=png <path>` | `xcrun simctl list devices booted -j`, parse the JSON for a non-empty booted list |
 | Android emulator or device | `adb -s <SERIAL> exec-out screencap -p > <path>` | `adb devices -l`, parse the device lines |
 | Physical iOS device | `pymobiledevice3 developer dvt screenshot <path>`, or `pymobiledevice3 developer core-device screen-capture screenshot <path>` on iOS 17+ | `idevice_id -l`, parse the output for a UDID |
-| Flutter | resolve the run target from `flutter devices --machine`, then use that platform's row above | parse the JSON array's length, never the exit code |
+| Flutter without marionette | resolve the run target from `flutter devices --machine`, then use that platform's row above | parse the JSON array's length, never the exit code |
 | Web | Playwright MCP `browser_take_screenshot` with `filename`; add `element` and `target` for a clipped capture | `ToolSearch` for `browser_take_screenshot` |
-| iOS or Android via an xcbuild or marionette MCP (optional) | use the MCP's build-run and screenshot tools when the session exposes them; otherwise fall back to the CLI row for that target | `ToolSearch` for the MCP's build-run tool |
+
+### Resolving the VM service URI for marionette
+
+marionette attaches to the running app's Dart VM service rather than to the device, which
+is what makes it the one capture path that works on a physical phone without extra device
+tooling. It needs a `ws://.../ws` URI. Resolve it in this order and take the first that
+answers:
+
+1. **`--vm-uri <uri>`** on this skill's own invocation. `/design-build` owns the run
+   session, reads the URI out of its `flutter run` output, and forwards it here.
+2. **A registered marionette instance** -- `marionette doctor` lists the registered
+   instances and their connectivity. When exactly one is reachable, capture with
+   `marionette -i <instance> take-screenshots --output <path>`.
+3. **Neither** -- skip this row and fall to the next one. Do not prompt for a URI: a
+   missing URI is missing tooling, and missing tooling never stops this skill.
+
+With the marionette MCP loaded in the session, `connect` followed by `take_screenshots`
+is equivalent to the CLI row and may be used instead. The CLI is listed first because it
+needs no MCP server, which is the same reason every other row here is a CLI command.
 
 Notes that change what these commands mean:
 
@@ -256,8 +354,22 @@ Notes that change what these commands mean:
 - **Playwright, not Puppeteer.** The reference Puppeteer MCP server is archived. In the
   Playwright MCP the element parameter is `target` (renamed from `ref`), and `fullPage`
   cannot be combined with an element screenshot.
-- **No MCP server is required for any native target.** The simulator, emulator, and
-  physical-device paths are plain CLI commands run with the Bash tool.
+- **A marionette capture is the app's own view, not the device screen.** It photographs
+  the Flutter view, so the OS-drawn overlay -- status bar clock and battery, the home
+  indicator -- is absent from the image while every pixel the app itself drew is present.
+  Record it as `capture_surface: app-view` and read the two consequences in Phase 4.
+- **marionette needs the app prepared and running in debug.** The app must depend on
+  `marionette_flutter` and call `MarionetteBinding.ensureInitialized()`, and the VM
+  service only exists in debug or profile builds. A release build has no URI to connect
+  to. When `connect` fails, print the install hint once and fall to the next row.
+- **marionette downscales large screenshots by default**, to fit within 2000x2000
+  physical px. Phase 4 checks for it; the app-side fix is `maxScreenshotSize: null` in
+  `MarionetteConfiguration`.
+- **No MCP server is required for any target.** Every row above is a CLI command run with
+  the Bash tool. This is not a preference -- no iOS MCP captures from a physical device.
+  The xcodebuild-wrapping servers expose build, install, launch, and test for devices and
+  stop there, and their screenshot tools are simulator-only, so an MCP row here would
+  duplicate `simctl` under a second name and still leave the device uncovered.
 
 ### Exit codes lie here -- route on parsed output
 
@@ -287,6 +399,14 @@ the precedence ladder:
 > pymobiledevice3 not found -- install with: pipx install pymobiledevice3
 > Continuing without a device capture.
 ```
+
+The hint names the install command for the tool that was actually missing:
+
+| Tool | Install hint |
+|------|--------------|
+| `marionette` | `dart pub global activate marionette_cli` |
+| `pymobiledevice3` | `pipx install pymobiledevice3` |
+| `magick` | `brew install imagemagick` |
 
 Do not print an install hint more than once per run. Do not stop.
 
@@ -318,6 +438,14 @@ that looks like a right one.
   Its logical size is the node's `Box:` width and height.
 - **A device capture is the whole screen** at the device's pixel ratio. Its logical size
   is the frame, not the node.
+- **An app-view capture is the app's own surface** -- the same logical rect as the screen
+  for an app that draws edge to edge, so it normalizes exactly like a device capture. Two
+  things differ, and both belong in the report rather than in the arithmetic. A node whose
+  box overlaps a band the OS draws over the app -- the status bar, the home indicator --
+  is being compared against Figma pixels no app-view capture can contain, so record that
+  difference as a chrome artifact, not as design drift. And a capture measuring exactly
+  2000 physical px on either axis hit marionette's default downscale cap: mark the report
+  `confidence: low` and print the `maxScreenshotSize: null` hint once.
 
 Intermediates land beside the capture: `<screenshot_dir>/actual/<task-id>-ref.png`,
 `-norm.png`, and `-crop.png`.
@@ -495,7 +623,8 @@ Fixed report shape -- identical in both modes, so a human reading a standalone r
 plan: .claude/plans/2026-08-17-wallet-design-plan.md
 task_id: 3
 nodes: ["4029:12345"]
-capture_method: ios-simulator | android-adb | ios-device | web-playwright | supplied | none
+capture_method: ios-simulator | android-adb | ios-device | flutter-marionette | web-playwright | supplied | none
+capture_surface: device-screen | app-view | none
 comparison_path: imagemagick-pdc | imagemagick-ae | structural | spec-check
 confidence: high | low
 normalized: true | false
@@ -531,6 +660,9 @@ Rules for the report:
   `code` for a value read from the implementation. A row with no source is a guess.
 - **`diff_pixels` records the screening metric**, or `none` when no metric ran. It is
   never a `Measured` value.
+- **`capture_surface` records what the image is**, not which tool made it. A reader
+  comparing two runs needs to know whether the missing status bar was a design change or
+  the capture path changing under them, and `capture_method` alone does not say.
 - **`confidence: low`** whenever normalization was skipped, the comparison path is
   `spec-check` or `structural`, `figma_frame_size` was absent, or the two normalized
   sides did not end up the same size.
@@ -585,6 +717,15 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** capture from whichever target answers first when several are live. Resolve the
   target from the project manifest, then ask (standalone) or take the ordered first
   (build).
+- **Don't** build on one target and capture from another. One resolution, both halves.
+- **Don't** rank a physical device first when no tool can photograph it. Probe the capture
+  tooling before the target order is applied, not after a capture fails.
+- **Don't** retry a code-signing failure on the device. Fall back to the simulator once
+  and spend the remaining attempts on something a retry can change.
+- **Don't** prompt for a VM service URI. An unresolvable URI is missing tooling, and
+  missing tooling never interrupts this skill.
+- **Don't** add an MCP row for a physical-device capture. No iOS MCP has one -- the
+  xcodebuild-wrapping servers stop at build, install, launch, and test.
 - **Don't** treat `magick compare` exit code 1 as a failure. It means the images differ,
   which is the entire point of running it.
 - **Don't** use `-metric AE` without probing `magick -list metric` for `PDC` first. On
@@ -592,6 +733,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** route on exit status for any capture tool. 148, 255, and a successful 0 on an
   empty device list all mean something other than what they look like.
 - **Don't** detect which skill invoked this one. Mode is an argument.
+- **Don't** verify a node marked `Scope: reference only` unless `--nodes` names it.
 - **Don't** demand a screenshot. Every path degrades to a spec read.
 - **Don't** block on a missing tool. One install hint, then continue.
 - **Don't** put a capture probe inside a `` !`...` `` block. Non-git commands with `||`
@@ -615,6 +757,8 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 **Expected behavior:**
 1. Both shell blocks exit 0 in a git repo and in a non-git directory.
 2. A plan with `### Node Specs` but no `design_source` is accepted and verified.
+2b. A node carrying `Scope: reference only` is skipped and listed under `## Notes`, and is
+    verified anyway when `--nodes` names it explicitly.
 3. A file with no `### Node Specs` section is rejected with a message; nothing is written.
 4. A plan missing all five new frontmatter fields loads on the documented defaults.
 5. `--screenshot <path>` is used directly; no capture is attempted. It is used even when
@@ -636,9 +780,23 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
     continues on the spec read and the report records
     `capture_method: none -- launch failed after 3 attempts`.
 8d. With `capture_preference: skip`, no build-and-launch attempt runs at all.
-8e. With no xcbuild or marionette MCP in the session, the CLI row for the resolved target
-    is used and nothing reports a missing MCP as an error.
-9. An iOS simulator capture succeeds with no `xc-interact` MCP configured.
+8e. With no MCP server loaded at all, the CLI row for the resolved target is used and
+    nothing reports a missing MCP as an error.
+8f. The capture-tooling probe runs once, before the target is resolved, and prints one
+    line naming every absent tool with its install command.
+8g. With a physical device attached and neither `marionette` nor `pymobiledevice3`
+    installed, the device rows are dropped and the simulator row is used.
+8h. With two devices attached, one wired and one wireless, the wired one is resolved
+    first; the transport comes from `connectionProperties.transportType` in devicectl's
+    JSON output file, never from its stdout table.
+8i. A device build failing on code signing falls back to the simulator exactly once,
+    prints the fallback line, and spends one attempt doing it.
+8j. A Flutter app running on a physical device is captured through marionette when a URI
+    resolves from `--vm-uri` or a registered instance, and the report records
+    `capture_method: flutter-marionette` with `capture_surface: app-view`.
+8k. With `marionette` absent, a Flutter run falls to its platform's CLI row and prints the
+    `dart pub global activate marionette_cli` hint once.
+9. An iOS simulator capture succeeds with no MCP server configured.
 10. `xcrun simctl` exiting 148, `adb` exiting 255, and `flutter devices --machine`
     printing `[]` with exit 0 are all routed from parsed output, not exit status.
 11. `--mode standalone` makes the manual-screenshot offer once; `--mode build` never does.
@@ -671,7 +829,10 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] The report is written in both modes and in every comparison path.
 - [ ] The build-and-launch attempt cap reads 3 and the degrade path continues without a
       capture rather than stopping.
-- [ ] The MCP capture row reads use-if-present with a named CLI fallback.
+- [ ] Every capture row is a CLI command; no row requires an MCP server.
+- [ ] The capture-tooling probe appears before the target resolution, not after it.
+- [ ] The launch table and the capture table resolve the same target.
+- [ ] `capture_surface` is written into every report's frontmatter.
 - [ ] `when-to-use:` is a single-line double-quoted string.
 - [ ] No `CLAUDE_PLUGIN_ROOT` reference anywhere in this file.
 - [ ] No Unicode characters or emoji in this file.
@@ -703,3 +864,19 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - `flutter run` does not return while the app is alive. Waiting on it blocks the run;
   read its streamed output instead and treat the first `Error:` line as the attempt's
   failure.
+- `xcrun devicectl` prints a device table to stdout and documents that table as
+  human-readable output. `--json-output <path>` writing a file is the only interface it
+  supports for scripts, so a run that greps the table is reading something Apple does not
+  promise to keep stable.
+- `xcrun devicectl` has no screenshot subcommand, and neither does any MCP server built
+  on top of it. A physical device is the only target where build, install, and launch all
+  work while capture needs a separate tool.
+- marionette photographs the Flutter view, so a screenshot from it never contains the
+  status bar clock or the home indicator. Against a Figma frame that draws them, that band
+  reports a deviation on every run and no code change fixes it.
+- marionette silently downscales screenshots to fit 2000x2000 physical px. The image is
+  well-formed and the deviations it produces look like real drift, which is the same
+  failure mode as an unnormalized comparison.
+- marionette only works in debug and profile builds, because the VM service does not
+  exist in release. A release build produces no URI, and the failure reads as a
+  connection error rather than a mode error.

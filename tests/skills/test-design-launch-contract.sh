@@ -55,10 +55,26 @@ assert_in "$BUILD" '| Any other target |' "the refresh table has a fallback row"
 assert_in "$BUILD" 'is not an error' "an unnamed stack is stated to be no error"
 
 echo ""
-echo "=== 2. The optional MCP capture row keeps a CLI fallback ==="
+echo "=== 2. Every capture path is a CLI command, and the device rows are gated on one ==="
 
-assert_in "$VERIFY" 'xcbuild or marionette MCP (optional)' "the MCP capture row is marked optional"
-assert_in "$VERIFY" 'otherwise fall back to the CLI row' "the MCP row names its CLI fallback"
+# No MCP server captures a physical iOS device -- the xcodebuild-wrapping ones stop at
+# build, install, launch, and test. A capture row that needs an MCP is therefore a row
+# that silently drops to a spec read on the one target the device order exists to reach.
+assert_in "$VERIFY" 'No MCP server is required for any target' "capture rows need no MCP server"
+assert_in "$VERIFY" 'marionette --uri' "the Flutter device capture row names its CLI"
+assert_in "$VERIFY" 'pymobiledevice3 developer' "the physical iOS capture row names its CLI"
+
+# The probe has to run before the target order is applied. Ranking a device first and
+# discovering afterwards that nothing can photograph it trades a measured comparison for
+# a spec read on exactly the target that was chosen for being most accurate.
+assert_in "$VERIFY" '^### Probe the capture tooling once, before resolving the target$' "the tooling probe has its own step"
+assert_in "$VERIFY" 'A device row is only reachable when a capture path for it resolved' "device rows are gated on a resolved capture path"
+
+# Launch and capture are two halves of one resolution. Split, the run photographs a
+# binary it never built.
+assert_in "$VERIFY" 'The launch row and the capture row resolve to the same target' "launch and capture share one target"
+assert_in "$VERIFY" '| iOS physical device |' "the launch table has a physical device row"
+assert_in "$VERIFY" 'falls back to the simulator once' "a signing failure falls back once"
 
 echo ""
 echo "=== 3. /design-build owns the run session ==="
