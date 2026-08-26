@@ -1,8 +1,8 @@
 ---
 name: design-build
-description: "Execute a design plan produced by /design -- implements each node against its embedded measurement spec, delegates fidelity measurement to /design-verify, and fixes the reported deviations under a bounded retry budget. Runs with Figma disconnected; the plan carries every number it needs."
-argument-hint: "<path to a *-design-plan.md, or empty to pick one>"
-when-to-use: "user wants to build a design plan into working pixel-accurate UI -- '/design-build', 'build the design plan', 'implement the figma plan', 'make it match the design', 'fix the pixel differences'"
+description: "Execute a design plan produced by /design -- implements each node against its embedded measurement spec, delegates fidelity measurement to /design-verify, and fixes the reported deviations under a bounded retry budget. Runs with Figma disconnected; the plan carries every number it needs. --auto runs the whole loop without a prompt."
+argument-hint: "<path to a *-design-plan.md, or empty to pick one> [--auto] [--no-commit]"
+when-to-use: "user wants to build a design plan into working pixel-accurate UI -- '/design-build', '/design-build --auto', 'build the design plan', 'implement the figma plan', 'make it match the design', 'fix the pixel differences', 'build the plan without asking me again', 'build it but do not commit anything'"
 ---
 
 # Gather Context
@@ -35,12 +35,32 @@ Proceed. Skip branch creation in Phase 2 and all commit steps in Phase 3d.
 
 ## Phase 1 -- Load the Plan
 
+**Arguments.** `--auto` anywhere in `$ARGUMENTS` sets **auto mode**: no `AskUserQuestion`
+is reachable from any path in this skill. Strip it before resolving a path -- a flag is not
+a plan path. `/design --auto` forwards it here; a user can also type it directly against an
+existing plan.
+
+`--no-commit` anywhere in `$ARGUMENTS` forces `commit_strategy: none` for this run,
+whatever the plan says. Strip it before resolving a path too. It is independent of
+`--auto`: either flag works without the other.
+
+Auto mode changes three decisions and nothing else: which plan loads when several match
+(Phase 1), what happens after three failed fidelity attempts (Phase 3c), and the handoff at
+the end (Phase 4). Every measurement, tolerance, gate verdict, and commit rule is identical
+in both modes -- auto mode never lowers a bar, it only stops asking.
+
+**Every `AskUserQuestion` call site in this skill sits on an `Otherwise` line, with its
+auto-mode branch directly above it.** A prompt added any other way stalls an auto run
+waiting on a human who walked away, and nothing in the transcript says why. A new prompt
+site takes that shape or it does not go in.
+
 **Path given.** If `$ARGUMENTS` ends in `.md` or contains `/`, read that file.
 
 **No arguments.** Use the Glob tool on `.claude/plans/*-design-plan.md`. Treat an empty result as none found.
 
 - One match: read it and print `> Executing design plan: {filename}`.
-- Several matches: use `AskUserQuestion` with one button per plan, most recent first, plus `"Other -- I'll give a path"`.
+- Several matches, **auto mode**: take the most recent by the plan filename's `YYYY-MM-DD` prefix and print `> Executing design plan: {filename} (most recent of {N}).` Naming the count is what makes a wrong pick visible in the transcript.
+- Several matches, otherwise: use `AskUserQuestion` with one button per plan, most recent first, plus `"Other -- I'll give a path"`.
 - No matches: print
   ```
   > No design plan found. Run /design first to extract a Figma design into a plan.
@@ -215,7 +235,22 @@ counting the initial implementation as attempt one.
 A failed run-session launch (Phase 2b) spends an attempt from this same budget. There is
 one counter per task, not one per failure kind.
 
-After the third attempt still leaves deviations, **stop and ask**. Do not keep looping. Call `AskUserQuestion`:
+After the third attempt still leaves deviations, **stop**. Do not keep looping.
+
+**In auto mode**, take the "Accept as-is" path without asking: record the remaining
+deviations with their measured deltas, leave the code in place, and continue to 3d on the
+same terms that bullet already sets -- including its rule about not re-running a gate this
+task already failed. Print one line so the run stays readable:
+
+```
+> Task {id}: {N} deviations accepted after 3 attempts.
+```
+
+The budget is never extended in auto mode. "Try 3 more attempts" is a human's call, and a
+loop that grants itself more attempts has no cap. Phase 4 lists every accepted deviation
+with its delta and its report path, which is where the user decides whether to revisit.
+
+**Otherwise** call `AskUserQuestion`:
 
 > Task {id} still differs from the design after 3 attempts:
 > {one line per remaining deviation with its measured delta}
@@ -253,6 +288,13 @@ have no exit but "Skip this task".
 **Commit policy.** Read `commit_strategy` from the plan frontmatter. The user chose this
 at plan time, so nothing here asks again.
 
+**`--no-commit` overrides it to `none`** before anything below is read. It reports itself
+once on the first task, in place of the `none` line below rather than alongside it:
+`> --no-commit: changes stay in the working tree.` The override is run-scoped --
+it never rewrites the plan, so the same plan still commits on a run without the flag. This
+is the only way to run a plan carrying `per-task` or `single` without commits, because Step
+8 of `/design` is not re-asked here.
+
 - `none` (the default) -- write no commit. Say so once, on the first task:
   `> commit_strategy: none -- changes stay in the working tree.` Do not repeat it per
   task.
@@ -289,7 +331,17 @@ Then list every accepted deviation with its measured delta and the file it lives
 
 Print the branch name and the commit count.
 
-Then call `AskUserQuestion`:
+**In auto mode**, print the next steps as text and stop:
+
+```
+> Next: /review to read the diff, /commit to commit, /create-pr to open a PR.
+```
+
+Invoke none of them. The consent this run carries covers the build and the measurement --
+not a review, not a commit the plan's `commit_strategy` did not authorize, and not a pull
+request.
+
+Otherwise call `AskUserQuestion`:
 
 > Build finished. What next?
 
@@ -314,14 +366,17 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** treat an absent deviation report as a pass. A clean verification still writes a report.
 - **Don't** treat an empty deviation table as a pass either. Read `comparison_path` and `confidence` first.
 - **Don't** trust a report at the task's path without checking `created:` against the value noted before the invocation. The path is fixed, so a stale report sits exactly where a fresh one would.
-- **Don't** loop the fix cycle without a bound. Three attempts, then ask.
+- **Don't** loop the fix cycle without a bound. Three attempts, then ask -- or, in auto mode, accept and move on.
 - **Don't** re-run the gate after "Accept as-is". That is the 3c-to-3d cycle the attempt budget does not bound.
-- **Don't** extend the retry budget on your own. Only the user's "Try 3 more attempts" resets it.
+- **Don't** extend the retry budget on your own. Only the user's "Try 3 more attempts" resets it, and auto mode never reaches that button.
+- **Don't** call `AskUserQuestion` from any path in auto mode. The whole contract is that `/design` Step 8 was the run's last question.
+- **Don't** invoke `/review`, `/commit`, or `/create-pr` from the auto handoff. Naming them is the handoff; running them is a decision nobody consented to.
 - **Don't** replace a precedent mechanism with a simpler one because it compiles. The precedent is in the plan because the simple version is what looks wrong.
 - **Don't** center at page level when a Reconciliation line names a chrome-excluded region.
 - **Don't** write a `fill` axis as the literal `Box:` number.
 - **Don't** adjust the plan's numbers to match what the code happens to produce. Fix the code.
 - **Don't** commit when `commit_strategy` is absent or `none`. Absence means the user was never asked.
+- **Don't** write `--no-commit` into the plan. It is one run's override, and the plan is what the user chose at Step 8.
 - **Don't** commit past a failing verification gate. Under `single` that means withholding the whole accumulate commit, not skipping one task's files.
 - **Don't** answer "Skip this task" with `git revert`. The default strategy writes no commit, so there is nothing to revert.
 - **Don't** stage the plan file or the screenshot assets.
@@ -331,7 +386,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 
 ## Test Plan
 
-**Trigger:** `/design-build`, `/design-build .claude/plans/2026-08-16-wallet-design-plan.md`, `/quiver:design-build`
+**Trigger:** `/design-build`, `/design-build .claude/plans/2026-08-16-wallet-design-plan.md`, `/design-build <plan> --auto`, `/quiver:design-build`
 
 **Setup:**
 - A design plan written by `/design` with at least two tasks, one node carrying a `Reconciliation:` line, and reference PNGs present under `screenshot_dir`.
@@ -352,6 +407,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 9. A node with a `Reconciliation:` line and a precedent `file:line` causes that file range to be read before the positioning code is written.
 10. A node with a `Reconciliation:` line and `No precedent found` produces content constrained to the chrome-excluded region, with a comment naming what it centers within.
 11. After three failed attempts on one task, `AskUserQuestion` appears with the four options. The loop never continues silently.
+11b. In auto mode the same point accepts the remaining deviations, prints the one-line count, and continues to 3d without asking. The 3-attempt budget is not extended.
 12. "Try 3 more attempts" resets the counter; nothing else does.
 13. `verify_gate: build` or `test` runs that command before the commit; a failure blocks the commit and re-enters 3c. The gate runs at most twice per task, and "Accept as-is" after a gate failure moves on instead of re-running it -- a permanently failing gate never loops.
 14. `commit_strategy: none` or absent writes no commit and says so exactly once.
@@ -362,6 +418,11 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 16c. Teardown runs on every exit path, including a skipped task, a failed gate, "Stop here", and a cancelled `AskUserQuestion`. A simulator or dev server the user had open before the run is left running.
 16d. A failed run-session launch consumes an attempt from the task's 3c budget rather than getting its own, and three failures stop session ownership for the rest of the run without stopping the run.
 16e. With no session owned, each 3b invocation still verifies -- `/design-verify` rebuilds and relaunches under its own cap.
+17. `--auto` is stripped before a plan path is resolved, and `/design-build --auto` with several plans on disk takes the most recent and names the count instead of asking.
+18. A full `/design --auto` run reaches no `AskUserQuestion` after `/design` Step 8, all the way to the Phase 4 summary.
+19. The auto handoff prints the `/review`, `/commit`, and `/create-pr` commands as text and invokes none of them.
+20. `--no-commit` against a plan carrying `commit_strategy: per-task` writes no commit, says so once, and leaves the plan file unchanged. Re-running the same plan without the flag commits normally.
+21. `--no-commit` works with or without `--auto`, and `--auto` works without `--no-commit`.
 
 **Verification checklist:**
 - [ ] `/design-build` and `/quiver:design-build` both appear in the slash menu after plugin reload.
@@ -376,8 +437,11 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] The gate runs at most twice per task and never re-runs after "Accept as-is".
 - [ ] Report freshness is checked by `created:`, not by the file existing.
 - [ ] Every empty-table outcome is classified from `comparison_path` and `confidence`.
-- [ ] The bounded-retry prompt uses `AskUserQuestion`, not plain text.
+- [ ] The bounded-retry prompt uses `AskUserQuestion`, not plain text -- and is unreachable in auto mode.
+- [ ] Every `AskUserQuestion` site in this skill has an auto-mode branch ahead of it.
+- [ ] Auto mode changes no measurement, tolerance, gate verdict, or commit rule.
 - [ ] No commit is written when `commit_strategy` is absent.
+- [ ] `--no-commit` overrides the plan for the run and never edits the plan file.
 - [ ] Commits stage task files only; no `git add .`; plan and assets excluded.
 - [ ] No AI attribution in any commit message.
 - [ ] `when-to-use:` is a single-line double-quoted string.

@@ -109,15 +109,22 @@ already use it in another harness.
 | Situation | Command | What happens |
 |-----------|---------|--------------|
 | A Figma frame is ready to become code | `/design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
+| Want the frame built and measured without babysitting it | `/design --auto` | Same extraction and same questions, then straight through the build and the fidelity measurement with no further prompt |
 | Design plan is ready, want it built pixel-accurate | `/design-build` | Implements each node against its embedded spec, then fixes whatever `/design-verify` reports, under a bounded retry budget |
 | Built UI is on screen, want to know how far off it is | `/design-verify` | Captures the running app, normalizes both images to a common logical width, measures the deviations, and writes a report to disk |
 
 ```
 /design                    # extract whatever is selected in Figma
 /design 4029:12345         # extract a specific node by ID
+/design --auto             # extract, then build and measure without stopping
+/design --auto --no-commit # same, and write no commit whatever the plan says
 /design-build              # pick a design plan and build it
 /design-verify             # measure a built screen against its spec
 ```
+
+`--auto` removes the handoffs between the three stages, not the questions that decide what gets built. `/design` still asks which file, which nodes, what an unmapped variable resolves to, and how the build should commit and verify -- then the run goes quiet until the fidelity summary. Three attempts is still the cap on fixing one node; in auto mode the leftover deviations are recorded and the run moves on instead of asking.
+
+`--no-commit` forces `commit_strategy: none` for one run. Not committing is already the recommended answer to `/design`'s commit question, so on a fresh plan the flag is a guarantee rather than a change; it earns its keep against an existing plan that carries `per-task` or `single`, since `/design-build` never re-asks that question. The override is run-scoped and never edits the plan. Both flags work independently: `/design-build <plan> --no-commit` is as valid as `/design --auto --no-commit`.
 
 `/design` is the only stage that talks to Figma. The plan carries every measurement, token, and layout anchor it produced, so `/design-build` runs with Figma disconnected and `/design-verify` measures against the plan alone. Each stage stands on its own: `/design-verify` works against any file with a `### Node Specs` section, including a hand-written measurement spec, and needs no screenshot and no installed comparison tool. Setup is in [External Dependencies](#external-dependencies).
 

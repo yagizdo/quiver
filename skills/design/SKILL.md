@@ -1,8 +1,8 @@
 ---
 name: design
-description: "Extract a Figma design into a pixel-exact implementation plan -- reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's existing theme tokens, and writes a self-contained plan to .claude/plans/ that /design-build executes without touching Figma again."
-argument-hint: "<node id, or a short description of what to build>"
-when-to-use: "user wants to turn a Figma design into code -- '/design', 'implement this Figma design', 'build the screen I selected in Figma', 'turn this Figma node into code', 'pixel perfect from Figma'"
+description: "Extract a Figma design into a pixel-exact implementation plan -- reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's existing theme tokens, and writes a self-contained plan to .claude/plans/ that /design-build executes without touching Figma again. --auto carries the same run through the build and the fidelity measurement without a further prompt."
+argument-hint: "<node id, or a short description of what to build> [--auto] [--no-commit]"
+when-to-use: "user wants to turn a Figma design into code -- '/design', '/design --auto', 'implement this Figma design', 'build the screen I selected in Figma', 'turn this Figma node into code', 'pixel perfect from Figma', 'extract it and build it without asking me again', 'build it but do not commit anything'"
 ---
 
 # Gather Context
@@ -28,6 +28,35 @@ You are a design extraction specialist. Your job is to pull an exact measurement
 If a gather-context block returned `NO_GIT`, this directory is not a git repository.
 Print: `> No git repository detected -- skipping branch context.`
 Proceed. Nothing in this skill requires git.
+
+## Step 0.5 -- Arguments
+
+Read `$ARGUMENTS` as plain text.
+
+- `--auto` sets **auto mode** for this run. Strip it before Step 3 resolves a target -- a
+  flag is not a node ID.
+- `--no-commit` forces `commit_strategy: none` for this run. Strip it the same way.
+- Everything else is a node ID or a description, and Step 3 handles it.
+
+`--no-commit` and `--auto` are independent. Either works without the other, and neither
+implies the other.
+
+**What `--no-commit` is for.** `none` is already the recommended answer to Step 8's commit
+question, so on a fresh plan the flag mostly buys a guarantee that does not depend on
+clicking the right button. It earns its keep against a plan that already carries
+`commit_strategy: per-task` or `single`: Step 8 is not re-asked when `/design-build` runs
+an existing plan, so the flag is the only way to run that plan without commits.
+
+**What auto mode changes, and what it does not.** It removes the handoff prompt between
+this skill and the build. It does not remove the questions that decide what gets built.
+Every question Steps 2, 3, 7, 8, and 9 ask is asked in auto mode too -- which Figma file,
+which nodes, what an unmapped variable resolves to, the three build preferences, whether to
+overwrite an existing plan. Those answers are the plan; a run that guessed them would build
+the wrong screen faster.
+
+What it removes is Step 10's "what next" question and every stop downstream of it. Step 8
+becomes the last question of the run: the user answers there and comes back to a built and
+measured result rather than to a prompt asking them to type the next command.
 
 ## Step 1 -- Bridge Availability
 
@@ -302,9 +331,15 @@ entry for a multi-mode variable ships a theme that only works in one mode.
 ## Step 8 -- Build Preferences
 
 Ask these now, at plan time, so `/design-build` never has to interrupt the build loop to
-ask. One `AskUserQuestion` call carrying all three questions.
+ask. One `AskUserQuestion` call carrying every question below that still has an open
+answer.
 
-**Question 1 -- Commit strategy.**
+**`--no-commit` closes Question 1 before the call is composed.** Record
+`commit_strategy: none`, leave Question 1 out of the call entirely, and print once:
+`> --no-commit: this build writes no commit.` Asking a question whose answer is already
+fixed is worse than not asking it. The call then carries two questions, not three.
+
+**Question 1 -- Commit strategy.** Skipped when `--no-commit` was passed.
 > How should the build commit its work?
 
 Buttons: `["No commit -- leave changes in the working tree (Recommended)", "One commit per task", "One commit at the end"]`
@@ -328,6 +363,20 @@ Record as `capture_preference: auto` / `manual` / `skip`.
 These three are distinct build paths, not shades of one: `skip` never attempts a capture
 at all and so never triggers a build-and-launch cycle, `manual` waits for a supplied
 path, `auto` attempts capture per task.
+
+**In auto mode this call is the single consent point for the whole run (R6).** Answering it
+authorizes the plan write, every task's implementation, the fidelity
+measurement, and the bounded fix loop. Say what is being approved in the preamble, so the
+consent is informed rather than inferred:
+
+```
+> Answering these starts the build -- I write the plan, implement every task, and measure
+> each one against the design, without stopping to ask again.
+```
+
+`capture_preference: manual` stays a legal answer in auto mode and blocks nothing. Inside a
+build loop `/design-verify` reads a manual screenshot from the conventional path if one is
+there and falls through to a spec read if it is not; it never asks.
 
 ## Step 9 -- Write the Plan
 
@@ -497,13 +546,29 @@ completion. Apply its FIX, ADD, and REORDER findings inline, rewrite the plan fi
 read it back once more. **One pass only.** Do not re-dispatch the reviewer against the
 revised plan.
 
-Then call `AskUserQuestion`:
+**In auto mode, skip the question below.** Print `> Building.` and invoke the
+`design-build` skill with the saved plan path and the flag:
+
+```
+/design-build {plan path} --auto
+```
+
+When `--no-commit` was passed, forward it too: `/design-build {plan path} --auto --no-commit`.
+The plan already records `commit_strategy: none`, and forwarding the flag says so twice on
+purpose -- a plan edited between the write and the build would otherwise silently regain
+commits.
+
+Do not ask, do not print a command for the user to run, and do not wait for a reply. Step 8
+collected the consent that covers everything from here to the fidelity summary.
+
+Otherwise call `AskUserQuestion`:
 
 > Plan saved. What next?
 
 Buttons: `["Build it now -- run /design-build", "Verify an existing build -- run /design-verify", "Review the plan first", "Stop here"]`
 
 - **Build it now:** invoke the `design-build` skill with the saved plan path.
+  Pass no `--auto`: this button is consent for one step, not for the rest of the run.
 - **Verify an existing build:** invoke the `design-verify` skill with the saved plan path.
 - **Review the plan first:** print the plan body and stop.
 - **Stop here:** stop.
@@ -525,13 +590,16 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** export an asset over an existing file, and don't delete one to make room. The bridge writes with flag `wx` and throws -- list the directory first and suffix the name. An existing plan still references the old file, and Step 9's overwrite question has not been asked yet.
 - **Don't** restate the plan frontmatter schema in another skill. Step 9's fence is the only declaration; consumers list the fields they read.
 - **Don't** compare a `VARIABLE_ALIAS` as if it were a value. Follow the alias chain to a literal first.
+- **Don't** treat `--auto` as permission to guess an answer. It removes the handoff prompt, not the questions that decide what gets built.
+- **Don't** forward `--auto` from the interactive "Build it now" branch. That button consents to one step.
+- **Don't** ask Step 8's commit question when `--no-commit` was passed. The answer is already fixed.
 - **Don't** dispatch a prompt containing `{true|false}`. `codegraph_available` and `lsp_available` are resolved to literals before Step 6 dispatches.
 
 ---
 
 ## Test Plan
 
-**Trigger:** `/design`, `/design 4029:12345`, `/quiver:design`
+**Trigger:** `/design`, `/design 4029:12345`, `/design --auto`, `/quiver:design`
 
 **Setup:**
 - figma-bridge MCP server configured, plugin running inside a Figma file.
@@ -558,6 +626,12 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 17. Every applicable node spec carries `Fit:`, `Content:`, and `Route:` lines.
 18. The plan carries an `### Assets` section naming every exported file.
 19. Step 10 reads the plan back, verifies the assets exist, dispatches `quiver:plan-reviewer` exactly once, applies its findings, and offers the handoff via `AskUserQuestion`.
+20. `/design --auto` still asks every plan-time question -- file, nodes, unmapped tokens, build preferences, overwrite -- and the `--auto` token never reaches Step 3's node-ID resolution.
+21. `/design --auto` skips Step 10's handoff question entirely, prints `> Building.`, and invokes `design-build` with the plan path and `--auto` in the same run.
+22. Picking "Build it now" in the interactive handoff invokes `design-build` without `--auto`, so the build keeps its own prompts.
+23. `/design --no-commit` asks Step 8's Questions 2 and 3 only, writes `commit_strategy: none`, and says so once.
+24. `/design --auto --no-commit` forwards both flags to `design-build`; `/design --auto` forwards only `--auto`.
+25. `--no-commit` works without `--auto`, and `--auto` works without `--no-commit`.
 
 **Verification checklist:**
 - [ ] `/design` and `/quiver:design` both appear in the slash menu after plugin reload.
@@ -571,6 +645,10 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] No node spec writes a `fill` axis as a literal width.
 - [ ] The frontmatter fence appears in this file and in no other skill.
 - [ ] `quiver:plan-reviewer` runs once, before the handoff question, never after.
+- [ ] `--auto` is stripped before Step 3 resolves a node ID.
+- [ ] In auto mode, Step 8 is the last `AskUserQuestion` the run reaches, and its preamble says what is being approved.
+- [ ] The auto handoff passes the plan path and `--auto` to `design-build`; the interactive one passes the path only.
+- [ ] `--no-commit` is stripped before Step 3 resolves a node ID, skips Step 8 Question 1, and lands as `commit_strategy: none` in the plan.
 - [ ] Unmapped Figma variables produce an `AskUserQuestion`, never a silent raw value.
 - [ ] Anchor lines name the excluded chrome and its measured size.
 - [ ] `when-to-use:` is a single-line double-quoted string.
@@ -579,6 +657,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] No `$()`, variable assignment, or `if/else` inside any `!` block.
 
 **Known gotchas:**
+- `--auto` removes the handoff prompt, not the Q&A. A user expecting a fully silent run still answers Steps 2, 3, 7, 8, and 9 -- those answers are what the plan is made of.
 - Figma share URLs use a hyphen in node IDs (`4029-12345`); the bridge tool schema rejects hyphens. Normalization in Step 3 is mandatory, not optional.
 - When more than one Figma file is connected, every bridge tool requires `fileKey`. Omitting it fails at call time, not at plan time.
 - `get_design_context` returns a summarized tree. It is not a substitute for `get_node` -- the summary drops most visual properties.
