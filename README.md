@@ -122,7 +122,7 @@ already use it in another harness.
 /design-verify             # measure a built screen against its spec
 ```
 
-`--auto` removes the handoffs between the three stages, not the questions that decide what gets built. `/design` still asks which file, which nodes, what an unmapped variable resolves to, and how the build should commit and verify -- then the run goes quiet until the fidelity summary. Three attempts is still the cap on fixing one node; in auto mode the leftover deviations are recorded and the run moves on instead of asking.
+`--auto` removes the handoffs between the three stages, not the questions that decide what gets built. `/design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and -- when a plan for the same screen already exists -- whether to overwrite it. All of it lands in one call, and then the run goes quiet until the fidelity summary. Three attempts is still the cap on fixing one node; in auto mode the leftover deviations are recorded and the run moves on instead of asking.
 
 `--no-commit` forces `commit_strategy: none` for one run. Not committing is already the recommended answer to `/design`'s commit question, so on a fresh plan the flag is a guarantee rather than a change; it earns its keep against an existing plan that carries `per-task` or `single`, since `/design-build` never re-asks that question. The override is run-scoped and never edits the plan. Both flags work independently: `/design-build <plan> --no-commit` is as valid as `/design --auto --no-commit`.
 
