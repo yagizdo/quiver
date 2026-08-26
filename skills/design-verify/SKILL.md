@@ -189,6 +189,52 @@ failure reads as a device problem.
 
 In the commands below, `<path>` is that file.
 
+### The app must be running and fresh
+
+A capture of a stale binary measures the previous build. Resolve the running app once per
+run, before the first capture:
+
+- **`standalone`** -- an already-running instance is accepted as it is. This run edited no
+  code, so what is on screen is what the plan describes.
+- **`build`** -- a running instance is never trusted as fresh. `/design-build` owns one run
+  session and refreshes it after each task's implementation. When this skill runs with
+  `--mode build` and no refreshed session is on screen, build and launch before capturing.
+
+Build-and-launch is capped at **3 attempts** per run, not per node. Each failed attempt
+gets one targeted fix -- read the error, change one thing -- and one retry.
+
+| Target | Build-and-launch command |
+|--------|--------------------------|
+| Flutter | `flutter run -d <device-id>` |
+| iOS | `xcodebuild -scheme <scheme> -destination 'platform=iOS Simulator,name=<device>' build`, then `xcrun simctl install booted <app-path>` and `xcrun simctl launch booted <bundle-id>` |
+| Android | `./gradlew installDebug`, then `adb -s <SERIAL> shell am start -n <package>/<activity>` |
+| Web | the dev server script named in `package.json` -- `dev`, then `start` |
+| Any other stack | the run command the project itself documents -- a README quickstart, a `Makefile` target, a package-manager script. When none is discoverable, run no launch at all and continue on the spec read. |
+
+The four named rows are the stacks with a standard command, not the stacks that are
+allowed. An unlisted one -- Kotlin/JVM, Go, a Makefile-driven build -- resolves through
+the last row and the run continues.
+**A stack with no discoverable run command costs zero attempts.** An attempt is a launch
+that ran and failed; a launch that was never possible is not one.
+
+**Print the launch result once, naming the command that ran.** `> Launch: {target} -- {command}`,
+or `> Launch: failed after 3 attempts -- continuing on the spec read.` The last row resolves its
+command out of repository content rather than a fixed binary, and an unattended run reaches no
+`AskUserQuestion` -- this line is the only record of what was executed.
+
+**After the third failed attempt, continue without a capture on the level 3 spec read.**
+There is no fourth attempt and there is no stop: a launch failure lowers confidence, it
+does not end verification. Record `capture_method: none -- launch failed after 3 attempts`
+in the report.
+
+Route each attempt on parsed output, never on exit status -- the rule the capture probes
+below already follow. `flutter run` stays in the foreground until the app exits, so run it
+in the background and read its output; a build error prints `Error:` lines and never
+returns an exit status you can wait on.
+
+Print the launch result once: `> Launch: {target}`, or
+`> Launch: failed after 3 attempts -- continuing on the spec read.`
+
 ### Per-target capture commands
 
 | Target | Capture command | Absence probe |
@@ -198,6 +244,7 @@ In the commands below, `<path>` is that file.
 | Physical iOS device | `pymobiledevice3 developer dvt screenshot <path>`, or `pymobiledevice3 developer core-device screen-capture screenshot <path>` on iOS 17+ | `idevice_id -l`, parse the output for a UDID |
 | Flutter | resolve the run target from `flutter devices --machine`, then use that platform's row above | parse the JSON array's length, never the exit code |
 | Web | Playwright MCP `browser_take_screenshot` with `filename`; add `element` and `target` for a clipped capture | `ToolSearch` for `browser_take_screenshot` |
+| iOS or Android via an xcbuild or marionette MCP (optional) | use the MCP's build-run and screenshot tools when the session exposes them; otherwise fall back to the CLI row for that target | `ToolSearch` for the MCP's build-run tool |
 
 Notes that change what these commands mean:
 
@@ -583,6 +630,14 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
     `capture_method`.
 8. With no capture tooling installed, each absent tool prints exactly one install line and
    the run reaches a written report.
+8b. `--mode standalone` accepts an already-running app without rebuilding it; `--mode
+    build` rebuilds and relaunches before the first capture.
+8c. Three consecutive failed build-and-launch attempts produce no fourth attempt: the run
+    continues on the spec read and the report records
+    `capture_method: none -- launch failed after 3 attempts`.
+8d. With `capture_preference: skip`, no build-and-launch attempt runs at all.
+8e. With no xcbuild or marionette MCP in the session, the CLI row for the resolved target
+    is used and nothing reports a missing MCP as an error.
 9. An iOS simulator capture succeeds with no `xc-interact` MCP configured.
 10. `xcrun simctl` exiting 148, `adb` exiting 255, and `flutter devices --machine`
     printing `[]` with exit 0 are all routed from parsed output, not exit status.
@@ -614,6 +669,9 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] Every field group in the check order has a named measurement source.
 - [ ] No figma-bridge tool is called anywhere in this file.
 - [ ] The report is written in both modes and in every comparison path.
+- [ ] The build-and-launch attempt cap reads 3 and the degrade path continues without a
+      capture rather than stopping.
+- [ ] The MCP capture row reads use-if-present with a named CLI fallback.
 - [ ] `when-to-use:` is a single-line double-quoted string.
 - [ ] No `CLAUDE_PLUGIN_ROOT` reference anywhere in this file.
 - [ ] No Unicode characters or emoji in this file.
@@ -642,3 +700,6 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
   because the CRLF translation corrupts the stream. `exec-out` is the only correct form.
 - `flutter devices --machine` is a hidden flag. It exits 0 whether or not a device is
   attached, so an exit-status check reports success against an empty list.
+- `flutter run` does not return while the app is alive. Waiting on it blocks the run;
+  read its streamed output instead and treat the first `Error:` line as the attempt's
+  failure.
