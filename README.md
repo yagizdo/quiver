@@ -4,6 +4,31 @@
 
 Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skills for brainstorming, planning, execution, debugging, code review, and session handover, plus specialized agents for review and debugging.
 
+## Contents
+
+- [Typical workflow](#typical-workflow)
+- [Installation](#installation)
+- [Components](#components)
+- [What Do I Use?](#what-do-i-use)
+  - [Building Something](#building-something)
+  - [Building a Whole Project](#building-a-whole-project)
+  - [Implementing a Design](#implementing-a-design)
+  - [Reviewing Code](#reviewing-code)
+  - [Fixing a Bug](#fixing-a-bug)
+  - [Committing & PRs](#committing--prs)
+  - [Session Management](#session-management)
+  - [Tooling & Maintenance](#tooling--maintenance)
+- [Hooks](#hooks)
+- [Agents](#agents)
+  - [Review](#review)
+  - [Research](#research)
+  - [Debug](#debug)
+  - [Workflow](#workflow)
+- [External Dependencies](#external-dependencies)
+- [CLI Notes](#cli-notes)
+- [Uninstall](#uninstall)
+- [License](#license)
+
 ## Typical workflow
 
 A normal feature cycle chains these skills. Each one is self-contained and works on its own. Skip steps, reorder them, or use just the ones you need. If you hit a bug at any point, run `/hypothesis-debugging` to investigate it systematically.
@@ -18,7 +43,7 @@ A normal feature cycle chains these skills. Each one is self-contained and works
 
 ## Installation
 
-Installation differs by CLI.
+Installation differs by CLI. Once it is installed, `/brainstorm` works in any session; per-CLI differences are in [CLI Notes](#cli-notes).
 
 ### Claude Code
 
@@ -26,8 +51,6 @@ Installation differs by CLI.
 /plugin marketplace add yagizdo/quiver
 /plugin install quiver@yagizdo/quiver
 ```
-
-Then try `/brainstorm` in any session.
 
 ### Cursor (2.5+)
 
@@ -37,47 +60,21 @@ Then try `/brainstorm` in any session.
 
 Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor".
 
-- The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
-- `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
-- If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
-
 ### OpenAI Codex CLI
 
 ```text
 codex plugin marketplace add yagizdo/quiver
 ```
 
-Then try `/brainstorm` in any session.
-
-- Codex uses the bundled default `PreCompact` hook in `hooks/hooks.json` for automatic handover auto-save before automatic compaction. If Codex prompts for hook review, open `/hooks` and trust the Quiver hook; `/handover` also works manually.
-- `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
-- Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
-
-### Gemini CLI
-
-```text
-gemini extensions install quiver
-```
-
-Then try `/brainstorm` in any session.
-
-- `ask_user` is native on Gemini CLI: interactive prompts render with full fidelity.
-- The handover auto-save hook maps to Gemini CLI's `PreCompress` event, which fires only before history compression (like Claude Code's PreCompact) -- no cooldown guard needed.
-- Agent dispatch reads agent persona prompts from `agents/` and executes them inline. The `/review` skill dispatches 5 agents by default, or the full pipeline with `--deep`.
-- The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
-
 ### OpenCode
 
-OpenCode uses its own plugin install; install Quiver separately even if you
-already use it in another harness.
+OpenCode has its own plugin install, so install Quiver separately even if you already use it in another harness. Tell OpenCode:
 
-- Tell OpenCode:
+```
+Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/master/.opencode/INSTALL.md
+```
 
-  ```
-  Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/master/.opencode/INSTALL.md
-  ```
-
-- Detailed docs: [`.opencode/README.md`](.opencode/README.md)
+Detailed docs: [`.opencode/README.md`](.opencode/README.md)
 
 ## Components
 
@@ -98,7 +95,7 @@ already use it in another harness.
 | Plan is ready, want hands-off execution | `/work` | Executes tasks one by one with testing, branch setup, and incremental commits |
 | Want a quick second opinion on an approach | `/advise` | Gives a senior-style inline review -- no spec or plan artifact |
 
-### Shipping Something
+### Building a Whole Project
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
@@ -122,11 +119,24 @@ already use it in another harness.
 /design-verify             # measure a built screen against its spec
 ```
 
-`--auto` removes the handoffs between the three stages, not the questions that decide what gets built. `/design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and -- when a plan for the same screen already exists -- whether to overwrite it. All of it lands in one call, and then the run goes quiet until the fidelity summary. Three attempts is still the cap on fixing one node; in auto mode the leftover deviations are recorded and the run moves on instead of asking.
+`--auto` removes the handoffs between the three stages, not the questions that decide what gets built.
 
-`--no-commit` forces `commit_strategy: none` for one run. Not committing is already the recommended answer to `/design`'s commit question, so on a fresh plan the flag is a guarantee rather than a change; it earns its keep against an existing plan that carries `per-task` or `single`, since `/design-build` never re-asks that question. The override is run-scoped and never edits the plan. Both flags work independently: `/design-build <plan> --no-commit` is as valid as `/design --auto --no-commit`.
+- `/design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and whether to overwrite a plan that already exists for the same screen.
+- Those questions all arrive in one call. After that the run stays quiet until the fidelity summary.
+- One node still gets three fix attempts. Auto mode records whatever deviation is left over and moves on rather than asking.
 
-`/design` is the only stage that talks to Figma. The plan carries every measurement, token, and layout anchor it produced, so `/design-build` runs with Figma disconnected and `/design-verify` measures against the plan alone. Each stage stands on its own: `/design-verify` works against any file with a `### Node Specs` section, including a hand-written measurement spec, and needs no screenshot and no installed comparison tool. Setup is in [External Dependencies](#external-dependencies).
+`--no-commit` forces `commit_strategy: none` for a single run.
+
+- On a fresh plan it changes nothing. Not committing is already the recommended answer to `/design`'s commit question, so the flag guarantees that answer rather than overriding it.
+- It earns its keep against an existing plan that carries `per-task` or `single`, because `/design-build` never re-asks that question.
+- The override lasts one run and never edits the plan.
+- The two flags are independent. `/design-build <plan> --no-commit` is as valid as `/design --auto --no-commit`.
+
+`/design` is the only stage that talks to Figma.
+
+- The plan carries every measurement, token, and layout anchor `/design` produced, so `/design-build` runs with Figma disconnected and `/design-verify` measures against the plan alone.
+- `/design-verify` reads any file with a `### Node Specs` section, including a measurement spec you wrote by hand. It does not need a screenshot or an installed comparison tool.
+- Setup is in [External Dependencies](#external-dependencies).
 
 ### Reviewing Code
 
@@ -153,7 +163,7 @@ Re-review detection: if you run `/review` again on the same branch after fixing 
 |-----------|---------|--------------|
 | Bug won't go away after multiple attempts | `/hypothesis-debugging` | Generates hypotheses, tests each systematically, traces root cause, proposes reviewed fix |
 
-### Git & Shipping
+### Committing & PRs
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
@@ -266,22 +276,20 @@ Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, 
 
 ### figma-bridge (optional, for `/design`)
 
-`/design` reads Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway. Set it up once:
+`/design` reads Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway.
 
-1. Add the server to your MCP config:
+Add the server to your MCP config:
 
-   ```json
-   {
-     "figma-bridge": {
-       "command": "npx",
-       "args": ["-y", "@gethopp/figma-mcp-bridge"]
-     }
-   }
-   ```
+```json
+{
+  "figma-bridge": {
+    "command": "npx",
+    "args": ["-y", "@gethopp/figma-mcp-bridge"]
+  }
+}
+```
 
-2. Download the Figma plugin from the [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), then in Figma: **Plugins > Development > Import plugin from manifest**.
-
-3. Run the plugin inside the Figma file you want to read and leave it open. It connects to the server over a WebSocket; closing it drops the connection mid-extraction.
+The Figma plugin side is a manual import from the bridge's [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), and its README carries the current steps. Leave the plugin running inside the file you are reading -- it holds the WebSocket, and closing it drops the connection mid-extraction.
 
 `/design` only calls the bridge's read tools. `/design-build` and `/design-verify` never call it at all. Every other Quiver skill works without it.
 
@@ -296,6 +304,37 @@ brew install imagemagick
 The skill probes `magick -version` and `magick -list metric`, picks the `PDC` metric when the build has it, and records which comparison path produced each report. Nothing breaks without it; the reports simply carry fewer numbers.
 
 Device capture is optional in the same way. `/design-verify` uses `xcrun simctl` for iOS simulators, `adb` for Android, `pymobiledevice3` for physical iOS devices, and the Playwright MCP for web -- whichever is already on the machine. Each absent tool prints one install hint and the run continues down to the next option.
+
+## CLI Notes
+
+Every CLI runs the same skills and the same agents, and `/review` fans out to 5 agents by default on all of them, or the full pipeline with `--deep`.
+
+### Cursor
+
+- The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
+- `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
+- If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
+
+### Codex
+
+- Codex uses the bundled default `PreCompact` hook in `hooks/hooks.json` for automatic handover auto-save before automatic compaction. If Codex prompts for hook review, open `/hooks` and trust the Quiver hook; `/handover` also works manually.
+- `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
+- Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`.
+
+### Gemini CLI (legacy)
+
+Google retired Gemini CLI on 18 June 2026, with no grace period for free, AI Pro, and Ultra personal accounts. Under a Gemini Code Assist Standard or Enterprise license the extension still installs and runs:
+
+```text
+gemini extensions install quiver
+```
+
+Antigravity CLI is Google's replacement. Quiver has not been tested there yet.
+
+- `ask_user` is native: interactive prompts render with full fidelity.
+- The handover auto-save hook maps to Gemini CLI's `PreCompress` event, which fires only before history compression (like Claude Code's PreCompact) -- no cooldown guard needed.
+- Agent dispatch reads agent persona prompts from `agents/` and executes them inline.
+- The hook script uses `claude -p` for transcript summarization. If the `claude` CLI is not installed, the auto-save hook will silently skip (manual `/handover` still works).
 
 ## Uninstall
 
