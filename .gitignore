@@ -49,6 +49,7 @@ marketing/
 .claude/reviews/
 .claude/plans/
 .claude/commands/
+.claude/work/
 
 # Claude Code Plugin files
 docs/
