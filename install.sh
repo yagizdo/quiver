@@ -40,16 +40,17 @@ STATUS=0
 # catches an editor that turns these tabs into spaces.
 #
 # Cursor has no row, deliberately. It discovers skills by scanning a fixed list of
-# roots that includes ~/.claude/plugins/ and ~/.codex/skills/, so a Claude Code or
-# Codex install already surfaces Quiver there with nothing else to do. A symlink
-# under ~/.cursor/plugins/local/ is not picked up: measured on Cursor 3.17.21,
+# roots that includes ~/.claude/plugins/, so a Claude Code install already surfaces
+# Quiver there with nothing else to do. A Codex install does not: it lands in
+# ~/.codex/plugins/, which is not on that list. A symlink under
+# ~/.cursor/plugins/local/ is not picked up either: measured on Cursor 3.17.21,
 # disabling the Claude Code install made Quiver disappear from Cursor while that
 # symlink was still in place. Cursor's own plugin import covers a Cursor-only user.
 
 targets() {
   cat <<'EOF'
-claude	native	claude	-	/plugin marketplace add yagizdo/quiver	Then run: /plugin install quiver@yagizdo/quiver
-codex	native	codex	-	codex plugin marketplace add yagizdo/quiver	-
+claude	native	claude	-	/plugin marketplace add yagizdo/quiver	Then run: /plugin install quiver@quiver
+codex	native	codex	-	codex plugin marketplace add yagizdo/quiver	Then run: codex plugin add quiver@quiver
 opencode	link	~/.config/opencode	.opencode/plugins/quiver.js	~/.config/opencode/plugins/quiver.js	-
 EOF
 }
@@ -59,9 +60,13 @@ EOF
 say() { printf '%-9s %s\n' "$1" "$2"; }
 note_line() { [ "$1" = "-" ] || printf '%-9s %s\n' "" "-> $1"; }
 
+# OpenCode resolves its global config dir as ${XDG_CONFIG_HOME:-$HOME/.config}/opencode,
+# so a ~/.config/ prefix has to go through the XDG base or the link lands where nothing
+# reads it. Both the detect and dest columns come through here, so one branch covers both.
 expand_home() {
   case "$1" in
     "~") printf '%s' "$HOME" ;;
+    "~/.config/"*) printf '%s' "${XDG_CONFIG_HOME:-$HOME/.config}/${1#\~/.config/}" ;;
     "~/"*) printf '%s' "$HOME/${1#\~/}" ;;
     *) printf '%s' "$1" ;;
   esac

@@ -49,13 +49,14 @@ Claude Code and the Codex CLI have their own plugin managers. Cursor reads Claud
 
 ```
 /plugin marketplace add yagizdo/quiver
-/plugin install quiver@yagizdo/quiver
+/plugin install quiver@quiver
 ```
 
 ### OpenAI Codex CLI
 
 ```text
 codex plugin marketplace add yagizdo/quiver
+codex plugin add quiver@quiver
 ```
 
 ### Cursor
@@ -367,10 +368,16 @@ Antigravity CLI is Google's replacement. Quiver has not been tested there yet.
 
 ## Uninstall
 
-On Claude Code and the Codex CLI:
+On Claude Code:
 
 ```
-/uninstall quiver
+claude plugin uninstall quiver
+```
+
+On the Codex CLI:
+
+```text
+codex plugin remove quiver@quiver
 ```
 
 On OpenCode, from the clone:

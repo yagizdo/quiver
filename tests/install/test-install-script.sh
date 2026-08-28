@@ -10,6 +10,10 @@
 
 set -u
 
+# install.sh resolves a ~/.config/ destination through XDG_CONFIG_HOME. Clear it so the
+# scenarios below land under the throwaway HOME; scenario 6 sets it per-invocation.
+unset XDG_CONFIG_HOME
+
 EXIT=0
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
 SCRIPT="$REPO_ROOT/install.sh"
@@ -85,12 +89,26 @@ else
   fail "missing parent directory is created"
 fi
 
-# A native row prints its command and must never create anything on disk.
-if echo "$OUT1" | grep -q "plugin marketplace add"; then
+# A native row prints its command and must never run it. The row is forced by id
+# because install.sh:218 bypasses detection for an explicit target -- the no-argument
+# run gates on `command -v claude`, which does not exist on the CI runner.
+OUT_NATIVE="$(HOME="$H1" bash "$SCRIPT" claude 2>&1)"
+if echo "$OUT_NATIVE" | grep -q "plugin marketplace add"; then
   pass "native target prints its command instead of running it"
 else
   fail "native target prints its command instead of running it"
-  echo "$OUT1" | sed 's/^/    /'
+  echo "$OUT_NATIVE" | sed 's/^/    /'
+fi
+
+# Registering a marketplace installs nothing. A native row that loses its follow-up
+# note reports success and leaves the user with no plugin, which is a silent wrong
+# result rather than a visible failure.
+OUT_CODEX="$(HOME="$H1" bash "$SCRIPT" codex 2>&1)"
+if echo "$OUT_CODEX" | grep -q "codex plugin add"; then
+  pass "the codex row prints its install step, not just the marketplace step"
+else
+  fail "the codex row prints its install step, not just the marketplace step"
+  echo "$OUT_CODEX" | sed 's/^/    /'
 fi
 
 # --- Scenario 2: run again, nothing changes, exit 0 ---
@@ -205,7 +223,10 @@ else
   fail "--help exits 0 (got $RCH)"
 fi
 
-ROWS="$(printf '%s\n' "$HELP" | awk -F'\t' 'NF > 1')"
+# Slice the table off by its header rather than by tab count. A row whose tabs became
+# spaces is exactly what the six-column assertion below exists to catch, and an
+# `NF > 1` prefilter drops that row before the assertion ever sees it.
+ROWS="$(printf '%s\n' "$HELP" | sed -n '/^Targets (/,$p' | tail -n +2 | grep .)"
 ROW_COUNT="$(printf '%s' "$ROWS" | grep -c . )"
 BAD_COUNT="$(printf '%s' "$ROWS" | awk -F'\t' 'NF != 6' | grep -c . )"
 
@@ -220,6 +241,25 @@ if [ "$BAD_COUNT" -eq 0 ]; then
 else
   fail "every target row has exactly six tab-separated columns ($BAD_COUNT bad rows)"
   printf '%s\n' "$ROWS" | awk -F'\t' 'NF != 6 { print "    " NF " cols: " $0 }'
+fi
+
+# --- Scenario 6: XDG_CONFIG_HOME relocates the OpenCode config directory ---
+
+H6="$(new_home)"
+mkdir -p "$H6/cfg/opencode"
+OUT6="$(HOME="$H6" XDG_CONFIG_HOME="$H6/cfg" bash "$SCRIPT" 2>&1)"
+
+if [ -L "$H6/cfg/opencode/plugins/quiver.js" ]; then
+  pass "XDG_CONFIG_HOME is honored for the opencode destination"
+else
+  fail "XDG_CONFIG_HOME is honored for the opencode destination"
+  echo "$OUT6" | sed 's/^/    /'
+fi
+
+if [ ! -e "$H6/.config/opencode/plugins/quiver.js" ]; then
+  pass "nothing is written under ~/.config when XDG_CONFIG_HOME points elsewhere"
+else
+  fail "nothing is written under ~/.config when XDG_CONFIG_HOME points elsewhere"
 fi
 
 # --- Summary ---
