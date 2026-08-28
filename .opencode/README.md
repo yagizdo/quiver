@@ -6,23 +6,32 @@ This directory is the OpenCode-specific overlay for Quiver. The plugin entry poi
 
 ## Installation
 
-Add quiver to the `plugin` array in your `opencode.json` (global or project-level):
+Clone Quiver and run the install script:
 
-```json
-{
-  "plugin": ["quiver@git+https://github.com/yagizdo/quiver.git"]
-}
+```bash
+git clone https://github.com/yagizdo/quiver.git
+cd quiver
+./install.sh opencode
 ```
 
-Restart OpenCode. The plugin installs through OpenCode's plugin manager and
-registers all skills automatically.
+This symlinks `.opencode/plugins/quiver.js` into `~/.config/opencode/plugins/`,
+which OpenCode auto-loads. Restart OpenCode; the plugin registers the skills
+directory and the context7 MCP server itself, so no `opencode.json` entry of your
+own is needed.
 
 Verify by asking: "Tell me about your Quiver skills"
 
-OpenCode uses its own plugin install. If you also use Claude Code, Codex, or
-another harness, install Quiver separately for each one.
+Run `./install.sh` with no arguments to cover every runtime detected on the
+machine: OpenCode is linked, and Claude Code and Codex have their own install
+command printed for you to run. `./install.sh --uninstall` removes the symlinks
+again; it never touches a real file or directory it did not create.
 
-For a quick install walkthrough, see [INSTALL.md](INSTALL.md).
+### Migrating from the git package spec
+
+Earlier releases installed through a git-backed package spec in the `plugin` array
+of your `opencode.json`. That spec no longer resolves. Delete the `quiver` entry
+from that array, then run `./install.sh opencode` from your clone. Nothing else in
+your config needs to change.
 
 ## Usage
 
@@ -50,17 +59,23 @@ Two ways to invoke them:
 
 **Plain language.** Describe what you want: "debug this login bug", "brainstorm a todo app", "review my changes". The bootstrap dispatches the matching skill the same way.
 
-The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 16 user-facing Quiver skills.
+The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 21 user-facing Quiver skills.
 
 #### Available skills
 
 | Skill | Purpose |
 |-------|---------|
+| `advise` | Get a senior opinion on code or a plan, no spec written |
 | `brainstorm` | Turn a vague idea into a validated spec |
 | `plan` | Research the codebase and produce an implementation plan |
 | `work` | Execute a plan task-by-task |
+| `ship` | Take a project from description to a working, verified app |
+| `design` | Turn a Figma selection into a pixel-exact implementation plan |
+| `design-build` | Build a design plan and fix the measured deviations |
+| `design-verify` | Measure built UI against its design measurement spec |
 | `review` | Dispatch review agents |
 | `senior-review` | Standalone senior developer review |
+| `report-check` | Audit a review report for noise and false positives |
 | `hypothesis-debugging` | Systematic bug investigation |
 | `commit` | Generate a Conventional Commits message |
 | `create-pr` | Open a GitHub pull request |
@@ -71,7 +86,6 @@ The full skill list lives in the `skill` tool. Run `use skill tool to list skill
 | `create-agent` | Scaffold a new agent |
 | `create-agents-md` | Generate an AGENTS.md |
 | `repair-skill` | Fix a broken skill |
-| `report-check` | Audit a review report |
 
 ### Agents
 
@@ -111,30 +125,28 @@ Create project-specific skills in `.opencode/skills/` within your project.
 
 ## Updating
 
-OpenCode installs Quiver through a git-backed package spec. Some OpenCode
-and Bun versions pin that resolved git dependency in a lockfile or cache, so a
-restart may not pick up the newest Quiver commit. If updates do not appear,
-clear OpenCode's package cache or reinstall the plugin.
-
-To pin a specific version, use a branch or tag:
-
-```json
-{
-  "plugin": ["quiver@git+https://github.com/yagizdo/quiver.git#v1.13.0"]
-}
+```bash
+git -C /path/to/quiver pull
 ```
+
+The plugin is a symlink into the clone, so the next OpenCode start runs the new
+code. There is no package cache to clear and no version to pin: the checked-out
+commit is the installed version. To run an older release, check out its tag in the
+clone.
 
 ## How It Works
 
-The Quiver OpenCode plugin does four things:
+The Quiver OpenCode plugin does five things:
 
-1. **Registers the skills directory** via the `config` hook. The plugin pushes `skills/` (relative to itself) into `config.skills.paths`, so OpenCode discovers all Quiver skills without symlinks or manual config edits.
+1. **Registers the skills directory** via the `config` hook. The plugin pushes `skills/` (resolved relative to itself) into `config.skills.paths`, so OpenCode discovers every Quiver skill without a config edit. Node and Bun resolve `import.meta.url` through symlinks to the real path, so this lands inside the clone rather than inside `~/.config/opencode/plugins/`.
 
-2. **Injects the `using-quiver` bootstrap** via the `experimental.chat.messages.transform` hook. On every new session, the first user message has the `using-quiver` meta-skill prepended, wrapped in `<EXTREMELY_IMPORTANT>` tags. This establishes the "check for relevant skill before any response" rule, so OpenCode agents invoke Quiver skills automatically.
+2. **Registers the context7 MCP server** via the same `config` hook, so documentation lookups work with no `mcp` entry in your own config. A context7 entry you declare yourself wins.
 
-3. **Preserves Quiver-specific context across compactions** via the `experimental.session.compacting` hook. When OpenCode compacts a session, the Quiver handover context (branch, task, in-progress files, decisions) is included in the compaction prompt.
+3. **Injects the `using-quiver` bootstrap** via the `experimental.chat.messages.transform` hook. On every new session, the first user message has the `using-quiver` meta-skill prepended, wrapped in `<EXTREMELY_IMPORTANT>` tags. This establishes the "check for relevant skill before any response" rule, so OpenCode agents invoke Quiver skills automatically.
 
-4. **Logs session lifecycle events** via the `session.created` hook and `client.app.log()` for debugging.
+4. **Preserves Quiver-specific context across compactions** via the `experimental.session.compacting` hook. When OpenCode compacts a session, the Quiver handover context (branch, task, in-progress files, decisions) is included in the compaction prompt.
+
+5. **Logs session lifecycle events** via the `session.created` hook and `client.app.log()` for debugging.
 
 ### Tool Mapping
 
@@ -190,7 +202,7 @@ Unchanged in OpenCode since this is relative to the project root.
 ### Plugin not loading
 
 1. Check OpenCode logs: `opencode run --print-logs "hello" 2>&1 | grep -i quiver`
-2. Verify the plugin line in your `opencode.json` is correct
+2. Verify the symlink resolves: `ls -l ~/.config/opencode/plugins/quiver.js`
 3. Make sure you're running a recent version of OpenCode
 
 ### Skills not found
@@ -204,12 +216,6 @@ Unchanged in OpenCode since this is relative to the project root.
 1. Check OpenCode version supports `experimental.chat.messages.transform` hook
 2. Restart OpenCode after config changes
 3. If a future OpenCode version removes this hook, skills will still be discoverable but won't auto-activate
-
-### Windows install issues
-
-Some Windows OpenCode builds have upstream installer issues with git-backed
-plugin specs. See [INSTALL.md](INSTALL.md#windows-install-issues) for the
-workaround.
 
 ## Getting Help
 

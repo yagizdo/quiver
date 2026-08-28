@@ -153,7 +153,7 @@ When the work starts from a Figma design rather than a written idea, `/design` r
 **Trigger:** Auto-injected by the OpenCode Quiver plugin via the `experimental.chat.messages.transform` hook on the first user message of every session. Slash command `/using-quiver` is hidden because `disable-model-invocation: true` is set.
 
 **Setup:**
-- Quiver is installed in OpenCode via `quiver@git+https://github.com/yagizdo/quiver.git` in `opencode.json`.
+- Quiver is installed in OpenCode by `./install.sh opencode`, which symlinks `.opencode/plugins/quiver.js` into `~/.config/opencode/plugins/` -- OpenCode's auto-load directory.
 - `skills/using-quiver/SKILL.md` exists and is readable from the plugin's `quiverSkillsDir` (`skills/using-quiver/` resolved relative to the plugin file via `path.resolve(__dirname, '../../skills')`).
 
 **Expected behavior:**

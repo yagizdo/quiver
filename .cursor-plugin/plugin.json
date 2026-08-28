@@ -1,6 +1,6 @@
 {
   "name": "quiver",
-  "version": "1.8.1",
+  "version": "1.18.0",
   "description": "Session continuity, agent orchestration, and development workflows",
   "keywords": ["session", "handover", "review", "agents", "orchestration", "workflow"],
   "author": { "name": "Yilmaz Yagiz Dokumaci" },
@@ -17,8 +17,18 @@
     "./agents/review/test-reviewer.md",
     "./agents/review/stress-tester.md",
     "./agents/review/codex-code-reviewer.md",
+    "./agents/review/report-checker.md",
+    "./agents/review/senior-reviewer.md",
     "./agents/research/best-practices-researcher.md",
-    "./agents/research/project-context-analyst.md"
+    "./agents/research/project-context-analyst.md",
+    "./agents/research/code-navigator.md",
+    "./agents/research/code-locator.md",
+    "./agents/debug/code-tracer.md",
+    "./agents/debug/log-analyzer.md",
+    "./agents/debug/regression-finder.md",
+    "./agents/debug/environment-checker.md",
+    "./agents/debug/fix-reviewer.md",
+    "./agents/workflow/plan-reviewer.md"
   ],
   "hooks": "./hooks/hooks.json",
   "rules": "./.cursor-plugin/rules/",

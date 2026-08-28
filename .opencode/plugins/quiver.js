@@ -2,7 +2,12 @@
  * Quiver plugin for OpenCode.ai
  *
  * Injects Quiver bootstrap context via message transform.
- * Auto-registers skills directory via config hook (no symlinks needed).
+ * Registers the skills directory and the context7 MCP server via the config hook,
+ * so a user needs no opencode.json entry of their own.
+ *
+ * install.sh symlinks this file into ~/.config/opencode/plugins/. Node and Bun
+ * resolve import.meta.url through symlinks to the real path, so the
+ * path.resolve(__dirname, '../../skills') below lands back in the clone.
  */
 
 import path from 'path';
@@ -65,6 +70,16 @@ ${content}
       if (!config.skills.paths.includes(quiverSkillsDir)) {
         config.skills.paths.push(quiverSkillsDir);
       }
+
+      // Register context7 so documentation lookups work with no user config file.
+      // This replaces .opencode/opencode.json, which OpenCode only ever read when
+      // the working directory was the Quiver clone itself -- inside a user's own
+      // project it was never loaded. A user-declared context7 entry wins.
+      config.mcp = config.mcp || {};
+      config.mcp.context7 = config.mcp.context7 || {
+        type: 'remote',
+        url: 'https://mcp.context7.com/mcp',
+      };
     },
 
     // Inject bootstrap into the first user message of each session.
