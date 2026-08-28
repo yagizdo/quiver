@@ -148,18 +148,21 @@ Any path that reaches Phase 2.5 without a plan file has no plan basename -- Phas
 
 #### Check for a ledger
 
-Read `.claude/work/<plan-basename>/progress.md`. Its first line is the identity line, exactly one:
+Read `.claude/work/<plan-basename>/progress.md`. Its first two lines are the identity header:
 
 ```
 # work ledger -- plan: <full plan file path>
+# run: <ISO-8601 start timestamp>
 ```
+
+The `run:` line names the run that owns the workspace, and Phase 5c-bis checks it before deleting anything -- the plan path alone cannot separate this run from another session working the same plan.
 
 Apply these rules, which restate `skills/work/orchestrator.md` Section 0:
 
 | State | Action |
 |-------|--------|
-| No file, or a file whose first line is not a `# work ledger -- plan:` identity line | Fresh run. Create the directory if needed, overwrite the file with the identity line. Do not suffix -- a directory with no identity claims no plan. |
-| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Do not re-dispatch any task carrying a `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)` line. Merge a completed task's branch unless a `Task <N>: merged` line also exists for it -- a `complete` line records that the work was done, not that it landed. A complete line reading `commits none` has no branch to merge. Resume dispatch at the first task with no matching `complete` line. |
+| No file, or a file whose first two lines are not a `# work ledger -- plan:` line followed by a `# run:` line | Fresh run. Create the directory if needed, overwrite the file with the identity header. Do not suffix -- a directory with no identity claims no plan. |
+| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Do not re-dispatch any task carrying a `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)` line. Merge a completed task's branch unless a `Task <N>: merged` line also exists for it -- a `complete` line records that the work was done, not that it landed. A complete line reading `commits none` has no branch to merge. Resume dispatch at the first task with no matching `complete` line. Overwrite the `# run:` line with this run's start timestamp and read it back -- the workspace now belongs to this run. |
 
 For a ledger naming a different plan file, or a completion line whose title no longer matches the plan, `skills/work/orchestrator.md` Section 0 "Resume rules" is authoritative -- follow it there and print the line it requires.
 
@@ -288,7 +291,7 @@ status: active  -->  status: completed
 
 Runs only when orchestration was used, every task reached DONE, and Phase 4a check 7 passed. A run that ends blocked, failed, or cancelled skips this step entirely -- the surviving directory is what makes the retry cheap, and deleting it throws away the resume.
 
-1. Resolve `<workspace-dir>` to the directory this run actually used -- the suffixed one (`-2`, `-3`) if the orchestrator's suffix-retry rule fired, otherwise `.claude/work/<plan-basename>/`. Confirm `<workspace-dir>` exists and that its `progress.md` first line names this plan file. If either check fails, delete nothing and say so -- the directory belongs to a different run. Never re-derive the path from `<plan-basename>` after this step.
+1. Resolve `<workspace-dir>` to the directory this run actually used -- the suffixed one (`-2`, `-3`) if the orchestrator's suffix-retry rule fired, otherwise `.claude/work/<plan-basename>/`. Confirm `<workspace-dir>` exists, that its `progress.md` first line names this plan file, and that its `# run:` line is this run's start timestamp. If any check fails, delete nothing and say so -- the directory belongs to a different run, and a `run:` line naming another run means a concurrent session owns it. Never re-derive the path from `<plan-basename>` after this step.
 2. Name `<workspace-dir>` and its file count, then gate the delete on `AskUserQuestion`:
    > Orchestration finished and the work is committed. Delete the run workspace at `<workspace-dir>` ({N} files)?
    Buttons: `["Delete it", "Keep it"]`

@@ -21,19 +21,22 @@ Orchestration keeps its state on disk, not in the session. A run that is compact
 
 `<plan-basename>` is the loaded plan file's name without `.md`. `skills/work/SKILL.md` Phase 2.5 resolves the workspace before handing off. A run with no plan file takes `adhoc-<slug>` as its basename, slugified from the task description -- every run has a workspace and a ledger, because every dispatch step below requires one.
 
-### Identity line
+### Identity header
 
-The first line of `progress.md`, exactly one:
+The first two lines of `progress.md`, in this order:
 
 ```
 # work ledger -- plan: <full plan file path>
+# run: <ISO-8601 start timestamp>
 ```
 
-When the run has no plan file, the task description takes the place of the path on that same line.
+When the run has no plan file, the task description takes the place of the path on the first line. The timestamp is taken once, when orchestration begins: `date -u '+%Y-%m-%dT%H:%M:%SZ'`.
+
+The `run:` line names the run that currently owns the workspace. Two sessions working the same plan in the same repo both resolve the same directory and both read an identity line naming their own plan, so the plan path alone cannot tell them apart. The `run:` line can, and `skills/work/SKILL.md` Phase 5c-bis checks it before deleting anything.
 
 ### Ledger grammar
 
-Every other line of `progress.md` is one of exactly these seven forms:
+Every line after the identity header is one of exactly these seven forms:
 
 ```
 Group <G>: dispatched (<task numbers>)
@@ -55,8 +58,8 @@ At the start of orchestration, read `.claude/work/<plan-basename>/progress.md`:
 
 | State | Action |
 |-------|--------|
-| No file, or a file whose first line is not a `# work ledger -- plan:` identity line | Fresh run. Create the directory if needed, overwrite the file with the identity line. Do not suffix -- a directory with no identity claims no plan. |
-| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Do not re-dispatch any task carrying a `complete` line. Merge a completed task's branch unless a `Task <N>: merged` line also exists for it -- a `complete` line records that the work was done, not that it landed. A complete line reading `commits none` has no branch to merge. Resume dispatch at the first task with no matching `complete` line. |
+| No file, or a file whose first two lines are not a `# work ledger -- plan:` line followed by a `# run:` line | Fresh run. Create the directory if needed, overwrite the file with the identity header. Do not suffix -- a directory with no identity claims no plan. |
+| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Do not re-dispatch any task carrying a `complete` line. Merge a completed task's branch unless a `Task <N>: merged` line also exists for it -- a `complete` line records that the work was done, not that it landed. A complete line reading `commits none` has no branch to merge. Resume dispatch at the first task with no matching `complete` line. Overwrite the `# run:` line with this run's start timestamp and read it back -- the workspace now belongs to this run. If it named a different run, say so in one line before continuing. |
 | First line names a different plan file | Leave that directory untouched. Retry at `.claude/work/<plan-basename>-2/`, then `-3`, and so on, until a directory is found that either does not exist or whose identity line names this plan file. Use that one for the whole run. Print one line naming the directory actually used and why. |
 | First line matches this plan file, but a completion line's task title does not match the plan's task at that number, or names a task number the plan does not have | The plan changed mid-run. Warn the user, treat the ledger as stale, and start fresh in the same directory. |
 

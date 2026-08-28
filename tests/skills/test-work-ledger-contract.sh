@@ -2,9 +2,9 @@
 # test-work-ledger-contract.sh
 # Guards the /work orchestration ledger contract, which lives in two files by construction:
 #   producer  skills/work/orchestrator.md -- Section 0 declares the workspace layout, the
-#             identity line, the seven ledger line forms, and the subagent return contract
+#             two-line identity header, the seven ledger line forms, and the return contract
 #   consumer  skills/work/SKILL.md        -- Phase 2.5 restates the workspace path, the
-#             identity line, the complete-line spelling, the merge-evidence rule, and the
+#             identity header, the complete-line spelling, the merge-evidence rule, and the
 #             fresh-run rule, to decide what to re-dispatch and what to re-merge on resume
 #
 # The consumer restates the producer's strings verbatim. A rename on either side changes
@@ -79,7 +79,7 @@ assert_in "$PRODUCER" 'Group <G>: merge stopped -- conflict in ' "merge-stopped 
 echo ""
 echo "=== 3. Restated handshake strings appear in both files ==="
 
-# These six cross the producer/consumer boundary. The other four line forms exist only in
+# These seven cross the producer/consumer boundary. The other four line forms exist only in
 # the producer, which is why section 2 asserts them there and this section does not.
 #
 # The last two are the resume rules the consumer still restates after the suffix-retry and
@@ -91,7 +91,8 @@ for f in "$PRODUCER" "$CONSUMER"; do
   L="${f#$REPO_ROOT/}"
   assert_in "$f" '\.claude/work/<plan-basename>/' "workspace path in $L"
   assert_in "$f" 'progress\.md' "ledger filename in $L"
-  assert_in "$f" '# work ledger -- plan:' "identity line in $L"
+  assert_in "$f" '# work ledger -- plan:' "plan identity line in $L"
+  assert_in "$f" '# run: <ISO-8601 start timestamp>' "run identity line in $L"
   assert_in "$f" '\[<task title>]: complete (branch ' "full complete-line spelling in $L"
   assert_in "$f" 'unless a `Task <N>: merged` line also exists for it' "merge-evidence resume rule in $L"
   assert_in "$f" 'Do not suffix -- a directory with no identity claims no plan\.' "fresh-run resume rule in $L"
