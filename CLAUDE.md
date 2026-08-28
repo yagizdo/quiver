@@ -14,7 +14,7 @@ Dependencies: `bash`, `claude` CLI.
 - **`agents/`** — 20 agent definitions organized by category (`review/`, `research/`, `debug/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Three hooks: PreToolUse (matcher `Bash`, classifies a command as deny/ask/silence before it runs), PreCompact (fires before context compaction, saves a handover) and SessionStart (emits the skill routing block from every skill's `when-to-use`).
 - **`install.sh`** — Repo-root install script for the runtimes with no plugin manager. Its install targets are a six-column TSV heredoc inside `targets()`; adding a runtime is one row and no other line. It symlinks into the user's clone (so `git pull` is the update mechanism) and never removes or overwrites a path that is not a symlink resolving into the repo. It must stay at the repo root -- `.gitignore` drops `/scripts/`.
-- **Storage** — Handover files are written to `<project>/.claude/handovers/`.
+- **Storage** — Handover files are written to `<project>/.claude/handovers/`. The orchestration workspace -- the ledger, task briefs, and task reports written by `skills/work/orchestrator.md` -- is written to `<project>/.claude/work/<plan-basename>/`.
 - **Rules** — `.claude/rules/` contains `skill-rules.md` (hard rules and learned lessons for skills, formerly `command-rules.md`), `review-agent-rules.md`, `cli-overlay-rules.md`, `agent-capability-rules.md`, and `readme-structure.md`.
 - **External MCP** — Context7 MCP server (`plugin.json` > `mcpServers`) provides real-time library documentation lookups for review agents.
 

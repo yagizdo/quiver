@@ -127,7 +127,7 @@ If the plan contains genuine contradictions (e.g., two steps that conflict, a re
 Buttons: `["Continue on {branch}", "Create new branch"]`
 If continuing, move to Phase 2.5.
 
-**If on the default branch**, create a new branch by default: `git checkout -b <meaningful-name>` using a descriptive name (e.g., `feat/user-auth`, `fix/email-validation`). For parallel development, use the `using-git-worktrees` skill. Never commit to the default branch without explicit user confirmation.
+**If on the default branch**, create a new branch by default: `git checkout -b <meaningful-name>` using a descriptive name (e.g., `feat/user-auth`, `fix/email-validation`). Never commit to the default branch without explicit user confirmation.
 
 ### Phase 2.5: Orchestration Decision
 
@@ -137,8 +137,42 @@ Strategy: {sequential | parallel orchestration} ({N} tasks found)
 Reason: {why}
 ```
 
-- **1-2 tasks:** Sequential. Proceed to Phase 3.
-- **3+ tasks:** Parallel orchestration. Follow `skills/work/orchestrator.md`. Skip Phase 3 entirely -- orchestration replaces it.
+- **1-2 tasks:** Sequential. Proceed to Phase 3. The ledger below is orchestration-path-only; the sequential path keeps TodoWrite unchanged and writes nothing to disk.
+- **3+ tasks:** Parallel orchestration. Resolve the workspace and check for a ledger (below), then follow `skills/work/orchestrator.md`. Skip Phase 3 entirely -- orchestration replaces it.
+
+#### Resolve the workspace
+
+`<plan-basename>` is the loaded plan file's name without `.md`. The workspace is `.claude/work/<plan-basename>/` and the ledger is `.claude/work/<plan-basename>/progress.md`.
+
+Any path that reaches Phase 2.5 without a plan file has no basename and therefore no ledger -- Phase 1 Case B's "Other -- I'll provide a path or description" and Case C with 0 matches both do. Proceed to the orchestrator without one and say so in the strategy line.
+
+#### Check for a ledger
+
+Read `.claude/work/<plan-basename>/progress.md`. Its first line is the identity line, exactly one:
+
+```
+# work ledger -- plan: <full plan file path>
+```
+
+Apply these rules, which restate `skills/work/orchestrator.md` Section 0:
+
+| State | Action |
+|-------|--------|
+| No file | Fresh run. Create the directory, write the identity line. |
+| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Skip every task carrying a `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)` line -- do not re-dispatch it and do not re-merge its branch. Resume at the first task with no matching `complete` line. |
+| First line names a different plan file | Leave that directory untouched. Retry at `.claude/work/<plan-basename>-2/`, then `-3`, and so on, until a directory is found that either does not exist or whose identity line names this plan file. Use that one for the whole run. Print one line naming the directory actually used and why. |
+| First line matches this plan file, but a completion line's task title does not match the plan's task at that number | The plan changed mid-run. Warn the user, treat the ledger as stale, and start fresh in the same directory. |
+
+#### Announce
+
+When tasks are skipped:
+> Resuming from ledger: skipping Task 1, Task 2 (already complete).
+
+When the ledger is stale:
+> Plan changed since the last run -- starting fresh.
+
+When a suffixed workspace is used:
+> A ledger for a different plan already uses that name -- using .claude/work/<name>-2/.
 
 ### Phase 3: Build
 
@@ -250,6 +284,17 @@ If the work document has YAML frontmatter with a `status` field, update it:
 status: active  -->  status: completed
 ```
 
+#### 5c-bis -- Clean up the orchestration workspace
+
+Runs only when orchestration was used, every task reached DONE, and Phase 4a check 7 passed. A run that ends blocked, failed, or cancelled skips this step entirely -- the surviving directory is what makes the retry cheap, and deleting it throws away the resume.
+
+1. Confirm the workspace directory used by this run exists and that its `progress.md` first line names this plan file. If either check fails, delete nothing and say so -- the directory belongs to a different run.
+2. Name the directory and its file count, then gate the delete on `AskUserQuestion`:
+   > Orchestration finished and the work is committed. Delete the run workspace at `.claude/work/<plan-basename>/` ({N} files)?
+   Buttons: `["Delete it", "Keep it"]`
+   On "Keep it", print one line saying it was kept and continue to 5d.
+3. On "Delete it", remove the directory, then re-list `.claude/work/` to confirm it is gone, and name what was deleted in the 5d summary.
+
 #### 5d -- Notify user
 
 Summarize:
@@ -293,6 +338,7 @@ Summarize:
 4. Phase 2.5 announces the strategy (sequential or parallel) and task count before continuing.
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
 6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`.
+7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/work`; plan banner printed before code changes.
@@ -300,8 +346,13 @@ Summarize:
 - [ ] Non-git directory: plan loads and Phases 3-4 run; Phase 5 exits without commit/PR.
 - [ ] Review-fix plans: verification table and convergence verdict shown; non-review-fix plans skip Phase 4c.
 - [ ] Commit and PR steps both go through `AskUserQuestion`; skill never auto-pushes.
+- [ ] Interrupting a run after Group 0 and re-invoking /work on the same plan re-dispatches no task carrying a complete line, and prints which tasks it skipped.
+- [ ] A ledger whose identity line names a different plan file is left untouched and a suffixed workspace is used instead.
+- [ ] Workspace deletion goes through AskUserQuestion and is verified by a re-list.
 
 **Known gotchas:**
 - Phase 4c parses the synthesized report format from the review skill; the SYNC comment must stay paired with the matching marker in `skills/review/SKILL.md`.
 - For 3+ task plans the orchestrator (`skills/work/orchestrator.md`) replaces Phase 3; do not run Phase 3's TodoWrite loop alongside it.
 - `git add .` is banned; always stage explicit file paths.
+- The orchestration workspace survives a blocked, failed, or cancelled run on purpose -- that is what makes the next invocation resumable.
+- The ledger, not the printed progress table, is the authority after a compaction.

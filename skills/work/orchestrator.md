@@ -6,6 +6,65 @@ This document defines the subagent orchestration logic used by the work skill wh
 
 ---
 
+## 0. Workspace and Ledger
+
+Orchestration keeps its state on disk, not in the session. A run that is compacted, interrupted, or resumed reads that state back rather than remembering it.
+
+### Workspace layout
+
+```
+.claude/work/<plan-basename>/
+  progress.md          -- the ledger
+  task-<N>-brief.md    -- one task's requirements, extracted from the plan
+  task-<N>-report.md   -- that task's full report, written by the subagent
+```
+
+`<plan-basename>` is the loaded plan file's name without `.md`. `skills/work/SKILL.md` Phase 2.5 resolves the workspace before handing off; a run with no plan file has no basename and therefore no ledger.
+
+### Identity line
+
+The first line of `progress.md`, exactly one:
+
+```
+# work ledger -- plan: <full plan file path>
+```
+
+### Ledger grammar
+
+Every other line of `progress.md` is one of exactly these six forms:
+
+```
+Group <G>: dispatched (<task numbers>)
+Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)
+Task <N> [<task title>]: blocked -- <one-line reason>
+Task <N> [<task title>]: failed -- <one-line reason>
+Group <G>: merged (<task numbers>, no conflicts)
+Group <G>: merge stopped -- conflict in <file list>
+```
+
+This section is the single source of truth for the grammar. Section 2 and Section 3 append these lines; they do not redefine them.
+
+### Resume rules
+
+At the start of orchestration, read `.claude/work/<plan-basename>/progress.md`:
+
+| State | Action |
+|-------|--------|
+| No file | Fresh run. Create the directory, write the identity line. |
+| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Skip every task carrying a `complete` line -- do not re-dispatch it and do not re-merge its branch. Resume at the first task with no matching `complete` line. |
+| First line names a different plan file | Leave that directory untouched. Retry at `.claude/work/<plan-basename>-2/`, then `-3`, and so on, until a directory is found that either does not exist or whose identity line names this plan file. Use that one for the whole run. Print one line naming the directory actually used and why. |
+| First line matches this plan file, but a completion line's task title does not match the plan's task at that number | The plan changed mid-run. Warn the user, treat the ledger as stale, and start fresh in the same directory. |
+
+### Cleanup
+
+The workspace is deleted by `skills/work/SKILL.md` Phase 5 after a successful run, never by the orchestrator. A run that ends blocked, failed, or cancelled leaves the directory in place -- that is what makes the next invocation resumable.
+
+### Write discipline
+
+Every ledger append is followed by reading the file back to confirm the line landed (skill rule L3). A ledger write that cannot be verified is reported to the user and orchestration stops -- an unverifiable ledger makes resume unsound.
+
+---
+
 ## 1. Dependency Resolution
 
 Dependency resolution determines the order in which tasks execute. It runs three steps, then builds execution groups.
@@ -92,61 +151,82 @@ Dispatching Group 0...
 
 ### Prompt Template
 
-Each subagent receives a self-contained prompt. The orchestrator fills in the template fields from the plan:
+The dispatch is a file handoff, not a paste. The task's requirements go to disk as a brief; the prompt carries the path.
+
+**Part 1 -- the brief.** Before dispatching task N:
+
+1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. Read the file back to confirm it was written (skill rule L3).
+2. Delete any existing `task-<N>-report.md` for this task number, then confirm it is gone (L3). The report path is fixed per task, so on a resumed or retried run a report from the previous attempt is already there; leaving it would let the orchestrator read a stale report as if the new subagent had written it. The delete is the entire mitigation for that hazard, so an unverified delete reintroduces the defect it exists to close.
+
+**Part 2 -- the dispatch prompt.** The prompt carries no plan prose. Its context section is exactly three items -- the plan preamble, other tasks' text, and summaries of completed tasks are all excluded:
 
 ```
-# Task: {task_title}
+Task {N} of {total}, execution group {G}.
 
-## Description
-{task_description}
+Your requirements are in .claude/work/<plan-basename>/task-{N}-brief.md. Read it first.
+It lists the files you may create, modify, and test.
 
-## Acceptance Criteria
-{acceptance_criteria}
-
-## Files to Modify
-{file_list — exact paths, one per line, prefixed with Create/Modify/Test}
-
-## Context
-{plan_preamble and architecture notes from the plan header}
+Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 
 ## Instructions
-1. Read all files listed above to understand current state and existing patterns.
+1. Read all files listed in the brief to understand current state and existing patterns.
 2. Implement the changes described, following the codebase's existing conventions.
 3. Run the project's test suite after implementation.
 4. Self-review your changes: check for missing edge cases, naming consistency, and adherence to acceptance criteria.
-5. Summarize what you did, what tests pass, and any concerns.
 
 ## Constraints
-- Only modify the files listed above. If you discover a needed change in another file, report it as a blocker instead of making the change.
+- Only modify the files listed in the brief. If you discover a needed change in another file, report it as a blocker instead of making the change.
 - Follow existing code patterns (naming, structure, error handling).
 - Do not add AI attribution comments or generated-by markers.
 - If you encounter an ambiguity or need a decision from the user, report BLOCKED status with a clear description of what you need.
 ```
 
+**Return contract.** The agent's final text is data, not prose. It writes its full account -- what it implemented, what it tested, files changed, self-review findings, concerns -- to the report path, and returns only these lines, in this order:
+
+```
+STATUS | DONE | BLOCKED | FAILED
+BRANCH | <branch name>
+BASE | <short sha of the branch point>
+COMMITS | <short sha> <subject>                 (zero or more lines, one per commit)
+TESTS | <one line>
+REASON | <one line, only when STATUS is not DONE>
+REPORT | <path to task-<N>-report.md>
+```
+
+`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line.
+
+Anything beyond these lines is ignored. The detail belongs in the report file, which the orchestrator reads only when it needs it -- that is what keeps a run's controller context a function of the number of tasks rather than the size of the work each task did.
+
 ### Dispatch Mechanics
 
 For each execution group, in order:
 
-1. **Create tracking entries:** Call `TaskCreate` for each task in the group, recording task title, status `IN_PROGRESS`, and assigned group number.
-2. **Spawn agents:** For each task, spawn one Agent with:
+1. **Write the briefs:** For each task in the group, write its `task-<N>-brief.md` and delete any stale `task-<N>-report.md`, per Prompt Template Part 1. Both writes are read back before the group dispatches.
+2. **Create tracking entries:** Call `TaskCreate` for each task in the group, recording task title, status `IN_PROGRESS`, and assigned group number.
+3. **Spawn agents:** For each task, spawn one Agent with:
    - `subagent_type="general-purpose"`
    - `isolation="worktree"` (each agent works in its own git worktree)
    - `run_in_background=true`
    - The filled-in prompt template as the agent's instructions.
-3. **Wait for group completion:** Wait for all agents in the current group to finish. Never call `ScheduleWakeup` as a fallback in case a notification is missed -- the harness always notifies on completion, and a fallback wakeup past the 5-minute prompt-cache TTL forces a full-context reprocess for no benefit.
-4. **Process results:** Collect each agent's output and determine status (see Result Collection below).
-5. **Update tracking:** Call `TaskUpdate` for each task with its final status.
-6. **Proceed to next group:** If all tasks in the current group are DONE or if independent tasks in the next group are unblocked, move to the next group.
+4. **Record the dispatch:** Append `Group <G>: dispatched (<task numbers>)` to the ledger and read the file back to confirm the line landed. `TaskCreate` remains the live in-session view and the ledger is the durable record; the two are complementary, not redundant, and neither replaces the other.
+5. **Wait for group completion:** Wait for all agents in the current group to finish. Never call `ScheduleWakeup` as a fallback in case a notification is missed -- the harness always notifies on completion, and a fallback wakeup past the 5-minute prompt-cache TTL forces a full-context reprocess for no benefit.
+6. **Process results:** Collect each agent's output and determine status (see Result Collection below).
+7. **Update tracking:** Call `TaskUpdate` for each task with its final status.
+8. **Proceed to next group:** If all tasks in the current group are DONE or if independent tasks in the next group are unblocked, move to the next group.
 
 ### Result Collection
 
-Each completed subagent maps to one of three statuses:
+Status is read from the return contract's `STATUS` line, not from the prose of a summary. Every ledger append below is verified by reading the file back.
 
-| Status    | Detection                                          | Action                                         |
-|-----------|----------------------------------------------------|-------------------------------------------------|
-| **DONE**  | All acceptance criteria met, tests pass            | Queue the task's branch for merge               |
-| **BLOCKED** | Agent reports needing info, a decision, or access to a file outside its scope | Pause all tasks that depend on this one, report the blocker to the user |
-| **FAILED** | Unrecoverable error (build failure, test crash, environment issue) | Pause all tasks that depend on this one, report the failure to the user |
+| Status | Detection | Action |
+|--------|-----------|--------|
+| **DONE** | `STATUS \| DONE` | Append `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)`, taking `<branch>` from `BRANCH`, `<base7>` from `BASE`, and `<head7>` from the short sha on the last `COMMITS` line. Queue the branch for merge. Do not read the report file. |
+| **BLOCKED** | `STATUS \| BLOCKED` | Append `Task <N> [<task title>]: blocked -- <one-line reason>`, taking the reason from `REASON`. Read the report file at `REPORT` for the detail. Pause dependents, report to the user. |
+| **FAILED** | `STATUS \| FAILED` | Append `Task <N> [<task title>]: failed -- <one-line reason>`, taking the reason from `REASON`. Read the report file at `REPORT` for the detail. Pause dependents, report to the user. |
+
+An agent that returns nothing -- killed on a terminal error, or skipped -- is neither blocked nor complete. Append no ledger line for it. The absent `complete` line is what makes the next invocation re-dispatch it cleanly.
+
+**When a report file is read.** The orchestrator reads a `task-<N>-report.md` only on a BLOCKED or FAILED status, or when post-merge validation points at that task. A DONE task's report is written and never opened.
 
 **Handling BLOCKED/FAILED tasks:**
 
@@ -167,11 +247,13 @@ Merge branches in topological order — a task's branch merges only after all of
 For each completed task branch, in topological order:
 
 1. Run `git merge <worktree-branch> --no-edit` into the working branch.
-2. **Auto-merge succeeds:** Continue to the next branch. Clean up the worktree.
-3. **Conflict detected:** Stop the merge sequence immediately. Report to the user with:
+2. **Auto-merge succeeds:** Continue to the next branch. Clean up the worktree. Once the whole group's branches have merged, append `Group <G>: merged (<task numbers>, no conflicts)` to the ledger and read it back.
+3. **Conflict detected:** Stop the merge sequence immediately. Append `Group <G>: merge stopped -- conflict in <file list>` to the ledger, then report to the user with:
    - The conflicting file list (from `git diff --name-only --diff-filter=U`)
    - Which task branches have merged so far
    - Which task branches remain unmerged
+
+The ledger already records which branches merged, so the "which task branches have merged so far" item is read from it rather than from memory.
 
 Do not attempt automatic conflict resolution. The user must resolve conflicts before the merge sequence continues.
 
@@ -186,9 +268,13 @@ After all branches have merged successfully:
    - Likely responsible task (based on which files the failing tests cover)
    - Suggestion: re-run the responsible task's agent with the test failure as context.
 
+   Read that task's `task-<N>-report.md` for the detail before reporting. This is the third and last case where a report file is read.
+
 ---
 
 ## 4. Progress Reporting
+
+The printed tables are a view, not the state. After a context compaction the ledger at `.claude/work/<plan-basename>/progress.md` is the authority for what has been dispatched, completed, and merged; rebuild the table from it rather than from anything remembered.
 
 ### At Start
 
@@ -212,8 +298,12 @@ When a group completes, announce it before dispatching the next:
 
 ```
 Group 0 complete. All tasks DONE.
+  Task 1: 47 passed, 0 failed.
+  Task 2: 12 passed, 0 failed.
 Dispatching Group 1 (2 tasks in parallel)...
 ```
+
+Print each task's `TESTS` line from the return contract in the group-completion announcement. That is the one place `TESTS` is consumed, and it is why the field is in the contract.
 
 ### At End — Success
 
