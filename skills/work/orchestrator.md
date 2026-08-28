@@ -19,7 +19,7 @@ Orchestration keeps its state on disk, not in the session. A run that is compact
   task-<N>-report.md   -- that task's full report, written by the subagent
 ```
 
-`<plan-basename>` is the loaded plan file's name without `.md`. `skills/work/SKILL.md` Phase 2.5 resolves the workspace before handing off; a run with no plan file has no basename and therefore no ledger.
+`<plan-basename>` is the loaded plan file's name without `.md`. `skills/work/SKILL.md` Phase 2.5 resolves the workspace before handing off. A run with no plan file takes `adhoc-<slug>` as its basename, slugified from the task description -- every run has a workspace and a ledger, because every dispatch step below requires one.
 
 ### Identity line
 
@@ -29,18 +29,23 @@ The first line of `progress.md`, exactly one:
 # work ledger -- plan: <full plan file path>
 ```
 
+When the run has no plan file, the task description takes the place of the path on that same line.
+
 ### Ledger grammar
 
-Every other line of `progress.md` is one of exactly these six forms:
+Every other line of `progress.md` is one of exactly these seven forms:
 
 ```
 Group <G>: dispatched (<task numbers>)
 Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)
 Task <N> [<task title>]: blocked -- <one-line reason>
 Task <N> [<task title>]: failed -- <one-line reason>
+Task <N>: merged
 Group <G>: merged (<task numbers>, no conflicts)
 Group <G>: merge stopped -- conflict in <file list>
 ```
+
+`Task <N>: merged` records one branch landing. `Group <G>: merged (...)` summarizes the whole group and is written only after every branch in it has landed, so it cannot stand in for the per-task line.
 
 This section is the single source of truth for the grammar. Section 2 and Section 3 append these lines; they do not redefine them.
 
@@ -50,10 +55,10 @@ At the start of orchestration, read `.claude/work/<plan-basename>/progress.md`:
 
 | State | Action |
 |-------|--------|
-| No file | Fresh run. Create the directory, write the identity line. |
-| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Skip every task carrying a `complete` line -- do not re-dispatch it and do not re-merge its branch. Resume at the first task with no matching `complete` line. |
+| No file, or a file whose first line is not a `# work ledger -- plan:` identity line | Fresh run. Create the directory if needed, overwrite the file with the identity line. Do not suffix -- a directory with no identity claims no plan. |
+| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Do not re-dispatch any task carrying a `complete` line. Merge a completed task's branch unless a `Task <N>: merged` line also exists for it -- a `complete` line records that the work was done, not that it landed. A complete line reading `commits none` has no branch to merge. Resume dispatch at the first task with no matching `complete` line. |
 | First line names a different plan file | Leave that directory untouched. Retry at `.claude/work/<plan-basename>-2/`, then `-3`, and so on, until a directory is found that either does not exist or whose identity line names this plan file. Use that one for the whole run. Print one line naming the directory actually used and why. |
-| First line matches this plan file, but a completion line's task title does not match the plan's task at that number | The plan changed mid-run. Warn the user, treat the ledger as stale, and start fresh in the same directory. |
+| First line matches this plan file, but a completion line's task title does not match the plan's task at that number, or names a task number the plan does not have | The plan changed mid-run. Warn the user, treat the ledger as stale, and start fresh in the same directory. |
 
 ### Cleanup
 
@@ -155,7 +160,7 @@ The dispatch is a file handoff, not a paste. The task's requirements go to disk 
 
 **Part 1 -- the brief.** Before dispatching task N:
 
-1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. Read the file back to confirm it was written (skill rule L3).
+1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. Read the file back to confirm it was written (skill rule L3).
 2. Delete any existing `task-<N>-report.md` for this task number, then confirm it is gone (L3). The report path is fixed per task, so on a resumed or retried run a report from the previous attempt is already there; leaving it would let the orchestrator read a stale report as if the new subagent had written it. The delete is the entire mitigation for that hazard, so an unverified delete reintroduces the defect it exists to close.
 
 **Part 2 -- the dispatch prompt.** The prompt carries no plan prose. Its context section is exactly three items -- the plan preamble, other tasks' text, and summaries of completed tasks are all excluded:
@@ -173,6 +178,7 @@ Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 2. Implement the changes described, following the codebase's existing conventions.
 3. Run the project's test suite after implementation.
 4. Self-review your changes: check for missing edge cases, naming consistency, and adherence to acceptance criteria.
+5. Commit each logical unit on your worktree branch, then report every commit on a COMMITS line. If the tree already matched the spec and there was nothing to commit, return no COMMITS line.
 
 ## Constraints
 - Only modify the files listed in the brief. If you discover a needed change in another file, report it as a blocker instead of making the change.
@@ -193,7 +199,7 @@ REASON | <one line, only when STATUS is not DONE>
 REPORT | <path to task-<N>-report.md>
 ```
 
-`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line.
+`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line. When there is no `COMMITS` line the task changed nothing to commit -- write `commits none` in place of `commits <base7>..<head7>` and merge no branch for that task.
 
 Anything beyond these lines is ignored. The detail belongs in the report file, which the orchestrator reads only when it needs it -- that is what keeps a run's controller context a function of the number of tasks rather than the size of the work each task did.
 
@@ -220,7 +226,7 @@ Status is read from the return contract's `STATUS` line, not from the prose of a
 
 | Status | Detection | Action |
 |--------|-----------|--------|
-| **DONE** | `STATUS \| DONE` | Append `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)`, taking `<branch>` from `BRANCH`, `<base7>` from `BASE`, and `<head7>` from the short sha on the last `COMMITS` line. Queue the branch for merge. Do not read the report file. |
+| **DONE** | `STATUS \| DONE` | Append `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)`, taking `<branch>` from `BRANCH`, `<base7>` from `BASE`, and `<head7>` from the short sha on the last `COMMITS` line. With no `COMMITS` line, write `commits none` and queue no branch. Otherwise queue the branch for merge. Do not read the report file. |
 | **BLOCKED** | `STATUS \| BLOCKED` | Append `Task <N> [<task title>]: blocked -- <one-line reason>`, taking the reason from `REASON`. Read the report file at `REPORT` for the detail. Pause dependents, report to the user. |
 | **FAILED** | `STATUS \| FAILED` | Append `Task <N> [<task title>]: failed -- <one-line reason>`, taking the reason from `REASON`. Read the report file at `REPORT` for the detail. Pause dependents, report to the user. |
 
@@ -247,13 +253,13 @@ Merge branches in topological order — a task's branch merges only after all of
 For each completed task branch, in topological order:
 
 1. Run `git merge <worktree-branch> --no-edit` into the working branch.
-2. **Auto-merge succeeds:** Continue to the next branch. Clean up the worktree. Once the whole group's branches have merged, append `Group <G>: merged (<task numbers>, no conflicts)` to the ledger and read it back.
+2. **Auto-merge succeeds:** Append `Task <N>: merged` to the ledger and read it back, before moving on -- a branch that landed must be recorded at the moment it lands, not once its group finishes. Continue to the next branch. Clean up the worktree. Once the whole group's branches have merged, append `Group <G>: merged (<task numbers>, no conflicts)` to the ledger and read it back.
 3. **Conflict detected:** Stop the merge sequence immediately. Append `Group <G>: merge stopped -- conflict in <file list>` to the ledger, then report to the user with:
    - The conflicting file list (from `git diff --name-only --diff-filter=U`)
    - Which task branches have merged so far
    - Which task branches remain unmerged
 
-The ledger already records which branches merged, so the "which task branches have merged so far" item is read from it rather than from memory.
+Each branch that landed carries its own `Task <N>: merged` line, so the "which task branches have merged so far" item is read from the ledger rather than from memory -- including after a compaction, when memory is gone and the group line has not been written.
 
 Do not attempt automatic conflict resolution. The user must resolve conflicts before the merge sequence continues.
 

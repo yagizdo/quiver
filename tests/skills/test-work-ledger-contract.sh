@@ -2,9 +2,10 @@
 # test-work-ledger-contract.sh
 # Guards the /work orchestration ledger contract, which lives in two files by construction:
 #   producer  skills/work/orchestrator.md -- Section 0 declares the workspace layout, the
-#             identity line, the six ledger line forms, and the subagent return contract
+#             identity line, the seven ledger line forms, and the subagent return contract
 #   consumer  skills/work/SKILL.md        -- Phase 2.5 restates the workspace path, the
-#             identity line, and the complete-line spelling to decide what to skip on resume
+#             identity line, the complete-line spelling, the merge-evidence rule, and the
+#             fresh-run rule, to decide what to re-dispatch and what to re-merge on resume
 #
 # The consumer restates the producer's strings verbatim. A rename on either side changes
 # which tasks a resumed run re-dispatches without changing anything a reader would notice,
@@ -62,7 +63,7 @@ if [ "$EXIT" != "0" ]; then
 fi
 
 echo ""
-echo "=== 2. The producer declares all six ledger line forms ==="
+echo "=== 2. The producer declares all seven ledger line forms ==="
 
 # Each pattern is long enough that renaming a placeholder fails the assertion. The
 # leading [ of a task-title placeholder is escaped so BRE reads it as a literal
@@ -71,21 +72,35 @@ assert_in "$PRODUCER" 'Group <G>: dispatched (' "dispatched line form declared"
 assert_in "$PRODUCER" '\[<task title>]: complete (branch ' "complete line form declared"
 assert_in "$PRODUCER" '\[<task title>]: blocked -- ' "blocked line form declared"
 assert_in "$PRODUCER" '\[<task title>]: failed -- ' "failed line form declared"
-assert_in "$PRODUCER" 'Group <G>: merged (' "merged line form declared"
+assert_in "$PRODUCER" 'Task <N>: merged' "per-task merged line form declared"
+assert_in "$PRODUCER" 'Group <G>: merged (' "group merged line form declared"
 assert_in "$PRODUCER" 'Group <G>: merge stopped -- conflict in ' "merge-stopped line form declared"
 
 echo ""
 echo "=== 3. Restated handshake strings appear in both files ==="
 
-# These four cross the producer/consumer boundary. The other five line forms exist only
-# in the producer, which is why section 2 asserts them there and this section does not.
+# These six cross the producer/consumer boundary. The other four line forms exist only in
+# the producer, which is why section 2 asserts them there and this section does not.
+#
+# The last two are the resume rules the consumer still restates after the suffix-retry and
+# stale-plan rows moved to the producer alone. Both decide control flow that no other
+# assertion covers: 'Task <N>: merged' is the only thing separating a completed task that
+# landed from one that did not, and the fresh-run clause is what keeps a header-less ledger
+# from being read as another plan's directory.
 for f in "$PRODUCER" "$CONSUMER"; do
   L="${f#$REPO_ROOT/}"
   assert_in "$f" '\.claude/work/<plan-basename>/' "workspace path in $L"
   assert_in "$f" 'progress\.md' "ledger filename in $L"
   assert_in "$f" '# work ledger -- plan:' "identity line in $L"
   assert_in "$f" '\[<task title>]: complete (branch ' "full complete-line spelling in $L"
+  assert_in "$f" 'unless a `Task <N>: merged` line also exists for it' "merge-evidence resume rule in $L"
+  assert_in "$f" 'Do not suffix -- a directory with no identity claims no plan\.' "fresh-run resume rule in $L"
 done
+
+# The suffix-retry and stale-plan rules are the producer's alone. A copy reappearing in the
+# consumer is the duplication this change removed, and drifts silently when it does.
+assert_not_in "$CONSUMER" 'then `-3`, and so on' "no restated suffix-retry rule in the consumer"
+assert_not_in "$CONSUMER" 'treat the ledger as stale' "no restated stale-plan rule in the consumer"
 
 echo ""
 echo "=== 4. The return contract is declared once, in the producer ==="
@@ -94,6 +109,10 @@ for field in 'STATUS |' 'BRANCH |' 'BASE |' 'COMMITS |' 'TESTS |' 'REASON |' 'RE
   assert_in "$PRODUCER" "$field" "return contract declares $field"
 done
 assert_in "$PRODUCER" 'Anything beyond these lines is ignored' "the return cap is stated"
+
+# A DONE task may legally return no COMMITS line, so the complete line needs a spelling for
+# that case. Without one the orchestrator improvises a line the resume match may not match.
+assert_in "$PRODUCER" 'commits none' "the zero-commit complete line is defined"
 
 # The pasted-context field and the dangling back-reference this change removed. Their
 # return is the regression these two assertions catch.

@@ -144,7 +144,7 @@ Reason: {why}
 
 `<plan-basename>` is the loaded plan file's name without `.md`. The workspace is `.claude/work/<plan-basename>/` and the ledger is `.claude/work/<plan-basename>/progress.md`.
 
-Any path that reaches Phase 2.5 without a plan file has no basename and therefore no ledger -- Phase 1 Case B's "Other -- I'll provide a path or description" and Case C with 0 matches both do. Proceed to the orchestrator without one and say so in the strategy line.
+Any path that reaches Phase 2.5 without a plan file has no plan basename -- Phase 1 Case B's "Other -- I'll provide a path or description" and Case C with 0 matches both do. Derive one instead of proceeding without it: slugify the task description to at most 40 characters and use `.claude/work/adhoc-<slug>/`. The workspace and ledger are otherwise identical, and the identity line names the task description in place of a plan file path. The orchestrator requires a workspace for every run -- every dispatch step writes to one. Name the derived workspace in the strategy line.
 
 #### Check for a ledger
 
@@ -158,10 +158,10 @@ Apply these rules, which restate `skills/work/orchestrator.md` Section 0:
 
 | State | Action |
 |-------|--------|
-| No file | Fresh run. Create the directory, write the identity line. |
-| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Skip every task carrying a `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)` line -- do not re-dispatch it and do not re-merge its branch. Resume at the first task with no matching `complete` line. |
-| First line names a different plan file | Leave that directory untouched. Retry at `.claude/work/<plan-basename>-2/`, then `-3`, and so on, until a directory is found that either does not exist or whose identity line names this plan file. Use that one for the whole run. Print one line naming the directory actually used and why. |
-| First line matches this plan file, but a completion line's task title does not match the plan's task at that number | The plan changed mid-run. Warn the user, treat the ledger as stale, and start fresh in the same directory. |
+| No file, or a file whose first line is not a `# work ledger -- plan:` identity line | Fresh run. Create the directory if needed, overwrite the file with the identity line. Do not suffix -- a directory with no identity claims no plan. |
+| First line names this plan file, and every completion line's task number and title match the plan | Resumable. Do not re-dispatch any task carrying a `Task <N> [<task title>]: complete (branch <branch>, commits <base7>..<head7>)` line. Merge a completed task's branch unless a `Task <N>: merged` line also exists for it -- a `complete` line records that the work was done, not that it landed. A complete line reading `commits none` has no branch to merge. Resume dispatch at the first task with no matching `complete` line. |
+
+For a ledger naming a different plan file, or a completion line whose title no longer matches the plan, `skills/work/orchestrator.md` Section 0 "Resume rules" is authoritative -- follow it there and print the line it requires.
 
 #### Announce
 
@@ -288,12 +288,12 @@ status: active  -->  status: completed
 
 Runs only when orchestration was used, every task reached DONE, and Phase 4a check 7 passed. A run that ends blocked, failed, or cancelled skips this step entirely -- the surviving directory is what makes the retry cheap, and deleting it throws away the resume.
 
-1. Confirm the workspace directory used by this run exists and that its `progress.md` first line names this plan file. If either check fails, delete nothing and say so -- the directory belongs to a different run.
-2. Name the directory and its file count, then gate the delete on `AskUserQuestion`:
-   > Orchestration finished and the work is committed. Delete the run workspace at `.claude/work/<plan-basename>/` ({N} files)?
+1. Resolve `<workspace-dir>` to the directory this run actually used -- the suffixed one (`-2`, `-3`) if the orchestrator's suffix-retry rule fired, otherwise `.claude/work/<plan-basename>/`. Confirm `<workspace-dir>` exists and that its `progress.md` first line names this plan file. If either check fails, delete nothing and say so -- the directory belongs to a different run. Never re-derive the path from `<plan-basename>` after this step.
+2. Name `<workspace-dir>` and its file count, then gate the delete on `AskUserQuestion`:
+   > Orchestration finished and the work is committed. Delete the run workspace at `<workspace-dir>` ({N} files)?
    Buttons: `["Delete it", "Keep it"]`
    On "Keep it", print one line saying it was kept and continue to 5d.
-3. On "Delete it", remove the directory, then re-list `.claude/work/` to confirm it is gone, and name what was deleted in the 5d summary.
+3. On "Delete it", remove `<workspace-dir>` -- the exact path confirmed in step 1 and shown in step 2, no other -- then re-list `.claude/work/` to confirm it is gone, and name what was deleted in the 5d summary.
 
 #### 5d -- Notify user
 
