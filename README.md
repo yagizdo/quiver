@@ -43,7 +43,7 @@ A normal feature cycle chains these skills. Each one is self-contained and works
 
 ## Installation
 
-Installation differs by CLI. Once it is installed, `/brainstorm` works in any session; per-CLI differences are in [CLI Notes](#cli-notes).
+Claude Code and the Codex CLI have their own plugin managers. Cursor reads Claude Code's directory. OpenCode has none, so Quiver installs there from a clone. Once it is installed, `/brainstorm` works in any session; per-CLI differences are in [CLI Notes](#cli-notes).
 
 ### Claude Code
 
@@ -52,29 +52,33 @@ Installation differs by CLI. Once it is installed, `/brainstorm` works in any se
 /plugin install quiver@yagizdo/quiver
 ```
 
-### Cursor (2.5+)
-
-```text
-/add-plugin quiver
-```
-
-Or browse [cursor.com/marketplace](https://cursor.com/marketplace) and click "Add to Cursor".
-
 ### OpenAI Codex CLI
 
 ```text
 codex plugin marketplace add yagizdo/quiver
 ```
 
+### Cursor
+
+Cursor reads Claude Code's plugin directory, so a Claude Code install already covers it. Run `Developer: Reload Window` and the skills are there.
+
+Without one, import the repo from Cursor's Plugins panel:
+
+```text
+https://github.com/yagizdo/quiver.git
+```
+
+Importing on top of a Claude Code install leaves two copies on separate update schedules, so do not do both.
+
 ### OpenCode
 
-OpenCode has its own plugin install, so install Quiver separately even if you already use it in another harness. Tell OpenCode:
-
+```bash
+git clone https://github.com/yagizdo/quiver.git
+cd quiver
+./install.sh
 ```
-Fetch and follow instructions from https://raw.githubusercontent.com/yagizdo/quiver/refs/heads/master/.opencode/INSTALL.md
-```
 
-Detailed docs: [`.opencode/README.md`](.opencode/README.md)
+The script symlinks Quiver into every runtime it detects, and prints the install command for the ones that have their own plugin manager. After that, `git pull` in the clone updates every linked runtime. OpenCode details: [`.opencode/README.md`](.opencode/README.md)
 
 ## Components
 
@@ -327,6 +331,9 @@ Every CLI runs the same skills and the same agents, and `/review` fans out to 5 
 
 ### Cursor
 
+- Cursor discovers skills by scanning a fixed set of roots: `~/.cursor/skills/`, `~/.cursor/skills-cursor/`, `~/.cursor/cloud-skills/`, `~/.cursor/plugins/`, `~/.claude/skills/`, `~/.claude/plugins/`, `~/.codex/skills/`, `~/.agents/skills/`. A Claude Code install lands in `~/.claude/plugins/`, so Cursor picks it up. A Codex install lands in `~/.codex/plugins/`, which is not on that list.
+- Two installs give you two copies on separate update schedules, and nothing warns you when you are reading the old one. Keep the Claude Code install and let Cursor read it.
+- `install.sh` has no Cursor target, because a symlink under `~/.cursor/plugins/local/` is not picked up. On Cursor 3.17.21, disabling the Claude Code install made Quiver disappear from Cursor while that symlink was still in place, and `cursor.plugins.installedIds` stayed empty the whole time. Use Cursor's own plugin import.
 - The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
 - `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
 - If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
@@ -336,6 +343,12 @@ Every CLI runs the same skills and the same agents, and `/review` fans out to 5 
 - Codex uses the bundled default `PreCompact` hook in `hooks/hooks.json` for automatic handover auto-save before automatic compaction. If Codex prompts for hook review, open `/hooks` and trust the Quiver hook; `/handover` also works manually.
 - `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
 - Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`.
+
+### OpenCode
+
+- Installing from an earlier release put a git-backed `quiver` entry in the `plugin` array of your `opencode.json`. That entry no longer resolves: delete it, then run `./install.sh`.
+- The plugin registers the skills directory and the context7 MCP server itself, so you do not need an `mcp` or `skills` entry of your own.
+- Skills do not appear in the `/` autocomplete menu, because OpenCode's TUI filters out anything with `source: "skill"`. Typing `/brainstorm` still runs it.
 
 ### Gemini CLI (legacy)
 
@@ -354,9 +367,19 @@ Antigravity CLI is Google's replacement. Quiver has not been tested there yet.
 
 ## Uninstall
 
+On Claude Code and the Codex CLI:
+
 ```
 /uninstall quiver
 ```
+
+On OpenCode, from the clone:
+
+```bash
+./install.sh --uninstall
+```
+
+That removes only the symlinks that resolve into the clone, and reports anything it declined to remove.
 
 ## License
 

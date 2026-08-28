@@ -6,6 +6,8 @@
 # - references all required hooks (config, experimental.chat.messages.transform,
 #   experimental.session.compacting, session.created, tool.execute.before)
 # - uses the EXTREMELY_IMPORTANT wrapper for the bootstrap
+# - imports Node builtins only (the invariant that keeps the deleted root
+#   package.json deleted)
 
 set -e
 
@@ -96,57 +98,29 @@ else
   fail "plugin uses client.app.log for logging"
 fi
 
-# 17. Root package.json exists
-if [ -f "$PLUGIN_ROOT/package.json" ]; then
-  pass "root package.json exists"
+# 17. quiver.js imports only Node builtins.
+#
+# This is the invariant that protects the root package.json deletion. That file
+# existed to make the OpenCode git package spec resolvable and to carry the
+# @opencode-ai/plugin dependency; the plugin never imported it. Under the symlink
+# install there is no package manager to install a dependency, so the first import
+# of a scoped package would break every OpenCode user with no other signal.
+IMPORT_COUNT="$(grep -c '^import ' "$PLUGIN_FILE" || true)"
+if [ "$IMPORT_COUNT" -eq 3 ]; then
+  pass "plugin has exactly three import statements"
 else
-  fail "root package.json exists"
-  exit 1
+  fail "plugin has exactly three import statements (found $IMPORT_COUNT)"
+  grep -n '^import ' "$PLUGIN_FILE" | sed 's/^/    /'
 fi
 
-# 18. Root package.json is valid JSON
-if node -e "JSON.parse(require('fs').readFileSync('$PLUGIN_ROOT/package.json'))" 2>/dev/null; then
-  pass "root package.json is valid JSON"
+if grep '^import ' "$PLUGIN_FILE" | grep -q '@'; then
+  fail "plugin imports no scoped package"
+  grep -n '^import ' "$PLUGIN_FILE" | grep '@' | sed 's/^/    /'
 else
-  fail "root package.json is valid JSON"
+  pass "plugin imports no scoped package"
 fi
 
-# 19. Root package.json main field points to .js plugin
-if grep -q '"main": ".opencode/plugins/quiver.js"' "$PLUGIN_ROOT/package.json"; then
-  pass "root package.json main points to .opencode/plugins/quiver.js"
-else
-  fail "root package.json main points to .opencode/plugins/quiver.js"
-fi
-
-# 20. Root package.json has type: module
-if grep -q '"type": "module"' "$PLUGIN_ROOT/package.json"; then
-  pass "root package.json has type: module"
-else
-  fail "root package.json has type: module"
-fi
-
-# 21. Root package.json pins @opencode-ai/plugin
-if grep -q '"@opencode-ai/plugin": "1.16.2"' "$PLUGIN_ROOT/package.json"; then
-  pass "root package.json pins @opencode-ai/plugin to 1.16.2"
-else
-  fail "root package.json pins @opencode-ai/plugin to 1.16.2"
-fi
-
-# 22. .opencode/opencode.json does not reference the local plugin
-if grep -q "quiver.ts" "$PLUGIN_ROOT/.opencode/opencode.json"; then
-  fail ".opencode/opencode.json does not reference local quiver.ts"
-else
-  pass ".opencode/opencode.json does not reference local quiver.ts"
-fi
-
-# 23. .opencode/INSTALL.md exists
-if [ -f "$PLUGIN_ROOT/.opencode/INSTALL.md" ]; then
-  pass ".opencode/INSTALL.md exists"
-else
-  fail ".opencode/INSTALL.md exists"
-fi
-
-# 24. .opencode/README.md exists
+# 18. .opencode/README.md exists
 if [ -f "$PLUGIN_ROOT/.opencode/README.md" ]; then
   pass ".opencode/README.md exists"
 else
