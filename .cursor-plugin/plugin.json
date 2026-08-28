@@ -1,6 +1,6 @@
 {
   "name": "quiver",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "Session continuity, agent orchestration, and development workflows",
   "keywords": ["session", "handover", "review", "agents", "orchestration", "workflow"],
   "author": { "name": "Yilmaz Yagiz Dokumaci" },
