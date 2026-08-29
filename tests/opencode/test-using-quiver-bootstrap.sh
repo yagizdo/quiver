@@ -62,7 +62,10 @@ assert_grep "$SKILL_FILE" "^name: using-quiver" "frontmatter has name: using-qui
 # 4. Frontmatter contains description field
 assert_grep "$SKILL_FILE" "^description:" "frontmatter has description field"
 
-# 5. Frontmatter contains when-to-use field (R10 hard rule)
+# 5. Frontmatter contains when-to-use field (R10 hard rule).
+# Presence only -- R10's shape rules (single-line double-quoted, slash anchor, quoted
+# utterance) are asserted for every non-exempt skill by the canonical verifier at
+# tests/skills/test-when-to-use-contract.sh. Edit R10 shape there, not here.
 assert_grep "$SKILL_FILE" "when-to-use:" "frontmatter has when-to-use field"
 
 # 6. Frontmatter disables model invocation (skill is auto-injected by plugin)

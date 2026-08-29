@@ -177,6 +177,12 @@ echo "=== 4. /design-verify frontmatter routes ==="
 
 # The hook drops any skill whose when-to-use is not a single-line double-quoted string.
 # Replicate its extraction exactly.
+#
+# R10's canonical verifier is tests/skills/test-when-to-use-contract.sh, which applies this
+# shape check to every non-exempt skill. The narrower copy stays here because this file is
+# the /design pipeline's own contract and must fail on its own when /design-verify stops
+# routing -- but R10 shape rules are edited there first, and a tightening that lands only
+# in one of the two copies is drift.
 VERIFY_NAME=$(awk 'BEGIN{c=0} /^---/{c++;next} c==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); print; exit}' "$VERIFY")
 VERIFY_WTU=$(awk 'BEGIN{c=0} /^---/{c++;next} c==1 && /^when-to-use:/{gsub(/^when-to-use:[[:space:]]*/,""); print; exit}' "$VERIFY" | tr -d '"<>')
 
