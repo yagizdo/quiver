@@ -71,13 +71,18 @@ fi
 echo ""
 echo "=== 3. Extract both heading lists ==="
 
-# Skill side: H2 headings after the SYNC marker. The file continues with its own
-# structural headings (## Quality Gates, ## Anti-Patterns, ...), so the list is capped
-# at 8 rather than run to end of file. A deleted section pulls the next real heading in
-# and section 4 reports it as a mismatch, which is the intent.
-SKILL_HEADINGS="$(awk -v n="$EXPECTED_COUNT" '
+# Skill side: H2 headings between the SYNC marker and the `---` rule that closes the
+# block. The file continues with its own structural headings (## Quality Gates,
+# ## Anti-Patterns, ...) below that rule, and the terminator is what keeps them out.
+# Scoping to the terminator rather than counting to EXPECTED_COUNT is what makes an
+# appended 9th section visible: an extractor that stops at 8 can never yield more than 8,
+# so the count check below could only ever fail low and a section added to the skill alone
+# would pass green. A deleted section pulls the next real heading in and section 4 reports
+# it as a mismatch, which is the intent.
+SKILL_HEADINGS="$(awk '
   /^<!-- SYNC:/ { s = 1; next }
-  s && /^## / { print; c++; if (c == n) exit }
+  s && /^---$/ { exit }
+  s && /^## / { print }
 ' "$SKILL")"
 
 # Hook side: H2 lines inside the PROMPT_PREFIX single-quoted string only. Scoped to that

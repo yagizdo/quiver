@@ -143,7 +143,12 @@ for skill_file in "$SKILLS_DIR"/*/SKILL.md; do
     *) fail "$rel when-to-use never names /$NAME -- the routing entry has no slash-command anchor for the model to match on" ;;
   esac
 
-  if printf '%s\n' "$VALUE" | grep -Eq "'[^']+'"; then
+  # Delimited, not merely bracketed. A bare "'[^']+'" needs only two apostrophes with a
+  # character between them, so prose contractions and possessives ("user's ... don't")
+  # satisfy it while carrying no quoted utterance at all. Requiring a word boundary before
+  # the opening quote and a boundary or terminator after the closing one keeps '/commit'
+  # and 'stage and commit this' matching and rejects the contraction case.
+  if printf '%s\n' "$VALUE" | grep -Eq "(^|[[:space:]])'[^']+'([[:space:],.]|$)"; then
     pass "$rel when-to-use quotes at least one user utterance"
   else
     fail "$rel when-to-use quotes no user utterance -- R10 requires at least one concrete phrase a user would actually type"
