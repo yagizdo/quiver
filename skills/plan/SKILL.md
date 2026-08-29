@@ -326,7 +326,7 @@ review_iteration: 1  # increments for each fix plan targeting the same review
 
 ## Step 6 -- Plan Guard: Inline Validation
 
-After drafting the plan, run these 6 checks before presenting to the user. This is an internal quality gate -- do not show it as a separate section to the user.
+After drafting the plan, run these 7 checks before presenting to the user. This is an internal quality gate -- do not show it as a separate section to the user.
 
 ### Check 1: Placeholder scan
 
@@ -357,9 +357,13 @@ Probe file paths mentioned in the plan:
 
 If the plan has a "File Map" section: every map entry must appear in at least one task, and every task file must appear in the map. (FIX for orphans, ADD for missing entries)
 
+### Check 7: Global Constraint contradiction
+
+If the plan has no `## Global Constraints` section, this check is a no-op -- produce no finding and move on. Otherwise read every task against the constraint list and flag any task whose stated action contradicts a constraint. Rewrite the task so it satisfies the constraint, or drop the constraint when the task it contradicts is the point of the plan. (FIX)
+
 ### Action routing
 
-After running all 6 checks:
+After running all 7 checks:
 - **FIX:** auto-fix by editing the plan content inline.
 - **ADD:** draft and insert missing content (tasks, acceptance criteria, file map entries).
 - **REORDER:** move affected tasks to satisfy dependency ordering.
@@ -499,6 +503,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] No raw `{placeholder}` strings remain in the saved plan.
 - [ ] A plan whose Step 4.5 gate had at least one candidate selected carries a `## Global Constraints` section holding exactly the selected entries and no others.
 - [ ] A plan whose Step 4.5 gate had zero candidates selected carries no Global Constraints heading and no empty section.
+- [ ] A task that contradicts one of the plan's own Global Constraints is caught by Step 6 Check 7 and resolved as FIX -- the task is rewritten, or the constraint is dropped -- before the plan reaches the user.
 - [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
 - [ ] Agent dispatch and Plan Guard checks execute correctly for Standard/Deep plans.
 - [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
