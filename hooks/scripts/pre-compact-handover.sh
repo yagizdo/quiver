@@ -22,7 +22,8 @@ HANDOVER_DIR="${PROJECT_DIR}/.claude/handovers"
 # Ensure handover directory exists
 mkdir -p "$HANDOVER_DIR"
 
-# SYNC: The 8 section headings below must match skills/handover/SKILL.md lines 99-129.
+# SYNC: The 8 section headings below must match skills/handover/SKILL.md, under its
+# own SYNC marker. Verified by tests/hooks/test-handover-sync-contract.sh.
 # Prompt template prefix — transcript is appended via stdin pipe to avoid ARG_MAX limits
 PROMPT_PREFIX='Read the following Claude Code session transcript and produce a HANDOVER note.
 Goal: The next Claude session (or a teammate) should be able to continue from where we left off.

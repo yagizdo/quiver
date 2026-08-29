@@ -94,7 +94,7 @@ If git context was not available (see Step 0), build the handover from the conve
 └─────────────────┘     └──────────────────┘     └──────────────────┘
 ```
 
-<!-- SYNC: The 8 section headings below must match hooks/scripts/pre-compact-handover.sh:25 PROMPT_PREFIX. -->
+<!-- SYNC: The 8 section headings below must match the PROMPT_PREFIX headings in hooks/scripts/pre-compact-handover.sh. Verified by tests/hooks/test-handover-sync-contract.sh. -->
 Using the context above and our conversation, prepare a structured handover note with these exact sections:
 
 ## Summary
@@ -220,5 +220,5 @@ After all saves, output this confirmation:
 - [ ] In an empty/no-progress session, the skill exits cleanly without writing any file.
 
 **Known gotchas:**
-- The 8 section headings are part of a SYNC contract with `hooks/scripts/pre-compact-handover.sh`. If headings here change, the hook's `PROMPT_PREFIX` must change in lockstep.
+- The 8 section headings are part of a SYNC contract with `hooks/scripts/pre-compact-handover.sh`. If headings here change, the hook's `PROMPT_PREFIX` must change in lockstep. `tests/hooks/test-handover-sync-contract.sh` is the gate on that.
 - Lexicographic prune ordering depends on the timestamp filename format; do not rename existing handovers.
