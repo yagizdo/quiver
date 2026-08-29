@@ -164,7 +164,8 @@ On "Add or change something": ask what to change, update the table, re-present. 
 ## Phase 3: Manifest Write
 
 Write `docs/ship/<project>-manifest.md`. Manifest structure:
-- Metadata block: project name, status, created/updated timestamps, stack, platform, deployment target
+- Metadata block: project name, status, created/updated timestamps, stack, platform, deployment target, constraints
+- The `constraints` field holds Phase 1 Q&A category 3 verbatim -- the library restrictions and stated limits, one per line. `stack` already carries the tech-stack half of that answer; the rest has no other home, and a constraint the manifest does not record is one no tick can honor. Write `constraints: none` when the user answered "none", never an empty field.
 - Task table with columns: `| ID | Task | parallel_group | Acceptance Criterion | Status | Notes |`
 - Manifest metadata section heading: `# Ship Manifest`
 - Each task row carries the acceptance criterion from Phase 1 Q&A in its Acceptance Criterion field
@@ -278,6 +279,7 @@ The prompt is fully self-contained and carries:
 
 - the gap ID, description, acceptance criterion, and the `Notes` column verbatim as the authoritative implementation directive,
 - the project root, the stack, the build command and test command resolved from the manifest metadata block, and `codegraph_available`,
+- the manifest's `constraints` field verbatim, under its own heading, with the line "These bind every change you make. A change you cannot make without violating one is a blocked gap, not a judgment call." Omit the heading entirely when the field reads `none` -- an empty heading reads as "no constraints were stated" rather than "this project has none",
 - Step 2's tool hierarchy, Step 4's test procedure, Step 6's retry order and 3-attempt cap, and the Waiting on External State rules -- the agent runs the builds, so it is the one that must wait on a condition rather than re-run a build to see whether the build finished,
 - the instruction to follow neighboring code patterns and apply manifest-provided values (keys, IDs, names) from `Notes`,
 - the return contract below.
@@ -380,7 +382,7 @@ Read the manifest task table. Group pending tasks by `parallel_group` value. Tas
 
 **If NO_GIT was detected in Step 0:** skip all parallel dispatch and run all tasks sequentially regardless of `parallel_group`.
 
-**For a parallel batch (2+ tasks sharing a group ID):** dispatch all tasks in the batch in a single parallel Agent tool call block. Each agent must have `isolation: "worktree"` and a fully self-contained prompt carrying: the task ID, description, acceptance criterion, Notes, project root, stack, and `codegraph_available`. Each agent returns its modified files, test result, and a commit-ready diff.
+**For a parallel batch (2+ tasks sharing a group ID):** dispatch all tasks in the batch in a single parallel Agent tool call block. Each agent must have `isolation: "worktree"` and a fully self-contained prompt carrying: the task ID, description, acceptance criterion, Notes, project root, stack, the manifest's `constraints` field on the same terms as Step 3, and `codegraph_available`. A parallel batch is where dropping the constraints costs the most -- every agent in the batch repeats the same violation, and each one is in its own worktree where nothing else can catch it. Each agent returns its modified files, test result, and a commit-ready diff.
 
 Merge worktrees sequentially with `git merge --no-edit`. On any conflict: stop the batch immediately, mark all conflicting tasks' Status as `blocked` with `blocked: merge conflict in parallel batch` in Notes, report the conflict to the terminal, and do not auto-resolve. Produce one commit per successfully merged agent.
 
@@ -775,6 +777,9 @@ manifest: docs/ship/<project>-manifest.md
 - [ ] No plain-text questions to the user -- every user prompt uses AskUserQuestion (R5).
 - [ ] No AskUserQuestion reachable from any Execution-mode tick path.
 - [ ] Phase 3 writes manifest with `parallel_group` column; manifest read back to verify after write.
+- [ ] Phase 1 category 3 lands in the manifest: the tech-stack half in `stack`, the library restrictions in `constraints`. A user who answered "no ORM, raw SQL only" can find that sentence in the manifest.
+- [ ] Every implementation agent prompt carries the manifest's `constraints` verbatim -- both the sequential Step 3 dispatch and every agent in a parallel batch.
+- [ ] A manifest with `constraints: none` produces agent prompts with no constraints heading at all, not an empty one.
 - [ ] Manifest read back after every write (L3 verification) -- including after each tick's Step 7 state update.
 - [ ] Second run on a project with an existing manifest routes through State Detection and offers Resume / Start fresh / Inspect.
 - [ ] `--execute` on a partial or absent manifest terminates with a message; no prompt.
