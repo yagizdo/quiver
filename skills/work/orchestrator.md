@@ -163,7 +163,7 @@ The dispatch is a file handoff, not a paste. The task's requirements go to disk 
 
 **Part 1 -- the brief.** Before dispatching task N:
 
-1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. Read the file back to confirm it was written (skill rule L3).
+1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. When the loaded plan carries a `## Global Constraints` section, reproduce it verbatim under its own `## Global Constraints` heading, placed after the task's file list; when the plan has no such section, or the run is ad-hoc with no plan file, the brief omits the heading entirely -- an empty heading is worse than no heading because it reads as "no constraints were derived" rather than "this run has none". Read the file back to confirm it was written (skill rule L3).
 2. Delete any existing `task-<N>-report.md` for this task number, then confirm it is gone (L3). The report path is fixed per task, so on a resumed or retried run a report from the previous attempt is already there; leaving it would let the orchestrator read a stale report as if the new subagent had written it. The delete is the entire mitigation for that hazard, so an unverified delete reintroduces the defect it exists to close.
 
 **Part 2 -- the dispatch prompt.** The prompt carries no plan prose. Its context section is exactly three items -- the plan preamble, other tasks' text, and summaries of completed tasks are all excluded:
@@ -187,6 +187,7 @@ Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 - Only modify the files listed in the brief. If you discover a needed change in another file, report it as a blocker instead of making the change.
 - Follow existing code patterns (naming, structure, error handling).
 - Do not add AI attribution comments or generated-by markers.
+- The brief's Global Constraints bind every change you make. A change you cannot make without violating one is a BLOCKER, not a judgment call.
 - If you encounter an ambiguity or need a decision from the user, report BLOCKED status with a clear description of what you need.
 ```
 

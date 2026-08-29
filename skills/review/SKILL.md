@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-agent code review. Default fast mode (5 agents); pass --deep for full pipeline (all agents + quality check + senior review). Pass --with-codex for cross-model coverage.
-argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
+argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--plan <path>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 disable-model-invocation: true
 when-to-use: "user wants a multi-agent code review of a PR or diff -- '/review', 'review my changes', 'review this PR', 'code review', 'audit the diff' (not: 'senior review')"
 ---
@@ -34,11 +34,13 @@ Print: `> No git repository detected. /review requires a git repo.`
 
 ## Step 0.5 -- Detect Review Depth
 
-Parse `$ARGUMENTS` for the `--deep` flag:
+Parse `$ARGUMENTS` for the `--deep` and `--plan` flags:
 
 1. If `$ARGUMENTS` contains `--deep`, set `review_mode = deep`. Strip `--deep` from `$ARGUMENTS` before passing to subsequent steps.
 2. Otherwise, set `review_mode = fast`.
-This flag affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
+3. If `$ARGUMENTS` contains `--plan <path>`, set `constraints_plan_path` to the path token that follows the flag, and strip both `--plan` and that path from `$ARGUMENTS` before passing to subsequent steps. Otherwise leave `constraints_plan_path` unset.
+
+`--deep` affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. `--plan` affects Step 1.8 only -- it names the plan whose Global Constraints bind this review, and never changes which diff is reviewed. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
 
 Announce the mode:
 - Fast: `Running review (5 core agents)...`
@@ -172,6 +174,22 @@ Before dispatching agents, detect navigation capabilities once.
 
 ---
 
+## Step 1.8 -- Global Constraints Discovery
+
+Find the plan whose Global Constraints bind this review and extract that block verbatim. This step is a read-only lookup. It never edits, extends, paraphrases, or renumbers the block, and it never writes a plan file -- `/plan` is the only skill that decides constraint content.
+
+1. **Explicit plan.** If Step 0.5 set `constraints_plan_path` from `--plan <path>`, use that file. If the path does not exist or cannot be read, set the block to empty and continue with no note.
+2. **PR/MR mode.** Otherwise, if Step 1 resolved to Mode 1 (PR/MR link provided) and did not fall back to Mode 2 or Mode 3, skip discovery entirely and set the block to empty. A PR diff can come from a branch whose plan never existed on this machine, so the newest local plan is more likely wrong than right, and a wrong constraint removes real findings in the suppression direction. A user who knows a local plan applies to a PR passes `--plan <path>`.
+3. **Newest local plan.** Otherwise, list the plans directory with the Bash tool (`ls -1t .claude/plans/*.md 2>/dev/null`) and take the first path it prints -- the newest `.md` file by modification time. Empty output means there is no plans directory and no plan file; go to rule 5.
+4. **Extract the block.** Read the chosen file and take the `## Global Constraints` section: every line after that heading up to the next `## ` heading, with leading and trailing blank lines trimmed. Set `constraints_plan_path` to the chosen file's path -- Step 3's report template prints it in `## Review Context`.
+5. **Degrade cleanly.** If there is no `.claude/plans/` directory, no `.md` file in it, or no `## Global Constraints` heading in the chosen file, set the block to empty and continue with no note, no warning, and no error. An empty block means Step 2 skips per-agent context item 10 entirely, the Step 3 `constraint-blocked` filter never fires, and the report's `Global Constraints` field reads `N/A`. This path must behave exactly as a review did before this step existed.
+
+Do the listing and the read with the Bash and Read tools at this point in the run, not with a `!` block at the top of this file: the lookup is conditional on the review mode resolved in Step 1, and `!` blocks run before any step logic.
+
+Say nothing about this step in the chat stream. The report's `Global Constraints` field and the `constraint-blocked` entries in `## Filtered Findings` are where the block becomes visible.
+
+---
+
 ## Step 2 -- Parallel Agent Dispatch
 
 ### 2a -- Discover available agents
@@ -251,6 +269,22 @@ Each agent receives (in this order):
 7. **Citation accuracy**: "Every file:line reference in your findings must be verified by reading the file. Do not cite line numbers from memory or inference -- use the Read tool to confirm the content at the cited line before including it in a finding."
 8. **Navigation availability** (for waste-detector, architecture-strategist, stress-tester, and project-context-analyst): `codegraph_available: {true|false}` and `lsp_available: {true|false}` from Step 1.75. These agents search the broader codebase and benefit from CodeGraph/LSP-first navigation. Other agents are diff-scoped and do not need these flags.
 9. **Scope discipline**: Aspirational improvements, stylistic preferences, "could be better" suggestions, and theoretical hardening are out of scope. Flag only concrete demonstrable problems with code that is wrong, unsafe, or broken as written. If the code works correctly as written and you would not fix it yourself, do not flag it. Zero findings is a correct and expected result on clean code. (This clause applies on every review. Re-review mode adds additional delta-specific scope on top of this general lock.)
+10. **Global Constraints** (only when Step 1.8 produced a non-empty block). Skip this item entirely when the block is empty -- do not emit the heading, an empty list, or a "no constraints" line. When the block is non-empty, append it exactly as written below, substituting the discovered plan path and the block text with no edits of your own:
+
+    ```
+    ## Global Constraints (from {plan path})
+
+    These bind the change under review. They cut both ways:
+    - A change in the diff that violates one of these is a finding, at whatever
+      severity the violation earns.
+    - A finding whose recommendation would require violating one of these is not a
+      finding. Discard it and emit a one-line SUPPRESSED entry naming the constraint
+      that ruled it out.
+
+    {verbatim block}
+    ```
+
+    Pass the block through unchanged. Do not renumber it, summarize it, split it per agent, or add constraints of your own -- every agent receives the same text, and Step 3 relies on the agents' `SUPPRESSED` entries naming constraints the block actually contains.
 
 ### Adding future agents
 
@@ -275,11 +309,12 @@ With 5 agents, the finding volume is low enough to skip the heavy-duty noise red
 1. **Deduplicate.** If 2+ agents flag the same issue, keep the more detailed finding and note both agents. No consensus tracking (5 agents rarely produce 3+ consensus).
 2. **Unified severity.** Same scale and definitions as deep mode (Critical/High/Medium/Low).
 3. **Tag source.** Same format: `[ID] [SEVERITY] (agent-name) file:line -- title`.
-4. **Filter false positives.** Apply 4 filters only:
+4. **Filter false positives.** Apply 5 filters only:
    - Prompt-vs-code confusion (agent treats prompt text as executable code)
    - Out-of-scope findings (references code not changed in diff)
    - Phantom citations (graduated check with recovery -- same as deep mode item 4 sub-items a/b/c)
    - Severity inflation (hypothetical scenario -> downgrade to Low)
+   - Constraint-blocked (finding carries a `SUPPRESSED` entry, or its recommendation cannot be acted on without violating a Global Constraint) -> DISCARD, recorded as filtered with classification `constraint-blocked` and the constraint named. Same rule as deep mode item 4, so both modes behave identically; never fires when Step 1.8 produced no block.
 5. **Unified verdict.** Same rules as deep mode.
 6. **Identify strengths.** Same rules as deep mode.
 7. **Compute fix order.** Same rules as deep mode.
@@ -329,6 +364,7 @@ Follow these rules:
    - **Out-of-scope findings**: If a finding references code NOT changed in the diff and does not argue that the diff worsened it → DISCARD. Record as filtered out-of-scope.
    - **Severity inflation**: If a finding's severity relies on a hypothetical scenario ("an attacker could...", "in the future this might...") rather than a concrete, demonstrable consequence → DOWNGRADE to Low. If it was already Low, keep it.
    - **Aspirational refactoring**: If a finding suggests restructuring working code for theoretical cleanliness, extensibility, or "better design" without identifying a concrete problem → DISCARD. Record as filtered aspirational.
+   - **Constraint-blocked**: If a finding carries a `SUPPRESSED` entry from its agent, or its recommendation cannot be acted on without violating one of the Global Constraints passed as per-agent context item 10, it is not a finding -> DISCARD. Record as filtered with classification `constraint-blocked` and name the constraint that ruled it out, so the developer can see what the plan committed to rather than re-litigating it. This filter never fires when Step 1.8 produced no block. It does not run in the other direction: a change in the diff that violates a constraint stays a finding at whatever severity it earned.
    - **Subjective style opinions**: If a finding flags naming, formatting, or structural preferences where reasonable developers would disagree → DISCARD. Record as filtered stylistic.
    - **Phantom citations**: For each finding with a `file_path:line_number` reference, verify the citation. Apply this graduated check (per Step 3 item 0, do NOT default to DISCARD on the first mismatch):
      - **(a) `file_path` must exist in the repository.** If not → DISCARD as filtered phantom citation. (True fabrication: cited file does not exist.)
@@ -339,7 +375,7 @@ Follow these rules:
        3. **Not found anywhere in the cited file:** this is the true fabrication case → DISCARD as filtered phantom citation.
      - This filter catches agent hallucinations where findings cite non-existent code or fabricated content. It does NOT catch findings whose underlying observation is real but whose line citation drifted; those are corrected per the recovery procedure above. Self-protective filtering — using citation drift as a pretext to drop substantive findings, especially against one's own earlier work — is the failure mode this rule prevents.
 
-**4a. Proportional severity floor.** After applying the 8 false-positive filters above, apply a diff-shape filter to Low findings only. Medium, High, and Critical findings are never affected by this rule.
+**4a. Proportional severity floor.** After applying the 9 false-positive filters above, apply a diff-shape filter to Low findings only. Medium, High, and Critical findings are never affected by this rule.
 
 Compute the diff profile from the Diff Manifest (Step 1.5) and the diff line count:
 
@@ -349,7 +385,7 @@ Compute the diff profile from the Diff Manifest (Step 1.5) and the diff line cou
 
 Risk signals are detected from the Diff Manifest: any `CONFIG-APP` file touching auth or secrets, any file under a `payments/` or `auth/` path, any CI workflow file (`.github/workflows/*.yml`, `.gitlab-ci.yml`), any file matching `secrets|credentials|keys|tokens` in its name.
 
-The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filters (Step 3.4) so that dropped findings have already been deduplicated. Dropped findings still appear in the Filtered Findings section with their drop reason, preserving transparency.
+The proportional floor runs AFTER subsumption (Step 3.1) and the 9 filters (Step 3.4) so that dropped findings have already been deduplicated. Dropped findings still appear in the Filtered Findings section with their drop reason, preserving transparency.
 
 **No promotion to escape the floor.** Severity is assigned based on concrete consequence, not on whether a finding will survive the proportional floor. Do NOT reclassify a finding from Low to Medium solely because the current profile would drop Lows. If a finding is genuinely Low under the severity rubric, drop it (record in Filtered Findings) -- do not launder it into Medium to preserve it in the report. The floor is a synthesis-stage noise filter, not an incentive to inflate severity. Violating this rule reintroduces the exact noise pattern the floor exists to suppress. When in doubt, ask: "Would I assign this severity if no filter existed?" If the honest answer is Low, keep it Low.
 
@@ -384,6 +420,7 @@ The proportional floor runs AFTER subsumption (Step 3.1) and the existing 8 filt
 - **Scope**: {Full diff | Delta-only (changes since previous review)}
 - **Delta**: {commit_count} commits, {files_changed} files since previous review (omit for first review)
 - **HEAD at review**: {output of `git rev-parse --short HEAD`}
+- **Global Constraints**: {plan path the block came from, or "N/A"}
 - **Findings overview**: {X Critical, Y High, Z Medium, W Low} ({N filtered})
 
 ## Summary
@@ -432,9 +469,10 @@ Each finding gets a short ID: severity initial + sequence number (C1, C2... for 
 
 ## Filtered Findings
 
-**{N} findings reported, {M} filtered** ({classification breakdown, e.g., "3 out-of-scope, 2 aspirational, 1 subjective style"})
+**{N} findings reported, {M} filtered** ({classification breakdown, e.g., "3 out-of-scope, 2 aspirational, 1 constraint-blocked, 1 subjective style"})
 
 - [brief reason for each, e.g., "~~[M3] [Medium] (waste-detector) config/routes.rb:15 -- Consider extracting nested routes~~ -- Aspirational: working code, no concrete problem"]
+- [constraint-blocked entries name the constraint, e.g., "~~[M4] [Medium] (logic-reviewer) skills/plan/SKILL.md:212 -- Compute the newest plan inline in the shell block~~ -- Constraint-blocked: Global Constraint 2 (no new shell logic in `!` blocks)"]
 
 (Omit this section entirely if no findings were filtered.)
 
@@ -660,7 +698,7 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 
 ## Test Plan
 
-**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
+**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--plan <path>`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
 
 **Setup:**
 - Current directory is a git repo with at least one diff source (PR URL, branch ahead of base, or uncommitted changes).
@@ -678,6 +716,7 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 8. Fast mode (default) dispatches exactly 5 agents, runs simplified synthesis, skips Steps 3.5 and 3.75.
 9. Deep mode (`--deep`) dispatches all qualifying agents and runs full synthesis pipeline including report-checker and senior-reviewer.
 10. `--with-codex` without `--deep` prints a guidance note and continues fast review without Codex.
+11. Skill discovers the plan whose `## Global Constraints` section binds the review (Step 1.8), passes the block to every dispatched agent as context item 10, and names the source plan in the report's `Global Constraints` field. With no block found, the run is silent about it and the field reads `N/A`.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/review`.
@@ -693,8 +732,16 @@ If you need a concept that appears on this list and you cannot find a plain-Engl
 - [ ] Fast mode report includes `(fast)` in the Mode line of Review Context.
 - [ ] Fast mode report's Agents Dispatched section does not list deep-mode-only agents as skipped.
 - [ ] Deep mode report includes `(deep)` in the Mode line of Review Context.
+- [ ] Branch-mode review with a plan carrying `## Global Constraints` in `.claude/plans/` names that plan in the report's `Global Constraints` field, and every dispatched agent's prompt carries the block under `## Global Constraints (from {plan path})`.
+- [ ] With no `.claude/plans/` directory, no `.md` file in it, or no `## Global Constraints` section in the newest plan, the field reads `N/A`, no note or warning is printed, and no agent prompt carries context item 10.
+- [ ] Review of a PR URL without `--plan` reads `N/A` (Step 1.8 does not run in PR mode); the same PR URL with `--plan <path>` names that path in the field.
+- [ ] `--plan` and its path are stripped from `$ARGUMENTS` in Step 0.5 and never reach the diff-source logic in Step 1.
+- [ ] A finding whose recommendation cannot be acted on without violating a constraint appears in `## Filtered Findings` classified `constraint-blocked` with the constraint named, and is absent from `## Findings`.
+- [ ] A change in the diff that violates a constraint is still reported as a finding -- the block cuts both ways.
 
 **Known gotchas:**
+- Step 1.8 takes the newest plan in `.claude/plans/` with no matching heuristic, so an unrelated plan can supply constraints in branch mode. The `Global Constraints` field names the plan for exactly this reason; re-run with `--plan <path>` when the named plan is wrong.
+- The `## Global Constraints` heading is the whole interface between `/plan`, `/work`, and `/review`. Renaming it in `skills/plan/SKILL.md` makes extraction here return nothing, silently, on the degrade-cleanly path.
 - Bitbucket/Azure DevOps PR URLs fall back to Mode 2 because there is no diff CLI; PR commenting also skips on those platforms with a manual-paste hint.
 - Two-dot `git diff <base>..<head>` is wrong for branch diffs; the skill uses three-dot `git diff <base>...HEAD` instead.
 - The synthesized report SYNC contract pairs with `skills/work/SKILL.md` Phase 4c parsing; changing section headings or finding-ID format requires updating the work skill verification logic.

@@ -99,6 +99,8 @@ If no plans found:
 
 If the plan links to files, patterns, or prior research -- read those now. Understanding context before coding prevents rework.
 
+If the plan carries a `## Global Constraints` section, read it as binding context for every task in this run, not as background prose -- it states what this work must not do.
+
 #### 1c -- Detect review-fix plan
 
 Check if this is a plan created to address review findings:
@@ -180,6 +182,8 @@ When a suffixed workspace is used:
 ### Phase 3: Build
 
 Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, implement, run tests immediately (fix failures before moving on), mark `completed`, update plan checkboxes if present.
+
+Every task on this path is subject to the plan's `## Global Constraints` when the plan carries one: a task that cannot be completed without violating a constraint is a blocker, handled by the Blockers rule below.
 
 **Commits:** After each logical unit, commit if tests pass and the change is meaningful (`git add <specific files>` -- never `git add .`). Wait if tests fail or the message would say "WIP". Heuristic: "Can I write a message describing a complete, valuable change?"
 

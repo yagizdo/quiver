@@ -219,15 +219,63 @@ After **all** agents return, merge findings into a unified research brief. Use t
    - **Architectural guidance** (from architecture-strategist): structural constraints, where new code belongs
 3. **Flag conflicts** -- If agents disagree (e.g., best practices suggest pattern A but existing architecture uses pattern B), surface both with trade-offs. Do not silently resolve.
 
+## Step 4.5 -- Derive Global Constraints
+
+Derive the rules that bind every task in this plan before any task is written. Constraints shape tasks, so a task drafted before them is a task that has to be rewritten once they appear.
+
+**Candidate sources, in priority order:**
+
+1. **The user's own words in `$ARGUMENTS`** -- "without adding dependencies", "do not touch the hook".
+2. **`architecture-strategist` boundary findings** from Step 3 -- structural lines the change must not cross.
+3. **`best-practices-researcher` deprecation findings** from Step 3 -- "do not use X, it is removed in v5".
+4. **The brainstorm spec's "Out of scope" section**, when the plan has a `spec_source` -- read the spec and treat each out-of-scope item as a candidate.
+5. **`CLAUDE.md` and `.claude/rules/*.md` invariants** that apply to the files in the File Map.
+
+**Relevance filter.** A candidate becomes a constraint only if a task in this plan could plausibly violate it. "Use HTTPS for all requests" in a plan that touches no network code is noise, and noise in an attention lens is worse than an empty lens -- it dilutes the constraints that matter. Drop every candidate that fails this test before the approval gate; never show it to the user.
+
+**Approval gate.** Present the surviving candidates in a single `AskUserQuestion` call:
+
+- **question:** "Which of these should bind every task in this plan?"
+- **header:** "Constraints"
+- **multiSelect:** true
+- **options:** one per surviving candidate -- `label` carries the constraint text, `description` names its source ("from architecture-strategist", "from CLAUDE.md", "from your request"). Add a free-text option last so the user can supply a constraint the derivation missed.
+
+Only selected candidates are written into the plan. Zero selected is valid -- the plan then carries no Global Constraints section at all, and every downstream consumer behaves exactly as it does for a plan that never had one. If the relevance filter leaves no candidates, skip the gate and proceed to Step 5 with no section.
+
 ## Step 5 -- Design the Plan
 
 Using the synthesized research, draft the plan following this document structure and detail level rules:
 
 | Level | Complexity | Sections |
 |-------|-----------|----------|
-| **Brief** | Light | Goal, Steps, Acceptance Criteria |
+| **Brief** | Light | Goal, Global Constraints, Steps, Acceptance Criteria |
 | **Standard** | Standard | + Context (with agent findings), Risks, File Map |
 | **Comprehensive** | Deep | + Alternatives Considered, Phased Rollout, Rollback Strategy, Architectural Constraints |
+
+**Global Constraints section (from Step 4.5):**
+Write this section only when Step 4.5 produced at least one approved constraint. It is on the Brief row, so all three detail levels carry it.
+- The section sits after the Goal and before Context, and before Steps at Brief level, which has no Context section.
+- It opens with the fixed sentence: "Rules that bind every task in this plan. A change that cannot be made without violating one of these is a blocker, not a judgment call."
+- Each constraint is one imperative sentence in a numbered list.
+- Three to seven constraints is the working range. More than seven means the list has stopped being a set of constraints and become a style guide -- keep only the ones a task in this plan could plausibly violate.
+
+Worked example:
+
+```markdown
+## Global Constraints
+
+Rules that bind every task in this plan. A change that cannot be made without
+violating one of these is a blocker, not a judgment call.
+
+1. No new runtime dependencies -- solve with the standard library or an
+   already-installed package.
+2. Every shell block in a skill file exits 0, including when its target does
+   not exist.
+3. ASCII only -- no Unicode or emoji in skill files or output templates.
+4. No AI attribution in commits, PRs, or file contents.
+```
+
+When Step 4.5 approved no constraints, omit the section entirely -- no heading, no placeholder line.
 
 **File structure mapping (before defining tasks):**
 Map out which files will be created, modified, or deleted. This locks in decomposition decisions before task writing begins.
@@ -278,7 +326,7 @@ review_iteration: 1  # increments for each fix plan targeting the same review
 
 ## Step 6 -- Plan Guard: Inline Validation
 
-After drafting the plan, run these 6 checks before presenting to the user. This is an internal quality gate -- do not show it as a separate section to the user.
+After drafting the plan, run these 7 checks before presenting to the user. This is an internal quality gate -- do not show it as a separate section to the user.
 
 ### Check 1: Placeholder scan
 
@@ -309,9 +357,13 @@ Probe file paths mentioned in the plan:
 
 If the plan has a "File Map" section: every map entry must appear in at least one task, and every task file must appear in the map. (FIX for orphans, ADD for missing entries)
 
+### Check 7: Global Constraint contradiction
+
+If the plan has no `## Global Constraints` section, this check is a no-op -- produce no finding and move on. Otherwise read every task against the constraint list and flag any task whose stated action contradicts a constraint. Rewrite the task so it satisfies the constraint, or drop the constraint when the task it contradicts is the point of the plan. (FIX)
+
 ### Action routing
 
-After running all 6 checks:
+After running all 7 checks:
 - **FIX:** auto-fix by editing the plan content inline.
 - **ADD:** draft and insert missing content (tasks, acceptance criteria, file map entries).
 - **REORDER:** move affected tasks to satisfy dependency ordering.
@@ -449,6 +501,9 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] Multiple agents are dispatched in a single response when complexity is Standard or Deep (parallel execution).
 - [ ] Review-fix detection produces frontmatter with `review_source` and `review_iteration`.
 - [ ] No raw `{placeholder}` strings remain in the saved plan.
+- [ ] A plan whose Step 4.5 gate had at least one candidate selected carries a `## Global Constraints` section holding exactly the selected entries and no others.
+- [ ] A plan whose Step 4.5 gate had zero candidates selected carries no Global Constraints heading and no empty section.
+- [ ] A task that contradicts one of the plan's own Global Constraints is caught by Step 6 Check 7 and resolved as FIX -- the task is rewritten, or the constraint is dropped -- before the plan reaches the user.
 - [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
 - [ ] Agent dispatch and Plan Guard checks execute correctly for Standard/Deep plans.
 - [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
