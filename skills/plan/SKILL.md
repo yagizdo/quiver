@@ -291,6 +291,24 @@ Map out which files will be created, modified, or deleted. This locks in decompo
 - Incorporate best practices into step design
 - Respect architectural boundaries from architecture-strategist
 
+**Interface declarations (per task):**
+`/work` dispatches tasks to parallel subagents in separate worktrees that cannot read each other's output, so a signature two tasks share has to be written in the plan or it does not exist.
+- The field is a `**Provides:**` line placed directly under the task's `**Files:**` line.
+- Each entry is the signature, then ` in `, then the file path it lives in. Both halves are required -- a signature with no path cannot be found, and a path with no signature is the state the field exists to fix.
+- Multiple entries go on separate lines under one `**Provides:**` label.
+- Write the line only when another task in this plan calls, imports, subclasses, or otherwise names by exact identifier what this task creates. A task whose output no other task names carries no line, and no task ever writes a `none` placeholder.
+- Write the signature in the target language's own syntax, exactly as the implementing task will write it. For a plan that changes no code, the unit is whatever another task references by name -- a section heading, a config key, a ledger line grammar, an exit code.
+- Three or fewer entries per task is the working range. A task providing more than three symbols to other tasks is a Check 4 granularity finding, not an interface finding.
+
+Worked example:
+
+```markdown
+### Task 3 -- Add the manifest parser
+
+**Files:** Create `src/manifest.py`, Test `tests/test_manifest.py`
+**Provides:** `parse_manifest(path: str) -> dict` in `src/manifest.py` -- raises `ManifestError` on malformed input
+```
+
 **TDD task structure (when the project has tests):**
 If the code-navigator agent found an existing test framework, structure each task following the TDD cycle:
 1. Write the failing test (show exact test code)
@@ -504,6 +522,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] A plan whose Step 4.5 gate had at least one candidate selected carries a `## Global Constraints` section holding exactly the selected entries and no others.
 - [ ] A plan whose Step 4.5 gate had zero candidates selected carries no Global Constraints heading and no empty section.
 - [ ] A task that contradicts one of the plan's own Global Constraints is caught by Step 6 Check 7 and resolved as FIX -- the task is rewritten, or the constraint is dropped -- before the plan reaches the user.
+- [ ] A plan whose Task A creates a symbol Task B names by exact identifier carries a `**Provides:**` line on Task A, and a plan where no symbol crosses tasks carries no `**Provides:**` line anywhere.
 - [ ] The Step 7 and Step 8 user gates appear as `AskUserQuestion` calls, not plain-text prompts.
 - [ ] Agent dispatch and Plan Guard checks execute correctly for Standard/Deep plans.
 - [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
