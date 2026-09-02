@@ -163,7 +163,7 @@ The dispatch is a file handoff, not a paste. The task's requirements go to disk 
 
 **Part 1 -- the brief.** Before dispatching task N:
 
-1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. When the loaded plan carries a `## Global Constraints` section, reproduce it verbatim under its own `## Global Constraints` heading, placed after the task's file list; when the plan has no such section, or the run is ad-hoc with no plan file, the brief omits the heading entirely -- an empty heading is worse than no heading because it reads as "no constraints were derived" rather than "this run has none". Read the file back to confirm it was written (skill rule L3).
+1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. When the loaded plan carries a `## Global Constraints` section, reproduce it verbatim under its own `## Global Constraints` heading, placed after the task's file list; when the plan has no such section, or the run is ad-hoc with no plan file, the brief omits the heading entirely -- an empty heading is worse than no heading because it reads as "no constraints were derived" rather than "this run has none". When any task in the loaded plan carries a `**Provides:**` line, reproduce the union of every such line from every task in the plan -- including this task's own -- under a `## Interfaces` heading placed after the task's file list and before the `## Global Constraints` heading, each entry prefixed with its owning task number; the copy is unfiltered and does not consult the dependency graph, because two tasks that agree on a signature in advance can be built simultaneously in separate worktrees and merge cleanly, so filtering the block by dependency would withhold the signature from exactly the pair that needs it while still parallel. When no task in the plan carries a `**Provides:**` line, or the run is ad-hoc with no plan file, the brief omits the `## Interfaces` heading entirely -- an empty heading reads as "this task has no collaborators" rather than "this plan declared none". Read the file back to confirm it was written (skill rule L3).
 2. Delete any existing `task-<N>-report.md` for this task number, then confirm it is gone (L3). The report path is fixed per task, so on a resumed or retried run a report from the previous attempt is already there; leaving it would let the orchestrator read a stale report as if the new subagent had written it. The delete is the entire mitigation for that hazard, so an unverified delete reintroduces the defect it exists to close.
 
 **Part 2 -- the dispatch prompt.** The prompt carries no plan prose. Its context section is exactly three items -- the plan preamble, other tasks' text, and summaries of completed tasks are all excluded:
@@ -177,17 +177,19 @@ It lists the files you may create, modify, and test.
 Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 
 ## Instructions
-1. Read all files listed in the brief to understand current state and existing patterns.
-2. Implement the changes described, following the codebase's existing conventions.
-3. Run the project's test suite after implementation.
-4. Self-review your changes: check for missing edge cases, naming consistency, and adherence to acceptance criteria.
-5. Commit each logical unit on your worktree branch, then report every commit on a COMMITS line. If the tree already matched the spec and there was nothing to commit, return no COMMITS line.
+1. Sync your worktree before reading anything else: run `git reset --hard {working branch}`, then confirm with `git log --oneline -3` that the commits from earlier execution groups are present. Your worktree is cut from the default branch, so until you do this every file you are about to read is missing the changes this run has already merged. If `{working branch}` does not resolve, report BLOCKED rather than working from the default branch.
+2. Read all files listed in the brief to understand current state and existing patterns.
+3. Implement the changes described, following the codebase's existing conventions.
+4. Run the project's test suite after implementation.
+5. Self-review your changes: check for missing edge cases, naming consistency, and adherence to acceptance criteria.
+6. Commit each logical unit on your worktree branch, then report every commit on a COMMITS line. If the tree already matched the spec and there was nothing to commit, return no COMMITS line.
 
 ## Constraints
 - Only modify the files listed in the brief. If you discover a needed change in another file, report it as a blocker instead of making the change.
 - Follow existing code patterns (naming, structure, error handling).
 - Do not add AI attribution comments or generated-by markers.
 - The brief's Global Constraints bind every change you make. A change you cannot make without violating one is a BLOCKER, not a judgment call.
+- A signature listed under `## Interfaces` in the brief is fixed. If your implementation needs it to differ, report BLOCKED naming the signature -- do not change it and do not work around it.
 - If you encounter an ambiguity or need a decision from the user, report BLOCKED status with a clear description of what you need.
 ```
 
@@ -196,7 +198,7 @@ Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 ```
 STATUS | DONE | BLOCKED | FAILED
 BRANCH | <branch name>
-BASE | <short sha of the branch point>
+BASE | <short sha of the branch point, after the instruction 1 sync>
 COMMITS | <short sha> <subject>                 (zero or more lines, one per commit)
 TESTS | <one line>
 REASON | <one line, only when STATUS is not DONE>
@@ -217,12 +219,14 @@ For each execution group, in order:
    - `subagent_type="general-purpose"`
    - `isolation="worktree"` (each agent works in its own git worktree)
    - `run_in_background=true`
-   - The filled-in prompt template as the agent's instructions.
+   - The filled-in prompt template as the agent's instructions, with `{working branch}` set to the branch `skills/work/SKILL.md` Phase 2 put this run on.
+
+   `isolation="worktree"` cuts the worktree from the repository's default branch, not from the branch this run is working on. Measured on Claude Code 2.1.233: with the working branch four commits ahead of `master`, a freshly spawned agent's worktree `HEAD` was `master`. Every ref is still readable from inside the worktree because the object store is shared, so the sync in the prompt template's instruction 1 is what puts the agent on the right base. Without it a Group 1 agent reads the pre-run state of every file Group 0 wrote -- it will not fail, it will silently build against stale content and report commits on a base the orchestrator never merges from.
 4. **Record the dispatch:** Append `Group <G>: dispatched (<task numbers>)` to the ledger and read the file back to confirm the line landed. `TaskCreate` remains the live in-session view and the ledger is the durable record; the two are complementary, not redundant, and neither replaces the other.
 5. **Wait for group completion:** Wait for all agents in the current group to finish. Never call `ScheduleWakeup` as a fallback in case a notification is missed -- the harness always notifies on completion, and a fallback wakeup past the 5-minute prompt-cache TTL forces a full-context reprocess for no benefit.
 6. **Process results:** Collect each agent's output and determine status (see Result Collection below).
 7. **Update tracking:** Call `TaskUpdate` for each task with its final status.
-8. **Proceed to next group:** If all tasks in the current group are DONE or if independent tasks in the next group are unblocked, move to the next group.
+8. **Merge, then proceed to next group:** Run Section 3's Per-Branch Merge for this group's branches now, not at the end of the run -- the next group's agents sync onto the working branch and can only see what has landed on it. Then, if all tasks in the current group are DONE or if independent tasks in the next group are unblocked, move to the next group.
 
 ### Result Collection
 
@@ -250,7 +254,11 @@ An agent that returns nothing -- killed on a terminal error, or skipped -- is ne
 
 ### Merge Order
 
-Merge branches in topological order — a task's branch merges only after all of its dependencies have merged. Within the same execution group, merge in plan order (lower task ID first).
+A group's branches merge as soon as that group completes, before the next group dispatches. This is what makes the branch-point sync in Section 2 worth anything: the sync can only deliver what the working branch already carries, so deferring every merge to the end leaves each later group resetting onto a branch that is missing its own dependencies.
+
+Within that, merge in topological order -- a task's branch merges only after all of its dependencies have merged -- and within the same execution group, merge in plan order (lower task ID first).
+
+Merging per group also keeps conflicts small and attributable. Two tasks in consecutive groups that touch the same file conflict against one already-merged commit at a known point in the run, rather than against a pile of parallel branches all resolved at the end, where the conflict names no group and the run has nothing left to roll back to.
 
 ### Per-Branch Merge
 
@@ -269,7 +277,7 @@ Do not attempt automatic conflict resolution. The user must resolve conflicts be
 
 ### Post-Merge Validation
 
-After all branches have merged successfully:
+After the final group's branches have merged successfully -- once per run, not once per group:
 
 1. Run the project's full test suite on the merged result.
 2. If tests pass, report success.
