@@ -27,6 +27,7 @@ Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skill
 - [External Dependencies](#external-dependencies)
 - [CLI Notes](#cli-notes)
 - [Uninstall](#uninstall)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Typical workflow
@@ -387,6 +388,10 @@ On OpenCode, from the clone:
 ```
 
 That removes only the symlinks that resolve into the clone, and reports anything it declined to remove.
+
+## Contributing
+
+Bug fix: open a PR. New skill, agent, or hook, or a behaviour change: open an issue first. Setup, tests, and PR expectations are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
