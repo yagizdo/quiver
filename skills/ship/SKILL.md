@@ -164,8 +164,9 @@ On "Add or change something": ask what to change, update the table, re-present. 
 ## Phase 3: Manifest Write
 
 Write `docs/ship/<project>-manifest.md`. Manifest structure:
-- Metadata block: project name, status, created/updated timestamps, stack, platform, deployment target, constraints
+- Metadata block: project name, status, created/updated timestamps, stack, platform, deployment target, constraints, test_command, build_command
 - The `constraints` field holds Phase 1 Q&A category 3 verbatim -- the library restrictions and stated limits, one per line. `stack` already carries the tech-stack half of that answer; the rest has no other home, and a constraint the manifest does not record is one no tick can honor. Write `constraints: none` when the user answered "none", never an empty field.
+- The `test_command` and `build_command` fields are resolved once, here, by reading `skills/verification/SKILL.md` and following its Command Resolution, with the Phase 1 Q&A category 6 answer as rule 1 when it names a command. Each holds the command string or `none (<reason>)`, never an empty field.
 - Task table with columns: `| ID | Task | parallel_group | Acceptance Criterion | Status | Notes |`
 - Manifest metadata section heading: `# Ship Manifest`
 - Each task row carries the acceptance criterion from Phase 1 Q&A in its Acceptance Criterion field
@@ -278,7 +279,8 @@ The agent owns Steps 2, 4, and 6 -- it explores, implements, builds, tests, and 
 The prompt is fully self-contained and carries:
 
 - the gap ID, description, acceptance criterion, and the `Notes` column verbatim as the authoritative implementation directive,
-- the project root, the stack, the build command and test command resolved from the manifest metadata block, and `codegraph_available`,
+- the project root, the stack, the build command and test command resolved from the manifest metadata block as literals (Test command: <value>, Build command: <value>), and `codegraph_available`,
+- the `### Subagent restatement` from `skills/verification/SKILL.md`, verbatim: Run the test command you were given exactly as written, and report a pass only by quoting this run's exit code and the runner's summary line -- a run that executed zero tests, a command that has not returned, or a result remembered from an earlier run is not a pass. On failure, quote the first failing test name and the first error line.
 - the manifest's `constraints` field verbatim, under its own heading, with the line "These bind every change you make. A change you cannot make without violating one is a blocked gap, not a judgment call." Omit the heading entirely when the field reads `none` -- an empty heading reads as "no constraints were stated" rather than "this project has none",
 - Step 2's tool hierarchy, Step 4's test procedure, Step 6's retry order and 3-attempt cap, and the Waiting on External State rules -- the agent runs the builds, so it is the one that must wait on a condition rather than re-run a build to see whether the build finished,
 - the instruction to follow neighboring code patterns and apply manifest-provided values (keys, IDs, names) from `Notes`,
@@ -308,15 +310,7 @@ If no `DISCOVERED |` token is present, continue to Step 4 normally.
 
 ### Step 4 -- Test
 
-Executed by the Step 3 agent. Detect the test command from the stack:
-- Flutter: `flutter test`
-- Node/npm: `npm test`
-- Python: `pytest`
-- Go: `go test ./...`
-- Rust: `cargo test`
-- Ruby: `bundle exec rspec`
-
-Run the detected command via the Bash tool.
+Executed by the Step 3 agent. Run the manifest's `test_command` exactly as written and report the evidence line per `skills/verification/SKILL.md` Evidence Rule. When `test_command` is `none`, run nothing and treat the acceptance criterion's manual check, if any, as the verification; otherwise the gap's test result is skipped with the recorded reason.
 
 If a platform MCP is available (recorded in `execution.mcps_available`), also run a platform-level check: build verification or UI screenshot. Use the MCP tool for this. Otherwise, the test suite result is sufficient.
 
@@ -332,8 +326,8 @@ Commit with a Conventional Commits message scoped to the gap (e.g., `feat(auth):
 
 Executed by the Step 3 agent. On test failure: read the error output and apply a targeted fix. Then retry in this order:
 
-1. Run the build command first (use the command from the manifest metadata block if present; skip this step if no build command is defined). If build fails: fix the build error, re-run build. Only proceed to step 2 once build passes. When the failure is that something external is not ready yet -- a device still booting, a server not up, a port not answering -- that is a wait, not a fix: follow Waiting on External State and do not spend an attempt re-running the command to find out.
-2. Run the test command from the task's acceptance criterion. Keep the existing 3-attempt cap across both build and test failures.
+1. Run the build command first (use the manifest's `build_command`; skip this step when it is `none`). If build fails: fix the build error, re-run build. Only proceed to step 2 once build passes. When the failure is that something external is not ready yet -- a device still booting, a server not up, a port not answering -- that is a wait, not a fix: follow Waiting on External State and do not spend an attempt re-running the command to find out.
+2. Run the manifest's `test_command`. Keep the existing 3-attempt cap across both build and test failures.
 
 If still failing after 3 attempts total, the agent stops and returns `OUTCOME | blocked` with a one-line `REASON`. It does not edit the manifest -- Step 7 writes `blocked after 3 attempts: <REASON>` into the gap's `Notes`. Step 5 is skipped for this gap.
 
