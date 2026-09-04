@@ -42,3 +42,60 @@ A command from rule 1 or 2 is confirmed before it runs: the script or task is de
 3. Never let a runner wait. `CI=true` on every Node script, `vitest run` in place of a bare `vitest` script, and the consumer's own wait rules for cold builds.
 4. A command is runnable only when the tool is on `PATH` and the script or task is declared. Otherwise it is `none`.
 5. A failure whose first error line names a service, port, or environment variable (a `docker-compose.yml`, `.env.example`, or `DATABASE_URL` in test config is the usual signal) is reported verbatim and flagged as environmental. It is not counted as a code failure and not retried.
+
+## Evidence Rule
+
+- **Pass** is this run's exit code plus the runner's summary line, from a run made after the last edit. When the runner prints no summary, the last output line stands in.
+- **Fail** is the first failing test name plus the first error line. More output belongs in a report file, not in the evidence line.
+- **Skipped** carries its reason: `none` from resolution, a failed confirmation, or a zero-test run. It never counts as a pass; a consumer that requires a pass treats skipped as not passed.
+- **No evidence means not run.** "Should pass", "ran earlier", and "the change is safe" are not outcomes.
+- **A command that has not returned is not a pass.** Waiting for it is the consumer's business.
+
+Consumers quote the outcome in one of these line formats:
+
+```
+pass:    <command> -> exit 0: <summary line>
+fail:    <command> -> exit <code>: <first failing test> -- <first error line>
+skipped: <reason>
+```
+
+## For Skill Authors
+
+- Read this file at the verification step, not at skill start.
+- Resolve once per run in the controller and pass the resolved command into any subagent prompt as a literal (`Test command: npm test`), never as "detect the test command".
+- Require the evidence line format back from a subagent, and paste the `### Subagent restatement` below into its prompt verbatim. It is the only text from this file that is copied anywhere, and `tests/skills/test-verification-contract.sh` compares the copies to it.
+- Do not restate the resolution table. When a stack is missing, add a row here.
+
+### Subagent restatement
+
+Run the test command you were given exactly as written, and report a pass only by quoting this run's exit code and the runner's summary line -- a run that executed zero tests, a command that has not returned, or a result remembered from an earlier run is not a pass. On failure, quote the first failing test name and the first error line.
+
+---
+
+## Test Plan
+
+**Trigger:** Reference skill -- not directly invoked. Read by `/work` Phase 2.5 and 4a, `/ship` Phase 3 and Verification Steps 2-3, `/design-build` 3d, and `/hypothesis-debugging` Step 7.
+
+**Setup:**
+- A Node project whose `package.json` has no `test` script.
+- A Go module with tests.
+
+**Expected behavior:**
+1. The Node project resolves to `test: none (package.json has no test script)`.
+2. The Go module resolves to `test: go test ./...` with `source: stack`.
+3. A project whose `CLAUDE.md` names `make check` resolves to `test: make check` with `source: docs`.
+4. A run whose summary line shows zero tests is reported `skipped`, never `pass`.
+
+**Verification checklist:**
+- [ ] The Node project prints `test: none (package.json has no test script)`; no guess is substituted.
+- [ ] The Go module prints `test: go test ./...` and `source: stack`.
+- [ ] The `make check` project prints `source: docs`, and the stack table is not consulted.
+- [ ] A zero-test run is reported `skipped`, never `pass`.
+- [ ] No consumer contains the string `flutter test`.
+- [ ] The restatement in `skills/work/orchestrator.md` and `skills/ship/SKILL.md` is byte-identical to this file's.
+
+**Known gotchas:**
+- Go, Ruby, and Rust exit 0 when zero tests ran; only the summary line separates `pass` from `skipped`.
+- pytest, and unittest on 3.12+, exit 5 when no tests were collected: nonzero, yet `skipped` rather than `fail`.
+- `No tests ran.` on Flutter exits 1, the same code as a failure; read the line, not the code.
+- vitest watches by default on a TTY when `CI` is unset, so a bare `npm test` never returns; every Node script runs as `CI=true <pm> run test`.
