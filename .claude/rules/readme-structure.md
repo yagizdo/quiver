@@ -9,7 +9,7 @@ Reference: https://github.com/EveryInc/compound-engineering-plugin/tree/main/plu
 3. **Quick Start** — marketplace add + plugin install + first slash example
 4. **Installation** — Plugin Install (recommended) as standalone section
 5. **Components table** — inventory of all component types with counts
-6. **What Do I Use?** — scenario-based grouped tables; internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs
+6. **What Do I Use?** — scenario-based grouped tables; internal reference skills (code-navigation, orchestrate-agents, verification, using-quiver, visual-companion) are excluded from user-facing docs
 7. **Hooks** — table with hook name, event, and description
 8. **Agents** (when added) — grouped by category (e.g. Review, Research, Workflow)
 9. **MCP Servers** (when added) — table with server name and description, plus tool details
@@ -58,9 +58,9 @@ Never use a single flat table for all items. Group by scenario with H3 headings.
 | Changes ready to commit | `/commit` | ... |
 ```
 
-Slash-invocable skills are listed by their `/<name>` invocation. Internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs entirely -- they are never listed in the README.
+Slash-invocable skills are listed by their `/<name>` invocation. Internal reference skills (code-navigation, orchestrate-agents, verification, using-quiver, visual-companion) are excluded from user-facing docs entirely -- they are never listed in the README.
 
-This exclusion list is documentation-scoped and deliberately wider than the runtime `user-invocable: false` field, which is set only on `code-navigation`.
+This exclusion list is documentation-scoped and deliberately wider than the runtime `user-invocable: false` field, which is set on `code-navigation` and `verification`.
 
 ### Hooks Table
 
@@ -95,7 +95,7 @@ Group agents by role. Current categories:
 
 - [ ] Component inventory counts match actual files (`ls -d skills/*/ | wc -l`, agent count from `agents/**/*.md`)
 - [ ] All slash-invocable skills (skills with frontmatter that are not reference-only) are listed under `## What Do I Use?`
-- [ ] Internal reference skills (code-navigation, orchestrate-agents, using-quiver, visual-companion) are excluded from user-facing docs
+- [ ] Internal reference skills (code-navigation, orchestrate-agents, verification, using-quiver, visual-companion) are excluded from user-facing docs
 - [ ] All hooks in `hooks/hooks.json` are listed
 - [ ] Skills/agents are grouped by category, not flat
 - [ ] Descriptions are concise (one line)
