@@ -207,7 +207,9 @@ Present reviewed proposals to user via `AskUserQuestion`:
 If user selects a proposal:
 1. Apply the code changes using Edit tool.
 2. Read back modified files to verify changes.
-3. Suggest verification: "Run tests with [command]" or "Check [specific behavior] manually."
+3. Resolve the test command by reading `skills/verification/SKILL.md` and following its Command Resolution. When it resolves, run it with the Bash tool and report the evidence line -- pass: exit code and the runner's summary line; fail: the first failing test name and the first error line. When it resolves to `none`, print the reason and suggest the manual check: "Check [specific behavior] manually."
+
+Running the resolved test is not a new consent point -- the fix was gated by the `AskUserQuestion` above, and a test run changes no files.
 
 If user selects "None": stop with a summary of the root cause.
 
@@ -241,7 +243,7 @@ If user selects "None": stop with a summary of the root cause.
 4. If hypotheses fail, skill enters adaptive exploration (max 2 rounds) with targeted user questions via AskUserQuestion.
 5. On confirmed root cause, skill generates fix proposals (simplest first) and dispatches fix-reviewer.
 6. After fix review, skill presents approved proposals to user via AskUserQuestion.
-7. On user selection, skill applies the fix and suggests verification steps.
+7. On user selection, skill applies the fix, runs the resolved test command and reports its evidence line, or names the reason when no command resolves.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/debug`.
@@ -252,6 +254,7 @@ If user selects "None": stop with a summary of the root cause.
 - [ ] Environment/config bugs trigger environment-checker dispatch.
 - [ ] Every fix proposal passes through fix-reviewer before user sees it.
 - [ ] No fix applied without user confirmation via AskUserQuestion.
+- [ ] After a fix, the skill prints an evidence line with an exit code, or a none reason -- never a bare "run the tests".
 - [ ] Adaptive exploration bounded to 2 rounds.
 - [ ] All user decision points use AskUserQuestion, not plain text.
 
