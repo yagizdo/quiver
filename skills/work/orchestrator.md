@@ -163,7 +163,7 @@ The dispatch is a file handoff, not a paste. The task's requirements go to disk 
 
 **Part 1 -- the brief.** Before dispatching task N:
 
-1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. When the loaded plan carries a `## Global Constraints` section, reproduce it verbatim under its own `## Global Constraints` heading, placed after the task's file list; when the plan has no such section, or the run is ad-hoc with no plan file, the brief omits the heading entirely -- an empty heading is worse than no heading because it reads as "no constraints were derived" rather than "this run has none". When any task in the loaded plan carries a `**Provides:**` line, reproduce the union of every such line from every task in the plan -- including this task's own -- under a `## Interfaces` heading placed after the task's file list and before the `## Global Constraints` heading, each entry prefixed with its owning task number; the copy is unfiltered and does not consult the dependency graph, because two tasks that agree on a signature in advance can be built simultaneously in separate worktrees and merge cleanly, so filtering the block by dependency would withhold the signature from exactly the pair that needs it while still parallel. When no task in the plan carries a `**Provides:**` line, or the run is ad-hoc with no plan file, the brief omits the `## Interfaces` heading entirely -- an empty heading reads as "this task has no collaborators" rather than "this plan declared none". Read the file back to confirm it was written (skill rule L3).
+1. Write `.claude/work/<plan-basename>/task-<N>-brief.md` with the Write tool, containing the task's own text extracted from the plan -- title, description, acceptance criteria, and file list (Create / Modify / Test, exact paths) -- plus the plan header's architecture context. When the run has no plan file, the brief carries that task's slice of the task description and the file list resolved for it -- the brief is the subagent's only source of requirements either way. After the file list, write the line `Test command: <command | none (<reason>)>`, copying the test value `skills/work/SKILL.md` Phase 2.5 resolved under `#### Resolve the verification command`. The line is always present -- `none` with its reason is a value, and a brief with no such line tells the subagent nothing. When the loaded plan carries a `## Global Constraints` section, reproduce it verbatim under its own `## Global Constraints` heading, placed after the task's file list; when the plan has no such section, or the run is ad-hoc with no plan file, the brief omits the heading entirely -- an empty heading is worse than no heading because it reads as "no constraints were derived" rather than "this run has none". When any task in the loaded plan carries a `**Provides:**` line, reproduce the union of every such line from every task in the plan -- including this task's own -- under a `## Interfaces` heading placed after the task's file list and before the `## Global Constraints` heading, each entry prefixed with its owning task number; the copy is unfiltered and does not consult the dependency graph, because two tasks that agree on a signature in advance can be built simultaneously in separate worktrees and merge cleanly, so filtering the block by dependency would withhold the signature from exactly the pair that needs it while still parallel. When no task in the plan carries a `**Provides:**` line, or the run is ad-hoc with no plan file, the brief omits the `## Interfaces` heading entirely -- an empty heading reads as "this task has no collaborators" rather than "this plan declared none". Read the file back to confirm it was written (skill rule L3). The resolution and evidence rules are in `skills/verification/SKILL.md`; this file copies only the restatement.
 2. Delete any existing `task-<N>-report.md` for this task number, then confirm it is gone (L3). The report path is fixed per task, so on a resumed or retried run a report from the previous attempt is already there; leaving it would let the orchestrator read a stale report as if the new subagent had written it. The delete is the entire mitigation for that hazard, so an unverified delete reintroduces the defect it exists to close.
 
 **Part 2 -- the dispatch prompt.** The prompt carries no plan prose. Its context section is exactly three items -- the plan preamble, other tasks' text, and summaries of completed tasks are all excluded:
@@ -180,7 +180,7 @@ Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 1. Sync your worktree before reading anything else: run `git reset --hard {working branch}`, then confirm with `git log --oneline -3` that the commits from earlier execution groups are present. Your worktree is cut from the default branch, so until you do this every file you are about to read is missing the changes this run has already merged. If `{working branch}` does not resolve, report BLOCKED rather than working from the default branch.
 2. Read all files listed in the brief to understand current state and existing patterns.
 3. Implement the changes described, following the codebase's existing conventions.
-4. Run the project's test suite after implementation.
+4. Run the test command named on the brief's Test command line, exactly as written. When that line reads none, run nothing and report TESTS | skipped: <the reason on that line>.
 5. Self-review your changes: check for missing edge cases, naming consistency, and adherence to acceptance criteria.
 6. Commit each logical unit on your worktree branch, then report every commit on a COMMITS line. If the tree already matched the spec and there was nothing to commit, return no COMMITS line.
 
@@ -191,6 +191,7 @@ Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 - The brief's Global Constraints bind every change you make. A change you cannot make without violating one is a BLOCKER, not a judgment call.
 - A signature listed under `## Interfaces` in the brief is fixed. If your implementation needs it to differ, report BLOCKED naming the signature -- do not change it and do not work around it.
 - If you encounter an ambiguity or need a decision from the user, report BLOCKED status with a clear description of what you need.
+- Run the test command you were given exactly as written, and report a pass only by quoting this run's exit code and the runner's summary line -- a run that executed zero tests, a command that has not returned, or a result remembered from an earlier run is not a pass. On failure, quote the first failing test name and the first error line.
 ```
 
 **Return contract.** The agent's final text is data, not prose. It writes its full account -- what it implemented, what it tested, files changed, self-review findings, concerns -- to the report path, and returns only these lines, in this order:
@@ -200,12 +201,13 @@ STATUS | DONE | BLOCKED | FAILED
 BRANCH | <branch name>
 BASE | <short sha of the branch point, after the instruction 1 sync>
 COMMITS | <short sha> <subject>                 (zero or more lines, one per commit)
-TESTS | <one line>
+TESTS | <command> -> exit <code>: <summary line>
+TESTS | skipped: <reason>                       (the alternate form; exactly one TESTS line is returned)
 REASON | <one line, only when STATUS is not DONE>
 REPORT | <path to task-<N>-report.md>
 ```
 
-`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line. When there is no `COMMITS` line the task changed nothing to commit -- write `commits none` in place of `commits <base7>..<head7>` and merge no branch for that task.
+`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line. When there is no `COMMITS` line the task changed nothing to commit -- write `commits none` in place of `commits <base7>..<head7>` and merge no branch for that task. The summary line on `TESTS` is the runner's own (`47 passed, 0 failed`, `Tests: 12 passed, 12 total`); a `TESTS` line with no exit code or no summary is treated as `skipped: no evidence returned`.
 
 Anything beyond these lines is ignored. The detail belongs in the report file, which the orchestrator reads only when it needs it -- that is what keeps a run's controller context a function of the number of tasks rather than the size of the work each task did.
 
@@ -279,7 +281,7 @@ Do not attempt automatic conflict resolution. The user must resolve conflicts be
 
 After the final group's branches have merged successfully -- once per run, not once per group:
 
-1. Run the project's full test suite on the merged result.
+1. Run the test command Phase 2.5 resolved, on the merged result, and record the evidence line; when it resolved to none, record skipped with the reason and report that the merged result is unverified.
 2. If tests pass, report success.
 3. If tests fail, report the failures with:
    - Which tests failed
@@ -316,8 +318,8 @@ When a group completes, announce it before dispatching the next:
 
 ```
 Group 0 complete. All tasks DONE.
-  Task 1: 47 passed, 0 failed.
-  Task 2: 12 passed, 0 failed.
+  Task 1: npm test -> exit 0: Tests: 47 passed, 47 total
+  Task 2: go test ./... -> exit 0: ok  example.com/m/pkg  0.41s
 Dispatching Group 1 (2 tasks in parallel)...
 ```
 
