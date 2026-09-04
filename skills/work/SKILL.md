@@ -139,7 +139,19 @@ Strategy: {sequential | parallel orchestration} ({N} tasks found)
 Reason: {why}
 ```
 
-- **1-2 tasks:** Sequential. Proceed to Phase 3. The ledger below is orchestration-path-only; the sequential path keeps TodoWrite unchanged and writes nothing to disk.
+#### Resolve the verification command
+
+Read `skills/verification/SKILL.md` and follow its `## Command Resolution` section. This runs for every plan, sequential and orchestrated alike, once per run, before the strategy split below, so both paths carry the value. Print one line under the strategy line:
+
+```
+Verification: test <command | none (<reason>)>, build <command | none (<reason>)> (source: docs | stack | none)
+```
+
+The orchestrator copies the test value into every brief's `Test command:` line. `none` is printed as-is and carried forward -- it is never replaced by a guess.
+
+Then split on the task count:
+
+- **1-2 tasks:** Sequential. Proceed to Phase 3 with the verification command resolved above. The ledger below is orchestration-path-only; the sequential path keeps TodoWrite unchanged and writes nothing to disk.
 - **3+ tasks:** Parallel orchestration. Resolve the workspace and check for a ledger (below), then follow `skills/work/orchestrator.md`. Skip Phase 3 entirely -- orchestration replaces it.
 
 #### Resolve the workspace
@@ -181,11 +193,11 @@ When a suffixed workspace is used:
 
 ### Phase 3: Build
 
-Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, implement, run tests immediately (fix failures before moving on), mark `completed`, update plan checkboxes if present.
+Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, implement, run the resolved test command immediately and quote its evidence line (fix failures before moving on; when it resolved to `none`, say so once and continue), mark `completed`, update plan checkboxes if present.
 
 Every task on this path is subject to the plan's `## Global Constraints` when the plan carries one: a task that cannot be completed without violating a constraint is a blocker, handled by the Blockers rule below.
 
-**Commits:** After each logical unit, commit if tests pass and the change is meaningful (`git add <specific files>` -- never `git add .`). Wait if tests fail or the message would say "WIP". Heuristic: "Can I write a message describing a complete, valuable change?"
+**Commits:** After each logical unit, commit if the evidence line is a pass and the change is meaningful (`git add <specific files>` -- never `git add .`). Wait if tests fail or the message would say "WIP". Heuristic: "Can I write a message describing a complete, valuable change?"
 
 **Blockers:** Stop immediately. Note in TodoWrite. Ask the user. Do not proceed until resolved.
 
@@ -195,13 +207,13 @@ Before shipping, verify the work meets standards.
 
 #### 4a -- Core checks (always run)
 
-1. **Tests pass.** Run the project's test command (check CLAUDE.md or detect from project structure).
+1. **Tests pass.** Run the test command resolved in Phase 2.5 and quote the evidence line from this run -- exit code and the runner's summary line, per the `## Evidence Rule` section of `skills/verification/SKILL.md`. A claim without that line is not a pass. When the command resolved to `none`, this item is a WARNING, not a block: print `Tests: skipped -- <reason>` here and again in the 5d summary.
 2. **Linting passes.** Run the project's lint command if one exists.
 3. **All TodoWrite tasks marked completed.** No tasks left in progress.
 4. **Code follows existing patterns.** No new conventions introduced unless the plan explicitly called for them.
 5. **No uncommitted changes** that belong to this work.
 6. **Plan checkboxes updated** (if applicable).
-7. **Post-merge test suite passes** (when orchestration was used); all worktree branches merged with no unresolved conflicts.
+7. **Post-merge test suite passes** (when orchestration was used), using the same resolved command and quoting its evidence line; all worktree branches merged with no unresolved conflicts.
 
 **These are BLOCKING -- fix all before proceeding to Phase 5.**
 
@@ -347,6 +359,7 @@ Summarize:
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
 6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`. The 5b question offers `Review first -- /review` ahead of the PR button; picking it delegates to `/quiver:review` and then re-asks 5b without that button.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
+8. Phase 2.5 prints a `Verification:` line naming the resolved test and build commands or `none` with a reason, before any code changes.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/work`; plan banner printed before code changes.
@@ -357,6 +370,8 @@ Summarize:
 - [ ] Interrupting a run after Group 0 and re-invoking /work on the same plan re-dispatches no task carrying a complete line, and prints which tasks it skipped.
 - [ ] A ledger whose identity line names a different plan file is left untouched and a suffixed workspace is used instead.
 - [ ] Workspace deletion goes through AskUserQuestion and is verified by a re-list.
+- [ ] Phase 4a item 1 output quotes an exit code and a summary line, never a bare "tests pass"
+- [ ] A project with no resolvable test command reaches Phase 5 with `Tests: skipped -- <reason>` in the summary and no pass claim
 
 **Known gotchas:**
 - Phase 4c parses the synthesized report format from the review skill; the SYNC comment must stay paired with the matching marker in `skills/review/SKILL.md`.
@@ -364,3 +379,4 @@ Summarize:
 - `git add .` is banned; always stage explicit file paths.
 - The orchestration workspace survives a blocked, failed, or cancelled run on purpose -- that is what makes the next invocation resumable.
 - The ledger, not the printed progress table, is the authority after a compaction.
+- The resolution table lives in `skills/verification/SKILL.md`; this file names it and never restates it.
