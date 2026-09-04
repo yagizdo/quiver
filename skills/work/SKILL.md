@@ -279,8 +279,9 @@ If there are uncommitted changes after Phase 4, stage the relevant files (specif
 
 After committing (or if all commits were already made during Phase 3), use `AskUserQuestion`:
 > All work is committed on `{branch_name}`. What would you like to do next?
-Buttons: `["Create a pull request", "Done -- I'll handle the rest"]`
+Buttons: `["Review first -- /review", "Create a pull request", "Done -- I'll handle the rest"]`
 
+- **Review first** -- delegate to `/quiver:review`. When it returns, ask this question again without the review button; the user has seen the findings and decides whether to open the PR or fix first. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
 - **Create a pull request** -- delegate to `/quiver:create-pr`.
 - **Done** -- stop here. Move to 5c.
 
@@ -344,7 +345,7 @@ Summarize:
 3. Phase 0 NO_GIT handling skips branch creation, commits, and PR steps cleanly.
 4. Phase 2.5 announces the strategy (sequential or parallel) and task count before continuing.
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
-6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`.
+6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`. The 5b question offers `Review first -- /review` ahead of the PR button; picking it delegates to `/quiver:review` and then re-asks 5b without that button.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 
 **Verification checklist:**

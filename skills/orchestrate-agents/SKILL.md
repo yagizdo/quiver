@@ -101,8 +101,8 @@ flowchart TD
 ## Constraints
 
 - Subagents are invoked ONLY via the `Agent` tool. Never use Bash or other methods.
-- Subagents CANNOT spawn other subagents. All delegation happens from this orchestrator.
-- Up to 7 subagents may run simultaneously via parallel Agent calls.
+- Subagents CAN spawn subagents, to a default depth of 3 below the main conversation (main -> L1 -> L2 -> L3); at the limit the `Agent` tool is removed from the subagent. Measured on Claude Code 2.1.258: a depth-3 spawn succeeded, a plugin agent resolved from inside a subagent with its `disallowedTools` applied, and `run_in_background: false` is NOT honored inside a subagent -- every nested call is async and its result arrives as a task notification. Nesting was disabled in 2.1.217-2.1.218 and is 3 layers from 2.1.219 (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` overrides). Delegate from this orchestrator by default anyway: a nested spawn is invisible to the user's task list and its cost is not attributed to the task that caused it.
+- At most 20 subagents run concurrently per session, counting every depth; the 21st `Agent` call fails with `Concurrent subagent limit reached` (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` overrides). The cap is per session, not per parent -- 7 parallel children from one subagent all ran.
 - Subagents have NO memory of the orchestrator's conversation. Every piece of context they need must be in the `prompt` parameter.
 
 ---
