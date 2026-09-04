@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. Setup, tests, and PR expectations for contributors are in `CONTRIBUTING.md`; `AGENTS.md` is the short form for other coding agents. Keep the three in agreement.
 
 # Quiver
 
@@ -11,7 +11,7 @@ Dependencies: `bash`, `claude` CLI.
 
 - **`.claude-plugin/`** — Plugin manifest (`plugin.json`) and marketplace listing (`marketplace.json`). Defines name, version, hook/skill/agent registration, and MCP servers.
 - **`skills/`** — 25 skill directories (each contains `SKILL.md`). Each `SKILL.md` carries YAML front-matter (`name`, `description`) and is a self-contained prompt; the `name` field doubles as the slash invocation (`/handover`, `/review`, etc.). **Exception:** `visual-companion` also contains `server.py`, a runtime executable -- this is the only skill with non-prompt code.
-- **`agents/`** — 20 agent definitions organized by category (`review/`, `research/`, `debug/`). Agents are persona prompts spawned as subagents.
+- **`agents/`** — 20 agent definitions organized by category (`review/`, `research/`, `debug/`, `workflow/`). Agents are persona prompts spawned as subagents.
 - **`hooks/`** — `hooks.json` registers event hooks; `scripts/` holds implementations. Three hooks: PreToolUse (matcher `Bash`, classifies a command as deny/ask/silence before it runs), PreCompact (fires before context compaction, saves a handover) and SessionStart (emits the skill routing block from every skill's `when-to-use`).
 - **`install.sh`** — Repo-root install script for the runtimes with no plugin manager. Its install targets are a six-column TSV heredoc inside `targets()`; adding a runtime is one row and no other line. It symlinks into the user's clone (so `git pull` is the update mechanism) and never removes or overwrites a path that is not a symlink resolving into the repo. It must stay at the repo root -- `.gitignore` drops `/scripts/`.
 - **Storage** — Handover files are written to `<project>/.claude/handovers/`. The orchestration workspace -- the ledger, task briefs, and task reports written by `skills/work/orchestrator.md` -- is written to `<project>/.claude/work/<plan-basename>/`.
