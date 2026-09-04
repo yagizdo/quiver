@@ -11,7 +11,7 @@
 # dropped from the block entirely). Neither raises an error, neither is visible in a
 # session, and the only symptom is a skill that stops auto-firing.
 #
-# The reverse direction matters more. R10 exempts four skills, and two of them --
+# The reverse direction matters more. R10 exempts five skills, and two of them --
 # delete-all-handovers and delete-last-handover -- delete user data. The hook tells the
 # model to invoke a matching skill *silently, before any other response*. Giving either
 # of those a `when-to-use:` string wires a destructive skill into that path. The
@@ -33,7 +33,7 @@ SKILLS_DIR="$REPO_ROOT/skills"
 
 # R10's exemptions, restated. Section 1 binds this list to the rule text so a name
 # dropped from the rule cannot stay silently skipped here.
-EXEMPT="code-navigation orchestrate-agents delete-all-handovers delete-last-handover"
+EXEMPT="code-navigation orchestrate-agents verification delete-all-handovers delete-last-handover"
 
 EXIT=0
 pass() { echo "  PASS: $1"; }
