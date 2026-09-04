@@ -291,16 +291,29 @@ Buttons: `["Accept as-is -- note it and move on", "I'll describe the fix", "Try 
 
 **Verification gate.** Read `verify_gate` from the plan frontmatter.
 
-- `build` -- run the project's build command.
-- `test` -- run the project's test command.
+- `build` -- run the build command resolved by reading `skills/verification/SKILL.md` and
+  following its `## Command Resolution`; resolve once, at the first 3d of the run, and
+  reuse the value for every later task.
+- `test` -- run the test command resolved by reading `skills/verification/SKILL.md` and
+  following its `## Command Resolution`; resolve once, at the first 3d of the run, and
+  reuse the value for every later task.
 - `none` (the default) -- no gate; go straight to the commit policy.
+
+When the resolved command is `none`, the gate cannot run. Record this task's gate verdict
+as `failed` with the reason `no <build|test> command resolved (<reason>)`, where `<reason>`
+is the text the resolution wrote in its parentheses, and do not re-enter 3c -- there is no
+failure output to feed it. The commit policy then applies the verdict exactly as it does
+for any failed gate. This is the only branch in which a `failed` verdict is written without
+the gate having run.
 
 **The gate runs at most twice per task.** Run it; on a failure, feed the failure output
 back into 3c as a deviation and re-enter the fix loop under the same 3-attempt budget;
 then run it one final time. That second run is the last for this task whatever it returns.
 
-Record the outcome as this task's **gate verdict**, `cleared` or `failed`. Everything
-downstream reads the verdict; the gate itself never runs a third time.
+Record the outcome as this task's **gate verdict**, `cleared` or `failed`. A `cleared`
+verdict quotes the evidence line per the `## Evidence Rule` in
+`skills/verification/SKILL.md`. Everything downstream reads the verdict; the gate itself
+never runs a third time.
 
 3c's "Accept as-is" returns here with the verdict already `failed`. **Do not re-run the
 gate on that path** -- re-running it re-enters 3c, which returns here, which re-runs it.
@@ -432,7 +445,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 11. After three failed attempts on one task, `AskUserQuestion` appears with the four options. The loop never continues silently.
 11b. In auto mode the same point accepts the remaining deviations, prints the one-line count, and continues to 3d without asking. The 3-attempt budget is not extended.
 12. "Try 3 more attempts" resets the counter; nothing else does.
-13. `verify_gate: build` or `test` runs that command before the commit; a failure blocks the commit and re-enters 3c. The gate runs at most twice per task, and "Accept as-is" after a gate failure moves on instead of re-running it -- a permanently failing gate never loops.
+13. `verify_gate: build` or `test` runs that command before the commit; a failure blocks the commit and re-enters 3c. The gate runs at most twice per task, and "Accept as-is" after a gate failure moves on instead of re-running it -- a permanently failing gate never loops. A gate whose command resolves to `none` records `failed` with the reason and never enters 3c.
 14. `commit_strategy: none` or absent writes no commit and says so exactly once.
 15. `commit_strategy: per-task` produces one commit per task, skipping any task whose gate verdict is `failed`; `single` produces exactly one commit after the last task, and none at all if any task's gate failed. The plan and `screenshot_dir` are never staged.
 15b. "Skip this task" restores the modified files and deletes the created ones when git is available, and leaves them in place with a stated reason under `NO_GIT` or on files an earlier task also wrote.
