@@ -516,44 +516,28 @@ Accumulate classifications in memory (`{gap_id, classification, file}`). Do NOT 
 
 ## Step 2 -- Build Check
 
-Detect build command from stack:
+Read `build_command` from the manifest metadata block. When the field is absent (a manifest written before the field existed), resolve it now by reading `skills/verification/SKILL.md` and following its Command Resolution, and use the value without writing it back -- the read-only contract holds.
 
-| Stack | Build command |
-|-------|---------------|
-| Flutter | `flutter build apk` |
-| Node/npm | `npm run build` |
-| Python | `python -m build` |
-| Go | `go build ./...` |
-| Rust | `cargo build` |
-| Ruby | `bundle exec rake build` |
-
-If no build command detectable: skip, record `build_result: skipped`.
+When `build_command` is `none`: record `build_result: skipped` and the reason.
 
 Run command via Bash tool. Capture output.
 
-- **Pass:** exit code 0 -> `build_result: pass`.
+- **Pass:** exit code 0 -> `build_result: pass`; quote the evidence line per `skills/verification/SKILL.md` Evidence Rule.
 - **Fail:** non-zero exit or error lines -> `build_result: fail`. Store first 3 error lines as `build_error_summary`.
 
 ## Step 3 -- Test Suite
 
-Detect test command from stack (same table as Execution Step 4):
+Read `test_command` from the manifest metadata block. When the field is absent (a manifest written before the field existed), resolve it now by reading `skills/verification/SKILL.md` and following its Command Resolution, and use the value without writing it back -- the read-only contract holds.
 
-| Stack | Test command |
-|-------|-------------|
-| Flutter | `flutter test` |
-| Node/npm | `npm test` |
-| Python | `pytest` |
-| Go | `go test ./...` |
-| Rust | `cargo test` |
-| Ruby | `bundle exec rspec` |
-
-If no test command detectable: skip, record `test_result: skipped`.
+When `test_command` is `none`: record `test_result: skipped` and the reason.
 
 Run command via Bash tool. Parse output for pass/fail/skip counts. Record:
 - `test_result: pass | fail | skipped`
 - `test_pass_count: <N>`
 - `test_fail_count: <N>`
 - `test_skip_count: <N>`
+
+`test_result: pass` requires exit 0 AND a summary line showing at least one test executed; a zero-test run, per `skills/verification/SKILL.md` cross-cutting rule 1, records `test_result: skipped` with the reason, never `pass`.
 
 ## Step 4 -- Critical Category Agents
 
@@ -764,6 +748,7 @@ manifest: docs/ship/<project>-manifest.md
 27. Verification Step 4 dispatches agents only when triggers match. A manifest with no blocking/UI/auth-security completed tasks prints `> No critical categories require agent verification.` and skips agents.
 28. Report generated at `docs/ship/<project>-report-<timestamp>.md`. A second `/ship --verify` run creates a new timestamped report without overwriting the first.
 29. After verification completes, `execution.status: verified` is set. Subsequent bare `/ship` shows the normal Resume / Start fresh / Inspect routing dialog.
+30. Verification Steps 2 and 3 read `build_command` and `test_command` from the manifest metadata block and run them as written; a manifest without the fields resolves them via `skills/verification/SKILL.md` without writing back. A test run whose summary line shows zero tests executed records `test_result: skipped`, never `pass`.
 
 **Verification checklist:**
 - [ ] `/ship` and `/quiver:ship` both appear in the slash command menu after plugin reload.
@@ -806,6 +791,7 @@ manifest: docs/ship/<project>-manifest.md
 - [ ] Re-running verification creates a new timestamped report, not overwriting previous one.
 - [ ] `execution.status: verified` set after Verification Mode Step 6 completes.
 - [ ] `execution.baseline_commit` present in `execution:` block after first execution tick.
+- [ ] Verification Steps 2-3 carry no stack table; both read the manifest fields and name `skills/verification/SKILL.md` for the fallback.
 
 **Known gotchas:**
 - Plugin auto-discovery requires a plugin reload after the skill is first installed. `/ship` will not appear in the slash menu until the plugin reloads.
