@@ -11,6 +11,7 @@ Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skill
 - [Components](#components)
 - [What Do I Use?](#what-do-i-use)
   - [Building Something](#building-something)
+  - [How /work runs a large plan](#how-work-runs-a-large-plan)
   - [Building a Whole Project](#building-a-whole-project)
   - [Implementing a Design](#implementing-a-design)
   - [Reviewing Code](#reviewing-code)
@@ -36,7 +37,7 @@ A normal feature cycle chains these skills. Each one is self-contained and works
 
 1. `/brainstorm`: turn a vague idea into a validated spec by walking through clarifying questions and trade-off analysis on 2-3 design approaches.
 2. `/plan`: research the codebase in parallel, then break the chosen approach into verifiable step-by-step tasks with exact file paths.
-3. `/work`: execute the plan task-by-task with continuous testing, branch setup, and incremental commits.
+3. `/work`: execute the plan with continuous testing, branch setup, and incremental commits. Plans of 3+ tasks run as parallel subagents in separate worktrees.
 4. `/commit`: generate a Conventional Commits message from staged changes and commit (optionally pushing).
 5. `/create-pr`: open a GitHub pull request with an auto-generated title and description from the branch diff.
 6. `/review`: dispatch review agents to check code quality, security, and architecture, then synthesize findings into one report. Runs 5 agents by default; `--deep` for the full pipeline.
@@ -98,8 +99,20 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 |-----------|---------|--------------|
 | I have a vague idea, not sure where to start | `/brainstorm` | Walks through clarifying questions, compares 2-3 approaches, outputs a validated spec |
 | Scope is clear, need a step-by-step breakdown | `/plan` | Researches codebase in parallel, produces a task-by-task plan with file paths |
-| Plan is ready, want hands-off execution | `/work` | Executes tasks one by one with testing, branch setup, and incremental commits |
+| Plan is ready, want hands-off execution | `/work` | 1-2 tasks run sequentially in your session; 3+ tasks run as parallel subagents in separate git worktrees. Progress lives in a ledger on disk that survives compaction, so re-running `/work` on the same plan resumes where it stopped |
 | Want a quick second opinion on an approach | `/advise` | Gives a senior-style inline review -- no spec or plan artifact |
+
+### How /work runs a large plan
+
+A plan with 3+ tasks is split into execution groups by dependency and file overlap. Each group's tasks are dispatched together, one subagent per task, each in its own git worktree so parallel tasks never edit the same checkout. When a group finishes, its branches merge into the working branch before the next group starts, so later tasks build on what earlier ones landed. A merge conflict stops the run and names the files; nothing is resolved automatically.
+
+State lives in `.claude/work/<plan-name>/`:
+
+- `progress.md` is the ledger. Every dispatch, completion, and merge is appended there as it happens, so the run can be read back after compaction or a crash. Re-running `/work` on the same plan skips completed tasks and merges any branch that finished but never landed.
+- `task-<N>-brief.md` carries one task's requirements out of the plan. The subagent reads that file instead of receiving the whole plan in its prompt.
+- `task-<N>-report.md` is where the subagent writes its full account. The orchestrator opens it only when a task is blocked or failed, or when the final test run points at that task; a task that succeeded returns one status line and its report is never loaded into your session.
+
+After the last group merges, the resolved test command runs once on the combined result. A successful run offers to delete the workspace; a blocked, failed, or cancelled run keeps it, because the surviving ledger is what makes the retry cheap.
 
 ### Building a Whole Project
 
