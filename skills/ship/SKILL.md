@@ -291,11 +291,12 @@ The prompt is fully self-contained and carries:
 ```
 OUTCOME | completed | blocked
 FILES | <repo-relative path> | <repo-relative path> | ...
+TESTS | <command> -> exit <code>: <summary line>     (or: TESTS | skipped: <reason>)
 REASON | <one line, only when OUTCOME is blocked>
 DISCOVERED | <description> | <location>        (zero or more lines)
 ```
 
-`FILES` is what Step 5 stages, so a path missing here is a change that never gets committed. `REASON` is what Step 7 writes into `Notes`. Anything beyond these lines is ignored, which is what keeps a tick's cost to a few lines regardless of how much work the gap took.
+`FILES` is what Step 5 stages, so a path missing here is a change that never gets committed. `REASON` is what Step 7 writes into `Notes` on a blocked gap, and `TESTS` is what it appends to `Notes` on a completed one. Anything beyond these lines is ignored, which is what keeps a tick's cost to a few lines regardless of how much work the gap took.
 
 An agent that returns nothing -- killed on a terminal error, or skipped -- is not a blocked gap and not a completed one. Leave the gap at `resolved`, record nothing, and let the next tick retry it cleanly. Only a returned `OUTCOME | blocked` marks a gap blocked.
 
@@ -310,7 +311,7 @@ If no `DISCOVERED |` token is present, continue to Step 4 normally.
 
 ### Step 4 -- Test
 
-Executed by the Step 3 agent. Run the manifest's `test_command` exactly as written and report the evidence line per `skills/verification/SKILL.md` Evidence Rule. When `test_command` is `none`, run nothing and treat the acceptance criterion's manual check, if any, as the verification; otherwise the gap's test result is skipped with the recorded reason.
+Executed by the Step 3 agent. Run the manifest's `test_command` exactly as written and report the evidence line per `skills/verification/SKILL.md` Evidence Rule. When `test_command` is `none`, run nothing and treat the acceptance criterion's manual check, if any, as the verification; otherwise return `TESTS | skipped: <reason>` carrying the reason the resolution recorded.
 
 If a platform MCP is available (recorded in `execution.mcps_available`), also run a platform-level check: build verification or UI screenshot. Use the MCP tool for this. Otherwise, the test suite result is sufficient.
 
@@ -334,7 +335,7 @@ If still failing after 3 attempts total, the agent stops and returns `OUTCOME | 
 ### Step 7 -- Update State
 
 Write the gap's final outcome, from the agent's `OUTCOME` line:
-- `completed`: set the gap row's `Status` to `completed`.
+- `completed`: set the gap row's `Status` to `completed` and append the agent's `TESTS` line to its `Notes`.
 - `blocked`: set the gap row's `Status` to `blocked` and write `blocked after 3 attempts: <REASON>` into its `Notes`.
 - No return at all: leave the row at `resolved` and change nothing. The next tick retries it.
 

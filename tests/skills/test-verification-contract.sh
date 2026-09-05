@@ -35,7 +35,6 @@ ORCH="$REPO_ROOT/skills/work/orchestrator.md"
 SHIP="$REPO_ROOT/skills/ship/SKILL.md"
 DESIGN_BUILD="$REPO_ROOT/skills/design-build/SKILL.md"
 HYPOTHESIS="$REPO_ROOT/skills/hypothesis-debugging/SKILL.md"
-SKILL_RULES="$REPO_ROOT/.claude/rules/skill-rules.md"
 README_RULES="$REPO_ROOT/.claude/rules/readme-structure.md"
 
 pass() { echo "  PASS: $1"; }
@@ -77,7 +76,7 @@ fm() {
 echo ""
 echo "=== 1. Preflight ==="
 MISSING=0
-for f in "$REF" "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS" "$SKILL_RULES" "$README_RULES"; do
+for f in "$REF" "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS" "$README_RULES"; do
   if [ -f "$f" ]; then
     pass "${f#$REPO_ROOT/} exists"
   else
@@ -94,8 +93,9 @@ fi
 
 # --- 2. The reference skill's shape ---
 # What the consumers and the R10 routing hook read from the producer. A reference skill
-# that becomes invocable, gains a when-to-use, or grows a shell block stops being the
-# inert pointer target the consumers assume (Global Constraint 3).
+# that becomes invocable or grows a shell block stops being the inert pointer target the
+# consumers assume (Global Constraint 3). The when-to-use side of that constraint and the
+# R10 exemption are enforced by tests/skills/test-when-to-use-contract.sh.
 echo ""
 echo "=== 2. The reference skill has the shape its consumers read ==="
 
@@ -113,21 +113,7 @@ else
   fail "frontmatter user-invocable: is '$INVOCABLE', expected false -- a reference skill is read by other skills, never invoked"
 fi
 
-WHEN="$(fm "$REF" when-to-use)"
-if [ -z "$WHEN" ]; then
-  pass "frontmatter carries no when-to-use: (stays out of the auto-dispatch block)"
-else
-  fail "frontmatter carries when-to-use: '$WHEN' -- the SessionStart hook would route a reference skill into silent auto-invocation"
-fi
-
 # grep -c prints 0 and exits 1 on no match, so the count is captured, not the status.
-BLOCKS="$(grep -c '^!`' "$REF")"
-if [ "$BLOCKS" = "0" ]; then
-  pass "no line-leading shell block in the producer"
-else
-  fail "$BLOCKS line(s) open a shell block in the producer -- a reference skill runs nothing (Global Constraint 3)"
-fi
-
 INLINE="$(grep -cF -- '!`' "$REF")"
 if [ "$INLINE" = "0" ]; then
   pass "no inline shell block opener anywhere in the producer"
@@ -233,21 +219,11 @@ for f in "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS"; do
 done
 
 # --- 7. Registration ---
-# The reference skill is exempt from R10 by name and excluded from the README by name.
+# The reference skill is excluded from the README by name.
 # The rules file used to say user-invocable: false was set on one skill only; that
 # sentence is false once this skill exists, and its return is the regression caught here.
 echo ""
-echo "=== 7. The reference skill is registered in the rules files ==="
-
-R10_LINE="$(grep -- '^\*\*R10\.' "$SKILL_RULES" | head -1)"
-if [ -z "$R10_LINE" ]; then
-  fail "skill-rules.md has no line starting the R10 rule -- the exemption this test checks has nowhere to live"
-else
-  case "$R10_LINE" in
-    *verification*) pass "R10 exempts verification" ;;
-    *) fail "R10 does not name verification as an exception -- the routing hook test now expects a when-to-use the skill must not carry" ;;
-  esac
-fi
+echo "=== 7. The reference skill is registered in the README rules file ==="
 
 assert_in "$README_RULES" 'verification' "readme-structure.md names verification in the exclusion list"
 assert_not_in "$README_RULES" 'set only on' "readme-structure.md no longer claims user-invocable: false is set on one skill only"

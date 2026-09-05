@@ -207,7 +207,7 @@ REASON | <one line, only when STATUS is not DONE>
 REPORT | <path to task-<N>-report.md>
 ```
 
-`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line. When there is no `COMMITS` line the task changed nothing to commit -- write `commits none` in place of `commits <base7>..<head7>` and merge no branch for that task. The summary line on `TESTS` is the runner's own (`47 passed, 0 failed`, `Tests: 12 passed, 12 total`); a `TESTS` line with no exit code or no summary is treated as `skipped: no evidence returned`.
+`COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line. When there is no `COMMITS` line the task changed nothing to commit -- write `commits none` in place of `commits <base7>..<head7>` and merge no branch for that task. The summary line on `TESTS` is the runner's own (`47 passed, 0 failed`, `Tests: 12 passed, 12 total`); a `TESTS` line that is not in the `skipped:` form and carries no exit code or no summary is treated as `skipped: no evidence returned`.
 
 Anything beyond these lines is ignored. The detail belongs in the report file, which the orchestrator reads only when it needs it -- that is what keeps a run's controller context a function of the number of tasks rather than the size of the work each task did.
 
