@@ -17,7 +17,8 @@ Reference: https://github.com/EveryInc/compound-engineering-plugin/tree/main/plu
 11. **Setup** (optional) — any required config like .gitignore entries
 12. **Known Issues** (optional)
 13. **Uninstall**
-14. **License**
+14. **Contributing** -- one paragraph, links to `CONTRIBUTING.md`
+15. **License**
 
 ## Formatting Rules
 
