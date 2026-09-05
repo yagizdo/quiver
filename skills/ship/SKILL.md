@@ -164,8 +164,9 @@ On "Add or change something": ask what to change, update the table, re-present. 
 ## Phase 3: Manifest Write
 
 Write `docs/ship/<project>-manifest.md`. Manifest structure:
-- Metadata block: project name, status, created/updated timestamps, stack, platform, deployment target, constraints
+- Metadata block: project name, status, created/updated timestamps, stack, platform, deployment target, constraints, test_command, build_command
 - The `constraints` field holds Phase 1 Q&A category 3 verbatim -- the library restrictions and stated limits, one per line. `stack` already carries the tech-stack half of that answer; the rest has no other home, and a constraint the manifest does not record is one no tick can honor. Write `constraints: none` when the user answered "none", never an empty field.
+- The `test_command` and `build_command` fields are resolved once, here, by reading `skills/verification/SKILL.md` and following its Command Resolution, with the Phase 1 Q&A category 6 answer as rule 1 when it names a command. Each holds the command string or `none (<reason>)`, never an empty field.
 - Task table with columns: `| ID | Task | parallel_group | Acceptance Criterion | Status | Notes |`
 - Manifest metadata section heading: `# Ship Manifest`
 - Each task row carries the acceptance criterion from Phase 1 Q&A in its Acceptance Criterion field
@@ -278,7 +279,8 @@ The agent owns Steps 2, 4, and 6 -- it explores, implements, builds, tests, and 
 The prompt is fully self-contained and carries:
 
 - the gap ID, description, acceptance criterion, and the `Notes` column verbatim as the authoritative implementation directive,
-- the project root, the stack, the build command and test command resolved from the manifest metadata block, and `codegraph_available`,
+- the project root, the stack, the build command and test command resolved from the manifest metadata block as literals (Test command: <value>, Build command: <value>), and `codegraph_available`,
+- the `### Subagent restatement` from `skills/verification/SKILL.md`, verbatim: Run the test command you were given exactly as written, and report a pass only by quoting this run's exit code and the runner's summary line -- a run that executed zero tests, a command that has not returned, or a result remembered from an earlier run is not a pass. On failure, quote the first failing test name and the first error line.
 - the manifest's `constraints` field verbatim, under its own heading, with the line "These bind every change you make. A change you cannot make without violating one is a blocked gap, not a judgment call." Omit the heading entirely when the field reads `none` -- an empty heading reads as "no constraints were stated" rather than "this project has none",
 - Step 2's tool hierarchy, Step 4's test procedure, Step 6's retry order and 3-attempt cap, and the Waiting on External State rules -- the agent runs the builds, so it is the one that must wait on a condition rather than re-run a build to see whether the build finished,
 - the instruction to follow neighboring code patterns and apply manifest-provided values (keys, IDs, names) from `Notes`,
@@ -289,11 +291,12 @@ The prompt is fully self-contained and carries:
 ```
 OUTCOME | completed | blocked
 FILES | <repo-relative path> | <repo-relative path> | ...
+TESTS | <command> -> exit <code>: <summary line>     (or: TESTS | skipped: <reason>)
 REASON | <one line, only when OUTCOME is blocked>
 DISCOVERED | <description> | <location>        (zero or more lines)
 ```
 
-`FILES` is what Step 5 stages, so a path missing here is a change that never gets committed. `REASON` is what Step 7 writes into `Notes`. Anything beyond these lines is ignored, which is what keeps a tick's cost to a few lines regardless of how much work the gap took.
+`FILES` is what Step 5 stages, so a path missing here is a change that never gets committed. `REASON` is what Step 7 writes into `Notes` on a blocked gap, and `TESTS` is what it appends to `Notes` on a completed one. Anything beyond these lines is ignored, which is what keeps a tick's cost to a few lines regardless of how much work the gap took.
 
 An agent that returns nothing -- killed on a terminal error, or skipped -- is not a blocked gap and not a completed one. Leave the gap at `resolved`, record nothing, and let the next tick retry it cleanly. Only a returned `OUTCOME | blocked` marks a gap blocked.
 
@@ -308,15 +311,7 @@ If no `DISCOVERED |` token is present, continue to Step 4 normally.
 
 ### Step 4 -- Test
 
-Executed by the Step 3 agent. Detect the test command from the stack:
-- Flutter: `flutter test`
-- Node/npm: `npm test`
-- Python: `pytest`
-- Go: `go test ./...`
-- Rust: `cargo test`
-- Ruby: `bundle exec rspec`
-
-Run the detected command via the Bash tool.
+Executed by the Step 3 agent. Run the manifest's `test_command` exactly as written and report the evidence line per `skills/verification/SKILL.md` Evidence Rule. When `test_command` is `none`, run nothing and treat the acceptance criterion's manual check, if any, as the verification; otherwise return `TESTS | skipped: <reason>` carrying the reason the resolution recorded.
 
 If a platform MCP is available (recorded in `execution.mcps_available`), also run a platform-level check: build verification or UI screenshot. Use the MCP tool for this. Otherwise, the test suite result is sufficient.
 
@@ -332,15 +327,15 @@ Commit with a Conventional Commits message scoped to the gap (e.g., `feat(auth):
 
 Executed by the Step 3 agent. On test failure: read the error output and apply a targeted fix. Then retry in this order:
 
-1. Run the build command first (use the command from the manifest metadata block if present; skip this step if no build command is defined). If build fails: fix the build error, re-run build. Only proceed to step 2 once build passes. When the failure is that something external is not ready yet -- a device still booting, a server not up, a port not answering -- that is a wait, not a fix: follow Waiting on External State and do not spend an attempt re-running the command to find out.
-2. Run the test command from the task's acceptance criterion. Keep the existing 3-attempt cap across both build and test failures.
+1. Run the build command first (use the manifest's `build_command`; skip this step when it is `none`). If build fails: fix the build error, re-run build. Only proceed to step 2 once build passes. When the failure is that something external is not ready yet -- a device still booting, a server not up, a port not answering -- that is a wait, not a fix: follow Waiting on External State and do not spend an attempt re-running the command to find out.
+2. Run the manifest's `test_command`. Keep the existing 3-attempt cap across both build and test failures.
 
 If still failing after 3 attempts total, the agent stops and returns `OUTCOME | blocked` with a one-line `REASON`. It does not edit the manifest -- Step 7 writes `blocked after 3 attempts: <REASON>` into the gap's `Notes`. Step 5 is skipped for this gap.
 
 ### Step 7 -- Update State
 
 Write the gap's final outcome, from the agent's `OUTCOME` line:
-- `completed`: set the gap row's `Status` to `completed`.
+- `completed`: set the gap row's `Status` to `completed` and append the agent's `TESTS` line to its `Notes`.
 - `blocked`: set the gap row's `Status` to `blocked` and write `blocked after 3 attempts: <REASON>` into its `Notes`.
 - No return at all: leave the row at `resolved` and change nothing. The next tick retries it.
 
@@ -522,44 +517,28 @@ Accumulate classifications in memory (`{gap_id, classification, file}`). Do NOT 
 
 ## Step 2 -- Build Check
 
-Detect build command from stack:
+Read `build_command` from the manifest metadata block. When the field is absent (a manifest written before the field existed), resolve it now by reading `skills/verification/SKILL.md` and following its Command Resolution, and use the value without writing it back -- the read-only contract holds.
 
-| Stack | Build command |
-|-------|---------------|
-| Flutter | `flutter build apk` |
-| Node/npm | `npm run build` |
-| Python | `python -m build` |
-| Go | `go build ./...` |
-| Rust | `cargo build` |
-| Ruby | `bundle exec rake build` |
-
-If no build command detectable: skip, record `build_result: skipped`.
+When `build_command` is `none`: record `build_result: skipped` and the reason.
 
 Run command via Bash tool. Capture output.
 
-- **Pass:** exit code 0 -> `build_result: pass`.
+- **Pass:** exit code 0 -> `build_result: pass`; quote the evidence line per `skills/verification/SKILL.md` Evidence Rule.
 - **Fail:** non-zero exit or error lines -> `build_result: fail`. Store first 3 error lines as `build_error_summary`.
 
 ## Step 3 -- Test Suite
 
-Detect test command from stack (same table as Execution Step 4):
+Read `test_command` from the manifest metadata block. When the field is absent (a manifest written before the field existed), resolve it now by reading `skills/verification/SKILL.md` and following its Command Resolution, and use the value without writing it back -- the read-only contract holds.
 
-| Stack | Test command |
-|-------|-------------|
-| Flutter | `flutter test` |
-| Node/npm | `npm test` |
-| Python | `pytest` |
-| Go | `go test ./...` |
-| Rust | `cargo test` |
-| Ruby | `bundle exec rspec` |
-
-If no test command detectable: skip, record `test_result: skipped`.
+When `test_command` is `none`: record `test_result: skipped` and the reason.
 
 Run command via Bash tool. Parse output for pass/fail/skip counts. Record:
 - `test_result: pass | fail | skipped`
 - `test_pass_count: <N>`
 - `test_fail_count: <N>`
 - `test_skip_count: <N>`
+
+`test_result: pass` requires exit 0 AND a summary line showing at least one test executed; a zero-test run, per `skills/verification/SKILL.md` cross-cutting rule 1, records `test_result: skipped` with the reason, never `pass`.
 
 ## Step 4 -- Critical Category Agents
 
@@ -770,6 +749,7 @@ manifest: docs/ship/<project>-manifest.md
 27. Verification Step 4 dispatches agents only when triggers match. A manifest with no blocking/UI/auth-security completed tasks prints `> No critical categories require agent verification.` and skips agents.
 28. Report generated at `docs/ship/<project>-report-<timestamp>.md`. A second `/ship --verify` run creates a new timestamped report without overwriting the first.
 29. After verification completes, `execution.status: verified` is set. Subsequent bare `/ship` shows the normal Resume / Start fresh / Inspect routing dialog.
+30. Verification Steps 2 and 3 read `build_command` and `test_command` from the manifest metadata block and run them as written; a manifest without the fields resolves them via `skills/verification/SKILL.md` without writing back. A test run whose summary line shows zero tests executed records `test_result: skipped`, never `pass`.
 
 **Verification checklist:**
 - [ ] `/ship` and `/quiver:ship` both appear in the slash command menu after plugin reload.
@@ -812,6 +792,7 @@ manifest: docs/ship/<project>-manifest.md
 - [ ] Re-running verification creates a new timestamped report, not overwriting previous one.
 - [ ] `execution.status: verified` set after Verification Mode Step 6 completes.
 - [ ] `execution.baseline_commit` present in `execution:` block after first execution tick.
+- [ ] Verification Steps 2-3 carry no stack table; both read the manifest fields and name `skills/verification/SKILL.md` for the fallback.
 
 **Known gotchas:**
 - Plugin auto-discovery requires a plugin reload after the skill is first installed. `/ship` will not appear in the slash menu until the plugin reloads.
