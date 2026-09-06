@@ -166,6 +166,7 @@ Triggered when: all hypotheses are refuted, or symptoms are too vague for meanin
 
 **Bound:** Maximum 2 exploration rounds. After 2 rounds without a confirmed root cause:
 - Report what was investigated and ruled out.
+- When the refutations share a shape -- the same layer keeps coming back clean, the symptom moves every time a boundary is crossed, every local fix candidate has been eliminated -- name the design assumption behind that shape in one sentence, with the evidence that undercuts it. That is a question for the user about the design, not a hypothesis this skill can test. A bare "this looks architectural" with no named assumption and no evidence is an exit, not a finding -- do not write it.
 - Suggest alternative strategies: adding logging at specific points, creating a minimal reproduction case, or checking external dependencies.
 - Stop.
 
@@ -210,6 +211,7 @@ If user selects a proposal:
 3. Apply the code changes using Edit tool.
 4. Read back modified files to verify changes.
 5. When a command resolved, run it again and report the evidence line -- pass: exit code and the runner's summary line; fail: the first failing test name and the first error line. When it resolved to `none`, the reason was already printed at step 2 -- add only the manual check: "Check [specific behavior] manually."
+6. **A failed run refutes the diagnosis, not the fix.** When step 5 fails, do not write a second patch. The fix was derived from the Step 5a root cause, and a fix that does not clear its own reproducing test is evidence that the root cause was wrong or incomplete. Reverse the code change with the Edit tool and read the file back; leave the reproducing test in place -- it is still red, and that is the sharpest symptom you now have. Record the Step 5a root cause as a refuted hypothesis with the failing output as its evidence, then return to Step 2 once. If the second pass also ends in a failed run, stop there: reverse that change too, and close as the Step 4 bound does -- what was ruled out, both refuted root causes, and the design assumption when the refutations point at one.
 
 Neither the reproducing test nor the test runs are a new consent point -- the fix was gated by the `AskUserQuestion` above, the test file is part of the fix the user chose, and a test run changes no files.
 
@@ -227,6 +229,7 @@ If user selects "None": stop with a summary of the root cause.
 - Don't apply fixes without user approval
 - Don't show internal routing decisions ("Dispatching code-tracer because...") -- implementation detail
 - Don't continue debugging indefinitely -- 2 exploration rounds max before reporting partial findings
+- Don't write a second patch after a failed fix -- the pull is strong because the failing output looks like a smaller problem than the original bug, but a fix that does not clear its own reproducing test has refuted the diagnosis, not missed a detail. Step 7 sends the run back to Step 2 once.
 
 ---
 
@@ -246,6 +249,7 @@ If user selects "None": stop with a summary of the root cause.
 5. On confirmed root cause, skill generates fix proposals (simplest first) and dispatches fix-reviewer.
 6. After fix review, skill presents approved proposals to user via AskUserQuestion.
 7. On user selection, skill writes a reproducing test and prints its `red:` line, applies the fix, runs the resolved test command and reports its evidence line -- or names the reason once when no command resolves.
+8. If the run after the fix fails, skill reverses the code change, records the root cause as refuted, and re-enters Step 2 once; a second failure ends the run with the ruled-out list and, when the refutations point at one, a named design assumption with its evidence.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/debug`.
@@ -259,6 +263,8 @@ If user selects "None": stop with a summary of the root cause.
 - [ ] After a fix, the skill prints an evidence line with an exit code, or a none reason -- never a bare "run the tests".
 - [ ] Before the fix is applied, a `red:` line names the reproducing test; after it, a pass line follows -- or one `skipped:` reason covers both when no command resolves.
 - [ ] Adaptive exploration bounded to 2 rounds.
+- [ ] A failed post-fix run never gets a second patch on top of the first; the first change is reversed and the root cause is re-examined, at most once.
+- [ ] The stop report names a design assumption only together with the evidence that undercuts it, never as a bare label.
 - [ ] All user decision points use AskUserQuestion, not plain text.
 
 **Known gotchas:**
