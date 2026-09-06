@@ -281,6 +281,7 @@ The prompt is fully self-contained and carries:
 - the gap ID, description, acceptance criterion, and the `Notes` column verbatim as the authoritative implementation directive,
 - the project root, the stack, the build command and test command resolved from the manifest metadata block as literals (Test command: <value>, Build command: <value>), and `codegraph_available`,
 - the `### Subagent restatement` from `skills/verification/SKILL.md`, verbatim: Run the test command you were given exactly as written, and report a pass only by quoting this run's exit code and the runner's summary line -- a run that executed zero tests, a command that has not returned, or a result remembered from an earlier run is not a pass. On failure, quote the first failing test name and the first error line.
+- the `### Subagent restatement` from `skills/tdd/SKILL.md`, verbatim: Write the test for the behavior before the implementation and run the test command you were given exactly as written, then report the red step by quoting that run's exit code, the new test's name, and its first error line -- a test that was never seen failing, or a red line naming a test you did not write in this task, is not red evidence; when no test can be written, report skipped with the reason. -- with the order it implies for this step: the test for the gap's acceptance criterion is written and run before the implementation, and that run's red line is returned on the `TDD` line,
 - the manifest's `constraints` field verbatim, under its own heading, with the line "These bind every change you make. A change you cannot make without violating one is a blocked gap, not a judgment call." Omit the heading entirely when the field reads `none` -- an empty heading reads as "no constraints were stated" rather than "this project has none",
 - Step 2's tool hierarchy, Step 4's test procedure, Step 6's retry order and 3-attempt cap, and the Waiting on External State rules -- the agent runs the builds, so it is the one that must wait on a condition rather than re-run a build to see whether the build finished,
 - the instruction to follow neighboring code patterns and apply manifest-provided values (keys, IDs, names) from `Notes`,
@@ -292,11 +293,12 @@ The prompt is fully self-contained and carries:
 OUTCOME | completed | blocked
 FILES | <repo-relative path> | <repo-relative path> | ...
 TESTS | <command> -> exit <code>: <summary line>     (or: TESTS | skipped: <reason>)
+TDD | red: <command> -> exit <code>: <failing test> -- <first error line>     (or: TDD | skipped: <reason>)
 REASON | <one line, only when OUTCOME is blocked>
 DISCOVERED | <description> | <location>        (zero or more lines)
 ```
 
-`FILES` is what Step 5 stages, so a path missing here is a change that never gets committed. `REASON` is what Step 7 writes into `Notes` on a blocked gap, and `TESTS` is what it appends to `Notes` on a completed one. Anything beyond these lines is ignored, which is what keeps a tick's cost to a few lines regardless of how much work the gap took.
+`FILES` is what Step 5 stages, so a path missing here is a change that never gets committed. `REASON` is what Step 7 writes into `Notes` on a blocked gap, and `TESTS` is what it appends to `Notes` on a completed one. Anything beyond these lines is ignored, which is what keeps a tick's cost to a few lines regardless of how much work the gap took. The `TDD` line is appended to `Notes` beside `TESTS` on a completed gap; a return with no `TDD` line is recorded as `TDD | skipped: no red evidence` and changes nothing about the gap's outcome.
 
 An agent that returns nothing -- killed on a terminal error, or skipped -- is not a blocked gap and not a completed one. Leave the gap at `resolved`, record nothing, and let the next tick retry it cleanly. Only a returned `OUTCOME | blocked` marks a gap blocked.
 
@@ -332,10 +334,12 @@ Executed by the Step 3 agent. On test failure: read the error output and apply a
 
 If still failing after 3 attempts total, the agent stops and returns `OUTCOME | blocked` with a one-line `REASON`. It does not edit the manifest -- Step 7 writes `blocked after 3 attempts: <REASON>` into the gap's `Notes`. Step 5 is skipped for this gap.
 
+The red run in Step 3 -- the test command run after the new test is written and before the implementation -- is not one of the three attempts. Attempts count only runs made after the implementation exists, so the cap is unchanged by the test-first order.
+
 ### Step 7 -- Update State
 
 Write the gap's final outcome, from the agent's `OUTCOME` line:
-- `completed`: set the gap row's `Status` to `completed` and append the agent's `TESTS` line to its `Notes`.
+- `completed`: set the gap row's `Status` to `completed` and append the agent's `TESTS` line and its `TDD` line to its `Notes`.
 - `blocked`: set the gap row's `Status` to `blocked` and write `blocked after 3 attempts: <REASON>` into its `Notes`.
 - No return at all: leave the row at `resolved` and change nothing. The next tick retries it.
 
@@ -793,6 +797,7 @@ manifest: docs/ship/<project>-manifest.md
 - [ ] `execution.status: verified` set after Verification Mode Step 6 completes.
 - [ ] `execution.baseline_commit` present in `execution:` block after first execution tick.
 - [ ] Verification Steps 2-3 carry no stack table; both read the manifest fields and name `skills/verification/SKILL.md` for the fallback.
+- [ ] The Step 3 prompt carries the `skills/tdd/SKILL.md` restatement beside the verification one, the return contract carries a `TDD |` line, Step 6 says the red run is not one of the three attempts, and Step 7 appends `TDD` to `Notes`.
 
 **Known gotchas:**
 - Plugin auto-discovery requires a plugin reload after the skill is first installed. `/ship` will not appear in the slash menu until the plugin reloads.
