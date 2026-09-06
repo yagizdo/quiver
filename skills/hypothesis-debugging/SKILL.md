@@ -205,11 +205,13 @@ Present reviewed proposals to user via `AskUserQuestion`:
 - Final button: "None -- keep the diagnosis, skip the fix"
 
 If user selects a proposal:
-1. Apply the code changes using Edit tool.
-2. Read back modified files to verify changes.
-3. Resolve the test command by reading `skills/verification/SKILL.md` and following its Command Resolution. When it resolves, run it with the Bash tool and report the evidence line -- pass: exit code and the runner's summary line; fail: the first failing test name and the first error line. When it resolves to `none`, print the reason and suggest the manual check: "Check [specific behavior] manually."
+1. Resolve the test command by reading `skills/verification/SKILL.md` and following its Command Resolution.
+2. When it resolved, follow the cycle in `skills/tdd/SKILL.md`: write a test that reproduces the root cause from Step 5a in the project's test layout, run the resolved command with the Bash tool, and print its `red:` line -- this run's exit code, the new test's name, and its first error line. When it resolved to `none`, print `skipped: test command none (<reason>)` and write no test.
+3. Apply the code changes using Edit tool.
+4. Read back modified files to verify changes.
+5. When a command resolved, run it again and report the evidence line -- pass: exit code and the runner's summary line; fail: the first failing test name and the first error line. When it resolved to `none`, print the reason and suggest the manual check: "Check [specific behavior] manually."
 
-Running the resolved test is not a new consent point -- the fix was gated by the `AskUserQuestion` above, and a test run changes no files.
+Neither the reproducing test nor the test runs are a new consent point -- the fix was gated by the `AskUserQuestion` above, the test file is part of the fix the user chose, and a test run changes no files.
 
 If user selects "None": stop with a summary of the root cause.
 
@@ -243,7 +245,7 @@ If user selects "None": stop with a summary of the root cause.
 4. If hypotheses fail, skill enters adaptive exploration (max 2 rounds) with targeted user questions via AskUserQuestion.
 5. On confirmed root cause, skill generates fix proposals (simplest first) and dispatches fix-reviewer.
 6. After fix review, skill presents approved proposals to user via AskUserQuestion.
-7. On user selection, skill applies the fix, runs the resolved test command and reports its evidence line, or names the reason when no command resolves.
+7. On user selection, skill writes a reproducing test and prints its `red:` line, applies the fix, runs the resolved test command and reports its evidence line -- or names the reason once when no command resolves.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/debug`.
@@ -255,6 +257,7 @@ If user selects "None": stop with a summary of the root cause.
 - [ ] Every fix proposal passes through fix-reviewer before user sees it.
 - [ ] No fix applied without user confirmation via AskUserQuestion.
 - [ ] After a fix, the skill prints an evidence line with an exit code, or a none reason -- never a bare "run the tests".
+- [ ] Before the fix is applied, a `red:` line names the reproducing test; after it, a pass line follows -- or one `skipped:` reason covers both when no command resolves.
 - [ ] Adaptive exploration bounded to 2 rounds.
 - [ ] All user decision points use AskUserQuestion, not plain text.
 
