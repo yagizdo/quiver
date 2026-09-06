@@ -120,7 +120,7 @@ When multiple skills could apply, use this order:
 
 ## Skill Types
 
-**Rigid** (TDD, hypothesis-debugging): Follow exactly. Don't adapt away discipline.
+**Rigid** (`tdd` -- the reference skill at `skills/tdd/SKILL.md` -- and hypothesis-debugging): Follow exactly. Don't adapt away discipline.
 
 **Flexible** (orchestrate-agents, code-navigation): Adapt principles to context.
 
