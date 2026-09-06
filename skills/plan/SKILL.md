@@ -309,15 +309,10 @@ Worked example:
 **Provides:** `parse_manifest(path: str) -> dict` in `src/manifest.py` -- raises `ManifestError` on malformed input
 ```
 
-**TDD task structure (when the project has tests):**
-If the code-navigator agent found an existing test framework, structure each task following the TDD cycle:
-1. Write the failing test (show exact test code)
-2. Run the test -- confirm it fails with the expected error
-3. Write the minimal implementation to make it pass
-4. Run the test -- confirm it passes
-5. Commit
+**Test-first task ordering (when the project has tests):**
+If the code-navigator agent found an existing test framework, order each task's steps as `skills/tdd/SKILL.md` describes: the test step comes first and names the test file, the test name, the behavior it asserts, and the failure it is expected to produce; the implementation step follows it; each of the two names the run that proves it. `/plan` orders the steps and does not resolve the test command -- `/work` decides at its Phase 2.5 resolution whether the cycle binds and reports `skipped:` with the reason when it does not.
 
-Not every task requires TDD (e.g., config changes, docs, migrations). Apply it to tasks that produce testable behavior.
+Not every task produces testable behavior (config changes, docs, migrations). Order those tasks as they are; the implementer records `skipped: no testable behavior (<what the change is>)` for them. Do not add a per-task label for this -- the reason travels in the implementer's line.
 
 **No placeholders rule:** Every step must have actionable content. Never write: "TBD"/"TODO"/"implement later", "add appropriate handling"/"handle edge cases", "similar to Task N" (repeat details), "write tests" without scenarios, steps without file paths or expected outcomes, references to undefined symbols.
 
@@ -533,6 +528,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - [ ] Step 6.5 agent dispatch follows skip conditions (Light and review-fix plans skip).
 - [ ] Plan Guard Notes subsection appears in the plan's Context section only when NOTE findings exist.
 - [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
+- [ ] In a project with a test framework, every task that produces testable behavior lists its test step before its implementation step, and the plan names `skills/tdd/SKILL.md` for the cycle rather than restating it.
 
 **Known gotchas:**
 - The code-navigator agent (`agents/research/code-navigator.md`) owns the Code Navigation Strategy. When updating the strategy in `skills/code-navigation/SKILL.md`, update the agent file too.
