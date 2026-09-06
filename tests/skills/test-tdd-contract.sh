@@ -1,6 +1,6 @@
 #!/bin/bash
 # test-tdd-contract.sh
-# Guards the TDD contract, which lives in ten files by construction:
+# Guards the TDD contract, which lives in nine files by construction:
 #   producer   skills/tdd/SKILL.md               -- Applicability, The Cycle, the red: and
 #              skipped: evidence forms, and the one line consumers copy out of it: the
 #              ### Subagent restatement
@@ -12,8 +12,8 @@
 #              skills/ship/SKILL.md              -- the Step 3 prompt carries the restatement,
 #                                                   Step 6 keeps the red run out of the attempts
 #              skills/hypothesis-debugging/SKILL.md -- Step 7 writes the test before the fix
-#   registration skills/using-quiver/SKILL.md, .claude/rules/skill-rules.md,
-#              .claude/rules/readme-structure.md, tests/skills/test-when-to-use-contract.sh
+#   registration skills/using-quiver/SKILL.md, .claude/rules/readme-structure.md,
+#              tests/skills/test-when-to-use-contract.sh
 #
 # Three drifts are silent. A restatement copy that drifts stops telling the subagent that a
 # test it never saw fail, or a red line naming a test it did not write, is not red evidence --
@@ -39,7 +39,6 @@ ORCH="$REPO_ROOT/skills/work/orchestrator.md"
 SHIP="$REPO_ROOT/skills/ship/SKILL.md"
 HYPOTHESIS="$REPO_ROOT/skills/hypothesis-debugging/SKILL.md"
 USING="$REPO_ROOT/skills/using-quiver/SKILL.md"
-RULES="$REPO_ROOT/.claude/rules/skill-rules.md"
 README_RULES="$REPO_ROOT/.claude/rules/readme-structure.md"
 WTU="$REPO_ROOT/tests/skills/test-when-to-use-contract.sh"
 
@@ -82,7 +81,7 @@ fm() {
 echo ""
 echo "=== 1. Preflight ==="
 MISSING=0
-for f in "$REF" "$PLAN" "$WORK" "$ORCH" "$SHIP" "$HYPOTHESIS" "$USING" "$RULES" "$README_RULES" "$WTU"; do
+for f in "$REF" "$PLAN" "$WORK" "$ORCH" "$SHIP" "$HYPOTHESIS" "$USING" "$README_RULES" "$WTU"; do
   if [ -f "$f" ]; then
     pass "${f#$REPO_ROOT/} exists"
   else
@@ -98,10 +97,10 @@ if [ "$MISSING" -ne 0 ]; then
 fi
 
 # --- 2. The reference skill's shape ---
-# What the consumers and the R10 routing hook read from the producer. A reference skill that
-# becomes invocable, grows a when-to-use field, or grows a shell block stops being the inert
-# pointer target the consumers assume (Global Constraint 3), and a when-to-use on it wires a
-# skill nobody invokes into silent auto-dispatch.
+# What the consumers read from the producer. A reference skill that becomes invocable or grows
+# a shell block stops being the inert pointer target the consumers assume (Global Constraint 3).
+# The when-to-use side of that constraint is enforced by tests/skills/test-when-to-use-contract.sh,
+# which fails an EXEMPT skill that declares the field.
 echo ""
 echo "=== 2. The reference skill has the shape its consumers read ==="
 
@@ -117,13 +116,6 @@ if [ "$INVOCABLE" = "false" ]; then
   pass "frontmatter user-invocable: is false"
 else
   fail "frontmatter user-invocable: is '$INVOCABLE', expected false -- a reference skill is read by other skills, never invoked"
-fi
-
-WHEN="$(fm "$REF" when-to-use)"
-if [ -z "$WHEN" ]; then
-  pass "frontmatter carries no when-to-use field"
-else
-  fail "frontmatter carries a when-to-use field ('$WHEN') -- R10 exempts this skill and the SessionStart hook would route to it (Global Constraint 3)"
 fi
 
 # grep -c prints 0 and exits 1 on no match, so the count is captured, not the status.
@@ -158,9 +150,15 @@ assert_in "$REF" 'no red evidence' "the producer names the 'no red evidence' ski
 echo ""
 echo "=== 3. Every consumer names the producer ==="
 
-for f in "$PLAN" "$WORK" "$ORCH" "$SHIP" "$HYPOTHESIS" "$USING"; do
+for f in "$ORCH" "$SHIP" "$HYPOTHESIS" "$USING"; do
   assert_in "$f" 'skills/tdd/SKILL\.md' "${f#$REPO_ROOT/} names skills/tdd/SKILL.md"
 done
+
+# /plan and /work each name the producer a second time, in a Test Plan checklist and a gotchas
+# bullet, so a whole-file grep stays green after the build-step pointer itself is deleted. Both
+# are pinned to the sentence that has to carry it instead.
+assert_in "$PLAN" 'order each task.s steps as `skills/tdd/SKILL\.md` describes' "plan orders task steps test-first by naming the producer"
+assert_in "$WORK" 'then follow the cycle in `skills/tdd/SKILL\.md`'             "work Phase 3 names the producer at its build step"
 
 # --- 4. The restatement copies ---
 # The one line copied out of the producer (Global Constraint 1). It sits two lines below its
@@ -202,6 +200,8 @@ done
 # beside it. A contract carrying only the red form makes a subagent with nothing to report
 # invent one. The orchestrator names the default for a missing line; /ship states the red run
 # is outside its attempt cap (Global Constraint 2); /work's 5d summary tallies the outcomes.
+# The /ship assertion is anchored to the Step 6 sentence itself: its Test Plan checklist
+# restates the phrase, so a whole-file grep would pass on the restatement alone.
 echo ""
 echo "=== 5. Both return contracts carry the TDD line ==="
 
@@ -212,7 +212,7 @@ for f in "$ORCH" "$SHIP"; do
 done
 
 assert_in "$ORCH" 'no red evidence' "orchestrator reads a missing TDD line as 'no red evidence'"
-assert_in "$SHIP" 'not one of the three attempts' "ship keeps the red run out of its three-attempt cap"
+assert_in "$SHIP" '^The red run in Step 3 .* is not one of the three attempts\.' "ship keeps the red run out of its three-attempt cap"
 assert_in "$WORK" 'TDD: <n> red-verified' "work 5d summary carries the test-first tally"
 
 # --- 6. Re-growth tripwires ---
@@ -227,17 +227,12 @@ assert_not_in "$PLAN" 'Write the failing test (show exact test code)' "no re-gro
 assert_not_in "$USING" '(TDD, hypothesis-debugging)' "using-quiver names the skill file, not a bare TDD label"
 
 # --- 7. Registration ---
-# The skill is exempt from R10 by name in the rule text, exempt in the routing test's own
-# exemption list, and excluded from the README by name. A skill missing from any one of the
-# three is either routed silently or documented as user-facing.
+# The skill is named in the routing test's own exemption list and excluded from the README by
+# name. A skill missing from either is routed silently or documented as user-facing. R10's own
+# text is bound to that exemption list by tests/skills/test-when-to-use-contract.sh, which fails
+# when the rule stops naming an exempt skill, so only the list membership is asserted here.
 echo ""
 echo "=== 7. The reference skill is registered as exempt ==="
-
-if grep -q 'tdd' <<<"$(grep '^\*\*R10\.' "$RULES")"; then
-  pass "R10 in skill-rules.md names tdd among the internal reference skills"
-else
-  fail "R10 in skill-rules.md does not name tdd -- the exemption the skill relies on is undocumented"
-fi
 
 assert_in "$README_RULES" 'verification, tdd, using-quiver' "readme-structure.md names tdd in the exclusion list"
 

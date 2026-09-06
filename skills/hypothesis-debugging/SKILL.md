@@ -209,7 +209,7 @@ If user selects a proposal:
 2. When it resolved, follow the cycle in `skills/tdd/SKILL.md`: write a test that reproduces the root cause from Step 5a in the project's test layout, run the resolved command with the Bash tool, and print its `red:` line -- this run's exit code, the new test's name, and its first error line. When it resolved to `none`, print `skipped: test command none (<reason>)` and write no test.
 3. Apply the code changes using Edit tool.
 4. Read back modified files to verify changes.
-5. When a command resolved, run it again and report the evidence line -- pass: exit code and the runner's summary line; fail: the first failing test name and the first error line. When it resolved to `none`, print the reason and suggest the manual check: "Check [specific behavior] manually."
+5. When a command resolved, run it again and report the evidence line -- pass: exit code and the runner's summary line; fail: the first failing test name and the first error line. When it resolved to `none`, the reason was already printed at step 2 -- add only the manual check: "Check [specific behavior] manually."
 
 Neither the reproducing test nor the test runs are a new consent point -- the fix was gated by the `AskUserQuestion` above, the test file is part of the fix the user chose, and a test run changes no files.
 
