@@ -59,6 +59,7 @@ docs/
 
 # Git worktrees
 .worktrees/
+.claude/worktrees/
 
 # Local scripts (release helpers, etc.)
 # The leading slash is load-bearing -- see the packaging case in tests/hooks/test-destructive-guard.sh.
