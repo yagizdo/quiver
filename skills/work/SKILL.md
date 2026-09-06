@@ -193,7 +193,7 @@ When a suffixed workspace is used:
 
 ### Phase 3: Build
 
-Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, implement, run the resolved test command immediately and quote its evidence line (fix failures before moving on; when it resolved to `none`, say so once and continue), mark `completed`, update plan checkboxes if present.
+Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, then follow the cycle in `skills/tdd/SKILL.md`: write the test the task's test step names, run the resolved test command, and print its `red:` line (this run's exit code, the new test's name, its first error line); implement; run the resolved command again and print its pass line (fix failures before moving on). When the command resolved to `none`, print `skipped: test command none (<reason>)` once for the run and skip the red step on every task; when a task produces no testable behavior, print `skipped: no testable behavior (<what the change is>)` for that task. Then mark `completed` and update plan checkboxes if present.
 
 Every task on this path is subject to the plan's `## Global Constraints` when the plan carries one: a task that cannot be completed without violating a constraint is a blocker, handled by the Blockers rule below.
 
@@ -321,6 +321,7 @@ Summarize:
 - What was completed
 - Link to the PR (if one was created)
 - Any follow-up work needed or remaining tasks
+- The test-first tally, one line: `TDD: <n> red-verified, <m> skipped (<distinct reasons>)`. The sequential path counts the lines Phase 3 printed; the orchestration path counts the `TDD` lines the group-completion announcements printed. Include this line whenever the run implemented anything.
 
 ---
 
@@ -360,6 +361,7 @@ Summarize:
 6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`. The 5b question offers `Review first -- /review` ahead of the PR button; picking it delegates to `/quiver:review` and then re-asks 5b without that button.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 8. Phase 2.5 prints a `Verification:` line naming the resolved test and build commands or `none` with a reason, before any code changes.
+9. Phase 3 prints a `red:` line naming the new test before each task's implementation edit, then a pass line; a `none` resolution prints one `skipped:` line for the run and no `red:` line.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/work`; plan banner printed before code changes.
@@ -372,6 +374,7 @@ Summarize:
 - [ ] Workspace deletion goes through AskUserQuestion and is verified by a re-list.
 - [ ] Phase 4a item 1 output quotes an exit code and a summary line, never a bare "tests pass"
 - [ ] A project with no resolvable test command reaches Phase 5 with `Tests: skipped -- <reason>` in the summary and no pass claim
+- [ ] The 5d summary carries one `TDD:` line with a red-verified count and a skipped count.
 
 **Known gotchas:**
 - Phase 4c parses the synthesized report format from the review skill; the SYNC comment must stay paired with the matching marker in `skills/review/SKILL.md`.
@@ -380,3 +383,4 @@ Summarize:
 - The orchestration workspace survives a blocked, failed, or cancelled run on purpose -- that is what makes the next invocation resumable.
 - The ledger, not the printed progress table, is the authority after a compaction.
 - The resolution table lives in `skills/verification/SKILL.md`; this file names it and never restates it.
+- The cycle and the `red:` evidence form live in `skills/tdd/SKILL.md`; this file names it and never restates it.
