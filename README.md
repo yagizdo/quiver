@@ -45,7 +45,7 @@ A normal feature cycle chains these skills. Each one is self-contained and works
 
 ## Installation
 
-Claude Code and the Codex CLI have their own plugin managers. Cursor reads Claude Code's directory. OpenCode has none, so Quiver installs there from a clone. Once it is installed, `/brainstorm` works in any session; per-CLI differences are in [CLI Notes](#cli-notes).
+Claude Code and the Codex CLI have their own plugin managers. Cursor reads Claude Code's directory, or a clone of its own. OpenCode has none, so Quiver installs there from a clone. Once it is installed, `/brainstorm` works in any session; per-CLI differences are in [CLI Notes](#cli-notes).
 
 ### Claude Code
 
@@ -65,13 +65,13 @@ codex plugin add quiver@quiver
 
 Cursor reads Claude Code's plugin directory, so a Claude Code install already covers it. Run `Developer: Reload Window` and the skills are there.
 
-Without one, import the repo from Cursor's Plugins panel:
+Without one, clone into the directory Cursor loads plugins from:
 
-```text
-https://github.com/yagizdo/quiver.git
+```bash
+git clone https://github.com/yagizdo/quiver.git ~/.cursor/plugins/local/quiver
 ```
 
-Importing on top of a Claude Code install leaves two copies on separate update schedules, so do not do both.
+Run `Developer: Reload Window`. `git -C ~/.cursor/plugins/local/quiver pull` updates it, and one more reload picks the update up. Cloning on top of a Claude Code install leaves two copies on separate update schedules, so do not do both.
 
 ### OpenCode
 
@@ -319,7 +319,9 @@ Every CLI runs the same skills and the same agents, and `/review` fans out to 5 
 
 - Cursor discovers skills by scanning a fixed set of roots: `~/.cursor/skills/`, `~/.cursor/skills-cursor/`, `~/.cursor/cloud-skills/`, `~/.cursor/plugins/`, `~/.claude/skills/`, `~/.claude/plugins/`, `~/.codex/skills/`, `~/.agents/skills/`. A Claude Code install lands in `~/.claude/plugins/`, so Cursor picks it up. A Codex install lands in `~/.codex/plugins/`, which is not on that list.
 - Two installs give you two copies on separate update schedules, and nothing warns you when you are reading the old one. Keep the Claude Code install and let Cursor read it.
-- `install.sh` has no Cursor target, because a symlink under `~/.cursor/plugins/local/` is not picked up. On Cursor 3.17.21, disabling the Claude Code install made Quiver disappear from Cursor while that symlink was still in place, and `cursor.plugins.installedIds` stayed empty the whole time. Use Cursor's own plugin import.
+- `~/.cursor/plugins/local/<name>/` has to be a real directory. Cursor scans that directory on startup and rejects an entry that is a symlink pointing outside it, which is why the Cursor install is a clone in place and why `install.sh`, which links into your clone, has no Cursor target. Measured on Cursor 3.17.21: a clone at that path logs `loadUserLocalPlugin quiver loaded`, and a symlink to a clone elsewhere logs `loadUserLocalPlugin quiver rejected: symlink target ... is outside ...` with 0 plugins loaded.
+- The Plugins panel imports the repo by git URL as well. That route indexes the repo through Cursor's servers and pins the install to what came back, so updates are Cursor's to schedule rather than a `git pull`. The clone needs neither the panel nor a sign-in.
+- If the clone fails with `fatal: Unable to read current working directory: Operation not permitted`, the shell is sitting in a directory macOS will not let git read, and the target path has nothing to do with it. Run it from `cd ~` and it goes through. The parent directories need no `mkdir`; git creates them.
 - The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
 - `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
 - If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
@@ -348,6 +350,12 @@ On the Codex CLI:
 
 ```text
 codex plugin remove quiver@quiver
+```
+
+On Cursor, when it was cloned rather than read from a Claude Code install:
+
+```bash
+rm -rf ~/.cursor/plugins/local/quiver
 ```
 
 On OpenCode, from the clone:
