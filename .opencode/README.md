@@ -59,7 +59,7 @@ Two ways to invoke them:
 
 **Plain language.** Describe what you want: "debug this login bug", "brainstorm a todo app", "review my changes". The bootstrap dispatches the matching skill the same way.
 
-The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 18 user-facing Quiver skills.
+The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 19 user-facing Quiver skills.
 
 #### Available skills
 
@@ -72,6 +72,7 @@ The full skill list lives in the `skill` tool. Run `use skill tool to list skill
 | `ship` | Take a project from description to a working, verified app |
 | `design` | Turn a Figma selection into a pixel-exact implementation plan |
 | `design-build` | Build a design plan, gating each task on the project's build or tests |
+| `design-fix` | Compare a built screen against its Figma design and fix the deviations you pick |
 | `review` | Dispatch review agents |
 | `senior-review` | Standalone senior developer review |
 | `report-check` | Audit a review report for noise and false positives |
