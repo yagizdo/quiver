@@ -88,7 +88,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 | Component | Count |
 |-----------|-------|
 | Hooks | 3 |
-| Skills | 24 |
+| Skills | 25 |
 | Agents | 20 |
 
 ## What Do I Use?
@@ -127,6 +127,7 @@ After the last group merges, the resolved test command runs once on the combined
 | A Figma frame is ready to become code | `/design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
 | Want the frame built without babysitting it | `/design --auto` | Same extraction and same questions, then straight through the build with no further prompt |
 | Design plan is ready, want it built pixel-accurate | `/design-build` | Implements each node against its embedded spec, gating every task on the project's build or tests under a bounded retry budget |
+| Built screen does not match the design | `/design-fix` | Compares one node's box, layout, typography, fill, stroke, radius, effects, and content against the code that renders it, reports every deviation, and fixes the ones you pick |
 
 ```
 /design                    # extract whatever is selected in Figma
@@ -152,7 +153,7 @@ After the last group merges, the resolved test command runs once on the combined
 `/design` is the only stage that talks to Figma.
 
 - The plan carries every measurement, token, and layout anchor `/design` produced, so `/design-build` runs with Figma disconnected.
-- The plan keeps its per-node measurement specs and its reference screenshots. Nothing in Quiver measures the built UI against them, so `/design-build` reports fidelity as `skipped -- no verifier` and the numbers stay there for whatever does the measuring.
+- The plan keeps its per-node measurement specs and its reference screenshots. Nothing in Quiver measures the built UI against them, so `/design-build` reports fidelity as `skipped -- no verifier` and the numbers stay there for whatever does the measuring. `/design-fix` compares the code against the design rather than the rendered pixels, so it needs no screenshot and no running app.
 - Setup is in [External Dependencies](#external-dependencies).
 
 ### Reviewing Code
