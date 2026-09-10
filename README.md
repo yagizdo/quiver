@@ -292,9 +292,9 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
-### figma-bridge (optional, for `/design`)
+### figma-bridge (optional, for `/design` and `/design-fix`)
 
-`/design` reads Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway.
+`/design` and `/design-fix` read Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway.
 
 Add the server to your MCP config:
 
@@ -309,7 +309,7 @@ Add the server to your MCP config:
 
 The Figma plugin side is a manual import from the bridge's [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), and its README carries the current steps. Leave the plugin running inside the file you are reading -- it holds the WebSocket, and closing it drops the connection mid-extraction.
 
-`/design` only calls the bridge's read tools. `/design-build` never calls it at all. Every other Quiver skill works without it.
+`/design` and `/design-fix` only call the bridge's read tools, and `/design-fix` also runs with the bridge absent when you point it at an existing `/design` plan. `/design-build` never calls it at all. Every other Quiver skill works without it.
 
 ## CLI Notes
 

@@ -144,7 +144,7 @@ The canonical Quiver workflow chains these skills in order. Skip steps, reorder 
 
 If you hit a bug at any point, run `/hypothesis-debugging`.
 
-When the work starts from a Figma design rather than a written idea, `/design` replaces steps 1-2 and `/design-build` replaces step 3: `/design` extracts the selected nodes into a measurement plan, and `/design-build` implements it, gating each task on the project's build or tests. Nothing measures the built UI against the plan's numbers, so `/design-build` reports fidelity as skipped. Rejoin the chain at `/commit`.
+When the work starts from a Figma design rather than a written idea, `/design` replaces steps 1-2 and `/design-build` replaces step 3: `/design` extracts the selected nodes into a measurement plan, and `/design-build` implements it, gating each task on the project's build or tests. `/design-build` measures nothing itself and reports fidelity as skipped; `/design-fix` is what closes that gap, comparing one built component's code against its Figma node -- or against the plan's Node Specs when the bridge is not connected -- and fixing the deviations you pick. Rejoin the chain at `/commit`.
 
 ---
 

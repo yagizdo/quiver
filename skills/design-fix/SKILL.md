@@ -22,14 +22,18 @@ finding, never a reason to edit the design.
 
 ## Step 0 -- Arguments
 
-Read `$ARGUMENTS` and split it into three things. Any of them may be absent.
+Read `$ARGUMENTS` and split it into four things. Any of them may be absent.
 
 1. **A Figma node ID** -- `4029:12345`, or the instance-child form
    `I12740:17806;12740:17793`. Figma share URLs write IDs with a hyphen
    (`4029-12345`); the bridge rejects hyphens, so normalize every hyphen
    between two digit runs into a colon before calling any tool.
-2. **A code target** -- a path, a file name, or a component or class name.
-3. **Extra checks** -- anything else the user wrote in plain words
+2. **A plan path** -- a `.md` path under a `plans/` directory, or any `.md`
+   path whose file carries a `### Node Specs` block. A plan path is the design
+   side, never a code target; read the file before deciding which of the two a
+   path is.
+3. **A code target** -- a path, a file name, or a component or class name.
+4. **Extra checks** -- anything else the user wrote in plain words
    ("also check the icon size", "the shadow looks too strong"). Add these to
    the field list in Step 3 for this run only.
 
@@ -40,7 +44,13 @@ Step 1 falls through to whatever is selected on the Figma canvas.
 
 Resolve the design in this order and stop at the first that answers.
 
-**1. A node ID in the arguments, or nothing selected yet.** Both need the
+**1. A plan path in the arguments.** Read the `### Node Specs` block of the
+plan and use the recorded values. Say which plan was used and when it was
+written -- a plan is a snapshot, and a design that moved since is a deviation
+this run cannot see. The bridge is not needed on this path; do not load its
+schemas.
+
+**2. A node ID in the arguments, or no plan path given.** Both need the
 bridge. Load the read-side schemas:
 
 `ToolSearch` with query
@@ -50,18 +60,11 @@ If `ToolSearch` returns no figma-bridge tools, the MCP server is not
 configured. Print exactly:
 
 ```
-> figma-bridge MCP is not available. Two pieces are needed:
->
->   1. MCP server -- add to your MCP config:
->        command: npx
->        args: ["-y", "@gethopp/figma-mcp-bridge"]
->
->   2. Figma plugin -- download from
->      https://github.com/gethopp/figma-mcp-bridge/releases
->      then in Figma: Plugins > Development > Import plugin from manifest
->
-> Run the plugin inside the Figma file you want to read, then retry /design-fix.
-> You can also point this skill at an existing plan:
+> figma-bridge MCP is not available. Setup is two pieces -- the MCP server and
+> a Figma plugin imported by hand -- and the steps are in the README's
+> External Dependencies section. Leave the plugin running inside the Figma file
+> you want to read, then retry /design-fix.
+> You can also point this skill at an existing plan, which needs no bridge:
 >   /design-fix .claude/plans/<slug>-design-plan.md
 ```
 
@@ -74,11 +77,6 @@ with one button per `fileName`, and carry the chosen `fileKey` into every call,
 because the bridge requires it once more than one file is connected.
 
 Then resolve the node: the ID from the arguments, otherwise `get_selection`.
-
-**2. A plan path in the arguments, or no bridge and a plan on disk.** Read the
-`### Node Specs` block of the plan and use the recorded values. Say which plan
-was used and when it was written -- a plan is a snapshot, and a design that
-moved since is a deviation this run cannot see.
 
 **3. Nothing resolves.** Print:
 
@@ -278,10 +276,12 @@ summary line -- that is the case worth a test run, and it is the user's call.
    design side from `get_selection` and prints the node name and ID.
 2. `/design-fix 4029-12345` normalizes the hyphen to a colon before any bridge
    call and resolves that node.
-3. With no figma-bridge tools available, the skill prints the install block,
-   names the plan path alternative, and stops -- no comparison is attempted.
+3. With no figma-bridge tools available and no plan path given, the skill
+   points at the README's setup section, names the plan path alternative, and
+   stops -- no comparison is attempted.
 4. `/design-fix .claude/plans/<slug>-design-plan.md` runs with the bridge
-   absent, reads the Node Specs block, and says when the plan was written.
+   absent, loads no bridge schema, reads the Node Specs block, and says when
+   the plan was written.
 5. With several nodes selected, the skill asks which one and compares exactly
    one.
 6. When no implementation of the node is found, the skill prints the
@@ -328,7 +328,7 @@ summary line -- that is the case worth a test run, and it is the user's call.
   hand-sync with the `### Node Specs` list in `skills/design/SKILL.md`, so
   there is no contract test binding the two and no drift to catch. Adding a
   field here does not require touching `/design`.
-- A plan read in Step 1 path 2 is a snapshot. When the Figma file moved after
+- A plan read in Step 1 path 1 is a snapshot. When the Figma file moved after
   the plan was written, this skill compares against the old design and cannot
   tell. Re-run `/design` when the report disagrees with what you see in Figma.
 - Figma reports a `fill` axis with a concrete measured number, which is why the
