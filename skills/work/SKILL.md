@@ -185,13 +185,13 @@ For a ledger naming a different plan file, or a completion line whose title no l
 #### Announce
 
 When tasks are skipped:
-> Resuming from ledger: skipping Task 1, Task 2 (already complete).
+> Resuming the previous run: skipping Task 1, Task 2 (already complete).
 
 When the ledger is stale:
 > Plan changed since the last run -- starting fresh.
 
 When a suffixed workspace is used:
-> A ledger for a different plan already uses that name -- using .claude/work/<name>-2/.
+> Another plan's run already uses that folder name -- using .claude/work/<name>-2/ instead.
 
 ### Phase 3: Build
 

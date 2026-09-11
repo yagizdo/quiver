@@ -65,12 +65,13 @@ Review the full conversation and list every meaningful action taken during **thi
 
 ### Step 2 — Decision Log
 
-Output the following before choosing a branch:
+Output the following before choosing a branch. The branch labels are internal
+routing and never reach the user (R7) -- name the outcome in words instead.
 
-> **Decision Log — Session Freshness**
+> **Session check — is there work worth handing over?**
 > Meaningful actions found:
 > - {list each meaningful action, or "None"}
-> Verdict: {Branch A or Branch B}
+> Outcome: {writing a handover | nothing to hand over, skipping}
 
 ### Branch A — No Meaningful Work (skip handover)
 
