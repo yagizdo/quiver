@@ -252,7 +252,7 @@ Built-in agents always available:
   - general-purpose (default model: inherit) -- Full read/write capability
 ```
 
-If no custom agents are found in any directory, inform the user and suggest creating agent definitions using `/quiver:create-agent`. Built-in agents are always available regardless.
+If no custom agents are found in any directory, inform the user and suggest writing agent definitions under `.claude/agents/`. Built-in agents are always available regardless.
 
 ---
 
@@ -626,7 +626,7 @@ For sequential pipeline steps, also include:
 
 | Scenario | Action |
 |----------|--------|
-| Agent type not found | Report which agent was missing. List available agents. Suggest `/quiver:create-agent` or a built-in fallback. |
+| Agent type not found | Report which agent was missing. List available agents. Suggest a built-in fallback. |
 | Agent fails or times out | Retry once with the same parameters. If it fails again, log the error and continue with remaining steps. |
 | Agent returns empty/useless result | Do NOT retry the same prompt. Rephrase with more specific instructions, narrower scope, or a different agent type. |
 | Parallel agents produce conflicting edits | Detect file conflicts before reporting. If two agents edited the same file, use a final `quiver:code-navigator` agent to check consistency. |
