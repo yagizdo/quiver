@@ -17,7 +17,7 @@ The cycle binds to a change when both hold:
 
 When either fails, the outcome is `skipped: <reason>`, and the reason names which one: `test command none (<verification's reason>)` or `no testable behavior (<what the change is>)`. A skipped cycle is a recorded fact, not an error, and it never blocks the consumer.
 
-The user's own project instructions win. A project whose `CLAUDE.md` says not to use TDD settles it, as `skills/using-quiver/SKILL.md` says.
+The user's own project instructions win. A project whose `CLAUDE.md` says not to use TDD settles it.
 
 ## The Cycle
 

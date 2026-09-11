@@ -4,6 +4,8 @@ Complete guide for using [Quiver](https://github.com/yagizdo/quiver) with [OpenC
 
 This directory is the OpenCode-specific overlay for Quiver. The plugin entry point is `.opencode/plugins/quiver.js`. Skills, agents, and commands are discoverable through OpenCode's native mechanisms.
 
+`.opencode/bootstrap.md` is an overlay adapter under OR3 in `.claude/rules/cli-overlay-rules.md`: it restates for OpenCode what Claude Code's own harness supplies (instruction priority, the check-for-a-skill rule, the tool mapping, the workflow chain), so it lives in this CLI's home rather than in the canonical `skills/` tree.
+
 ## Installation
 
 Clone Quiver and run the install script:
@@ -55,11 +57,11 @@ OpenCode 1.16.2+ does not list Quiver skills in its `/` autocomplete menu. The T
 
 Two ways to invoke them:
 
-**Slash prefix.** Type `/brainstorm <idea>`, `/hypothesis-debugging <bug>`, or any other `/skill-name` directly and submit. The `using-quiver` bootstrap teaches the model to match the prefix against each skill's `when-to-use:` frontmatter and load the skill via the `skill` tool. No autocomplete, but the skill runs.
+**Slash prefix.** Type `/brainstorm <idea>`, `/hypothesis-debugging <bug>`, or any other `/skill-name` directly and submit. The bootstrap teaches the model to match the prefix against each skill's `when-to-use:` frontmatter and load the skill via the `skill` tool. No autocomplete, but the skill runs.
 
 **Plain language.** Describe what you want: "debug this login bug", "brainstorm a todo app", "review my changes". The bootstrap dispatches the matching skill the same way.
 
-The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 19 user-facing Quiver skills.
+The full skill list lives in the `skill` tool. Run `use skill tool to list skills` to see all 17 user-facing Quiver skills.
 
 #### Available skills
 
@@ -81,9 +83,7 @@ The full skill list lives in the `skill` tool. Run `use skill tool to list skill
 | `create-pr` | Open a GitHub pull request |
 | `handover` | Save session context; `--clear` removes the most recent handover, `--clear-all` resets session history |
 | `load-handover` | Resume from the latest handover |
-| `create-agent` | Scaffold a new agent |
 | `create-agents-md` | Generate an AGENTS.md |
-| `repair-skill` | Fix a broken skill |
 
 ### Agents
 
@@ -140,7 +140,7 @@ The Quiver OpenCode plugin does five things:
 
 2. **Registers the context7 MCP server** via the same `config` hook, so documentation lookups work with no `mcp` entry in your own config. A context7 entry you declare yourself wins.
 
-3. **Injects the `using-quiver` bootstrap** via the `experimental.chat.messages.transform` hook. On every new session, the first user message has the `using-quiver` meta-skill prepended, wrapped in `<EXTREMELY_IMPORTANT>` tags. This establishes the "check for relevant skill before any response" rule, so OpenCode agents invoke Quiver skills automatically.
+3. **Injects `.opencode/bootstrap.md`** via the `experimental.chat.messages.transform` hook. On every new session, the first user message has the bootstrap prepended, wrapped in `<EXTREMELY_IMPORTANT>` tags. This establishes the "check for a relevant skill before any response" rule, so OpenCode agents invoke Quiver skills automatically. The file is read verbatim -- it is not a skill and carries no frontmatter.
 
 4. **Preserves Quiver-specific context across compactions** via the `experimental.session.compacting` hook. When OpenCode compacts a session, the Quiver handover context (branch, task, in-progress files, decisions) is included in the compaction prompt.
 

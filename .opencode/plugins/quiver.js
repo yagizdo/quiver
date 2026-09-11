@@ -1,7 +1,7 @@
 /**
  * Quiver plugin for OpenCode.ai
  *
- * Injects Quiver bootstrap context via message transform.
+ * Injects Quiver bootstrap context (.opencode/bootstrap.md) via message transform.
  * Registers the skills directory and the context7 MCP server via the config hook,
  * so a user needs no opencode.json entry of their own.
  *
@@ -16,20 +16,13 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const quiverSkillsDir = path.resolve(__dirname, '../../skills');
-const usingQuiverPath = path.join(quiverSkillsDir, 'using-quiver', 'SKILL.md');
+const bootstrapPath = path.join(__dirname, '..', 'bootstrap.md');
 
 // Module-level cache for bootstrap content.
-// The SKILL.md file does not change during a session, so reading + parsing it
-// once eliminates redundant fs.existsSync + fs.readFileSync + regex work on
-// every agent step.
+// bootstrap.md does not change during a session, so reading it once eliminates
+// redundant fs.existsSync + fs.readFileSync work on every agent step.
+// The file carries no frontmatter, so there is nothing to strip.
 let _bootstrapCache = undefined; // undefined = not yet loaded, null = file missing
-
-// Strip YAML frontmatter and return the body. The plugin only needs the body
-// to inject into the bootstrap -- it does not parse the frontmatter itself.
-const stripFrontmatter = (content) => {
-  const match = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
-  return match ? match[1] : content;
-};
 
 export const QuiverPlugin = async ({ client }) => {
   // Helper to generate bootstrap content (cached after first call)
@@ -37,19 +30,18 @@ export const QuiverPlugin = async ({ client }) => {
     // Return cached result on subsequent calls
     if (_bootstrapCache !== undefined) return _bootstrapCache;
 
-    // Try to load using-quiver skill
-    if (!fs.existsSync(usingQuiverPath)) {
+    // Try to load the OpenCode bootstrap
+    if (!fs.existsSync(bootstrapPath)) {
       _bootstrapCache = null;
       return null;
     }
 
-    const fullContent = fs.readFileSync(usingQuiverPath, 'utf8');
-    const content = stripFrontmatter(fullContent);
+    const content = fs.readFileSync(bootstrapPath, 'utf8');
 
     _bootstrapCache = `<EXTREMELY_IMPORTANT>
 You have Quiver.
 
-**IMPORTANT: The using-quiver skill content is included below. It is ALREADY LOADED - you are currently following it. Do NOT use the skill tool to load "using-quiver" again - that would be redundant.**
+**IMPORTANT: The Quiver OpenCode bootstrap is included below. It is ALREADY LOADED - you are currently following it. Do NOT use the skill tool to load it again - it is not a skill.**
 
 ${content}
 </EXTREMELY_IMPORTANT>`;

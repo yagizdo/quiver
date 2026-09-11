@@ -349,7 +349,7 @@ For each identified library:
 
 ## Test Plan
 
-**Trigger:** `/repair-skill <skill-name>` or `/repair-skill <problem description>` or `/repair-skill` (interactive); `/quiver:repair-skill` should also work.
+**Trigger:** `/repair-skill <skill-name>` or `/repair-skill <problem description>` or `/repair-skill` (interactive). This is a project-local skill under `.claude/skills/`, so it is invocable only when the working directory is the Quiver repo; there is no `/quiver:repair-skill` plugin form.
 
 **Setup:**
 - Project root with at least one skill directory under `skills/<name>/SKILL.md` or `.claude/skills/<name>/SKILL.md`.
