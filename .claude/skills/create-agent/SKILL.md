@@ -356,7 +356,7 @@ Before finalizing any generated agent, verify:
 
 ## Test Plan
 
-**Trigger:** `/create-agent <description>` or `/create-agent` for guided setup; `/quiver:create-agent` should also work.
+**Trigger:** `/create-agent <description>` or `/create-agent` for guided setup. This is a project-local skill under `.claude/skills/`, so it is invocable only when the working directory is the Quiver repo; there is no `/quiver:create-agent` plugin form.
 
 **Setup:**
 - Working directory is a project root with optional `agents/` directory and `.claude-plugin/plugin.json` (Quiver plugin) or any project layout (general project).

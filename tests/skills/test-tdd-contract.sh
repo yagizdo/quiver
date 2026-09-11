@@ -1,6 +1,6 @@
 #!/bin/bash
 # test-tdd-contract.sh
-# Guards the TDD contract, which lives in nine files by construction:
+# Guards the TDD contract, which lives in eight files by construction:
 #   producer   skills/tdd/SKILL.md               -- Applicability, The Cycle, the red: and
 #              skipped: evidence forms, and the one line consumers copy out of it: the
 #              ### Subagent restatement
@@ -12,7 +12,7 @@
 #              skills/ship/SKILL.md              -- the Step 3 prompt carries the restatement,
 #                                                   Step 6 keeps the red run out of the attempts
 #              skills/hypothesis-debugging/SKILL.md -- Step 7 writes the test before the fix
-#   registration skills/using-quiver/SKILL.md, .claude/rules/readme-structure.md,
+#   registration .claude/rules/readme-structure.md,
 #              tests/skills/test-when-to-use-contract.sh
 #
 # Three drifts are silent. A restatement copy that drifts stops telling the subagent that a
@@ -38,7 +38,6 @@ WORK="$REPO_ROOT/skills/work/SKILL.md"
 ORCH="$REPO_ROOT/skills/work/orchestrator.md"
 SHIP="$REPO_ROOT/skills/ship/SKILL.md"
 HYPOTHESIS="$REPO_ROOT/skills/hypothesis-debugging/SKILL.md"
-USING="$REPO_ROOT/skills/using-quiver/SKILL.md"
 README_RULES="$REPO_ROOT/.claude/rules/readme-structure.md"
 WTU="$REPO_ROOT/tests/skills/test-when-to-use-contract.sh"
 
@@ -81,7 +80,7 @@ fm() {
 echo ""
 echo "=== 1. Preflight ==="
 MISSING=0
-for f in "$REF" "$PLAN" "$WORK" "$ORCH" "$SHIP" "$HYPOTHESIS" "$USING" "$README_RULES" "$WTU"; do
+for f in "$REF" "$PLAN" "$WORK" "$ORCH" "$SHIP" "$HYPOTHESIS" "$README_RULES" "$WTU"; do
   if [ -f "$f" ]; then
     pass "${f#$REPO_ROOT/} exists"
   else
@@ -150,7 +149,7 @@ assert_in "$REF" 'no red evidence' "the producer names the 'no red evidence' ski
 echo ""
 echo "=== 3. Every consumer names the producer ==="
 
-for f in "$ORCH" "$SHIP" "$HYPOTHESIS" "$USING"; do
+for f in "$ORCH" "$SHIP" "$HYPOTHESIS"; do
   assert_in "$f" 'skills/tdd/SKILL\.md' "${f#$REPO_ROOT/} names skills/tdd/SKILL.md"
 done
 
@@ -216,15 +215,15 @@ assert_in "$SHIP" '^The red run in Step 3 .* is not one of the three attempts\.'
 assert_in "$WORK" 'TDD: <n> red-verified' "work 5d summary carries the test-first tally"
 
 # --- 6. Re-growth tripwires ---
-# The two texts the wiring replaced. /plan used to spell the cycle out as a five-step list
-# whose first step demanded the exact test code in the plan; using-quiver used to name TDD as
-# a rigid workflow with no file behind it. Either one returning is a copy of the producer that
-# drifts from it silently (Global Constraint 1).
+# The text the wiring replaced. /plan used to spell the cycle out as a five-step list whose
+# first step demanded the exact test code in the plan. Its return is a copy of the producer
+# that drifts from it silently (Global Constraint 1). A second tripwire here used to pin a
+# bare TDD label in the OpenCode meta-skill; that skill is now .opencode/bootstrap.md, which
+# names no skill file at all and so has nothing to drift.
 echo ""
-echo "=== 6. Neither replaced text has grown back ==="
+echo "=== 6. The replaced text has not grown back ==="
 
 assert_not_in "$PLAN" 'Write the failing test (show exact test code)' "no re-grown five-step TDD list in /plan"
-assert_not_in "$USING" '(TDD, hypothesis-debugging)' "using-quiver names the skill file, not a bare TDD label"
 
 # --- 7. Registration ---
 # The skill is named in the routing test's own exemption list and excluded from the README by
@@ -234,7 +233,7 @@ assert_not_in "$USING" '(TDD, hypothesis-debugging)' "using-quiver names the ski
 echo ""
 echo "=== 7. The reference skill is registered as exempt ==="
 
-assert_in "$README_RULES" 'verification, tdd, using-quiver' "readme-structure.md names tdd in the exclusion list"
+assert_in "$README_RULES" 'verification, tdd, visual-companion' "readme-structure.md names tdd in the exclusion list"
 
 # Whole-word match inside the quoted list, so a future exemption entry that merely contains
 # the three letters does not satisfy this. The alternation is what makes position irrelevant:

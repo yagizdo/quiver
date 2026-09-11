@@ -34,7 +34,7 @@ Skill behaviour has no automated tests; the contract tests only check that a ski
 ## Code
 
 - Skills are prompts, not scripts. The shell blocks gather data; the prose tells the model what to do with it. What a shell block may and may not contain is listed under "Adding a Skill" in `CLAUDE.md`, and the hard rules are in `.claude/rules/skill-rules.md`.
-- Agents are persona prompts under `agents/<category>/`. Run `/quiver:create-agent` to scaffold one. It fills in the capability profile that `tests/agents/test-capability-profile-contract.sh` checks.
+- Agents are persona prompts under `agents/<category>/`. Run `/create-agent` to scaffold one -- a project-local skill under `.claude/skills/`, available when your working directory is this repo. It fills in the capability profile that `tests/agents/test-capability-profile-contract.sh` checks.
 - A new skill or agent also needs a row in the README. `.claude/rules/readme-structure.md` says where it goes and which skills are deliberately left out.
 - Hooks are bash scripts under `hooks/scripts/`, registered in `hooks/hooks.json`.
 - ASCII only, unless the file already contains Unicode.

@@ -88,7 +88,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 | Component | Count |
 |-----------|-------|
 | Hooks | 3 |
-| Skills | 25 |
+| Skills | 22 |
 | Agents | 20 |
 
 ## What Do I Use?
@@ -201,8 +201,6 @@ Re-review detection: if you run `/review` again on the same branch after fixing 
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| A skill is broken or outdated | `/repair-skill` | Diagnoses the skill's structure and fixes API references |
-| Need a new agent for the project | `/create-agent` | Scaffolds a new agent interactively from a description |
 | Want an AGENTS.md for the project | `/create-agents-md` | Analyzes project context and generates an operational checklist |
 
 ## Hooks
