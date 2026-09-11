@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Take a project from description to working app in one run -- conduct a deep planning Q&A session (outcomes, scope, constraints, prior decisions, task breakdown, verification criteria), write the answers as a plan at .claude/plans/<date>-<project>-ship-plan.md in the format /plan produces, hand that plan to /work --auto for a build that stops only for a genuine blocker, then verify the result with the build command, the test suite, a /review pass with one fix round, and a smoke launch when the plan carries a run command. /ship --execute and /ship --verify re-enter a run that was paused or deferred."
+description: "Take a project from description to working app in one run -- conduct a deep planning Q&A session (outcomes, scope, constraints, prior decisions, task breakdown, verification criteria), write the answers as a plan at .claude/plans/<date>-<project>-ship-plan.md in the format /plan produces, hand that plan to /work --auto for a build that stops only for a genuine blocker, then verify the result with the build command, the test suite, and a smoke launch when the plan carries a run command, and name the /review command to run before merging. /ship --execute and /ship --verify re-enter a run that was paused or deferred."
 argument-hint: "[<project-path>] [--seed <brainstorm-spec.md>] [--resume] [--execute] [--verify]"
 when-to-use: "user wants to build a project from scratch or description -- '/ship', 'build this app', 'I described my project, now build it', 'start from description and ship', 'autonomous build', 'I want to walk away and come back to a finished app', 'verify my build' (not: gap-analysis on existing partial code; not: executing a plan you already have -- use '/work' for that; '/ship --execute' hands a saved ship plan to /work, '/ship --verify' checks a finished build)"
 ---
@@ -31,9 +31,9 @@ when-to-use: "user wants to build a project from scratch or description -- '/shi
 
 # Instructions
 
-You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a prompt asking them to run the next command. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
+You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a mid-run prompt. The one command the report leaves to them is `/review`, which ship cannot invoke. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
 
-Ship runs no task and dispatches no subagent. `/work` executes the plan and `skills/work/orchestrator.md` is the only orchestrator. The questions are front-loaded: Phase 1 asks everything the build could otherwise stop to ask, and `/work` runs in its auto mode, which answers the routine gates -- branch, final commit, PR handoff, workspace, third failed fix attempt -- from the approval already given. A blocker, an unaddressed Critical finding, a merge conflict -- anything whose answer changes what gets built or deletes something -- still stops and asks. Ship never decides those on the user's behalf, and never grants a fix attempt past `/work`'s cap.
+Ship runs no task and dispatches no subagent. `/work` executes the plan and `skills/work/orchestrator.md` is the only orchestrator. The questions are front-loaded: Phase 1 asks everything the build could otherwise stop to ask, and `/work` runs in its auto mode, which answers the routine gates -- branch, final commit, PR handoff, workspace, third failed fix attempt -- from the approval already given. A blocker or a merge conflict -- anything whose answer changes what gets built or deletes something -- still stops and asks. Ship never decides those on the user's behalf, and never grants a fix attempt past `/work`'s cap.
 
 ## Step 0 -- Git Availability
 
@@ -69,12 +69,12 @@ Read `$ARGUMENTS` as plain text:
 
 ### Locating the ship plan
 
-Used here and by both re-entry modes. Use the Glob tool: `.claude/plans/*-ship-plan.md`.
+Used here and by both re-entry modes. Use the Glob tool: `.claude/plans/*-ship-plan*.md` -- the pattern also matches the `-2`, `-3` suffixes Phase 3 adds when a day's path is taken.
 
 A ship plan's state is read from disk, never remembered:
 
-- **in progress** -- its work ledger exists at `.claude/work/<plan-basename>/progress.md`, where `<plan-basename>` is the plan filename without `.md`. `/work` writes the ledger for plans of 3+ tasks and leaves it in place after an interrupted run.
-- **finished** -- the plan's frontmatter reads `status: completed`; `/work` Phase 5c sets it when its run completes.
+- **finished** -- the plan's frontmatter reads `status: completed`; `/work` Phase 5c sets it when its run completes. Check this first: it wins over the ledger below.
+- **in progress** -- not finished, and its work ledger exists at `.claude/work/<plan-basename>/progress.md`, where `<plan-basename>` is the plan filename without `.md`. `/work` writes the ledger for plans of 3+ tasks and, in auto mode, keeps it after a finished run as well as after an interrupted one -- the ledger alone does not separate the two, the `status` field does.
 - **not started** -- neither of the above.
 
 **Zero plans (first run):** proceed to Phase 0.
@@ -85,7 +85,7 @@ A ship plan's state is read from disk, never remembered:
 Buttons: `["Resume -- hand the plan to /work", "Start fresh -- run a new Q&A", "Inspect -- show me the plan"]`
 
 - **Resume:** for a not-started or in-progress plan, enter `# Execution` with this plan path. For a finished plan there is nothing left to build -- enter `# Verification` instead.
-- **Start fresh:** proceed to Phase 0. The existing plan stays on disk; Phase 3 writes a new one at today's path. A second run on the same day lands on the same path and overwrites it -- the Phase 2 approval is the consent for that write.
+- **Start fresh:** proceed to Phase 0. The existing plan stays on disk and is never overwritten; Phase 3 writes the new one at today's path, suffixed when that path is taken.
 - **Inspect:** print the full plan contents. Then use `AskUserQuestion`:
   > What would you like to do next?
   Buttons: `["Resume", "Start fresh", "Cancel"]`
@@ -146,19 +146,19 @@ Present a build plan table:
 `Blocked by` carries the dependencies from Q&A category 5. `/work` builds its execution groups from these and from file overlap (`skills/work/orchestrator.md` Section 1): tasks with no unmet dependency run in parallel, the rest wait.
 
 Use AskUserQuestion:
-> Does this plan cover everything you need? Approving starts the build -- I write the plan, hand it to /work, then verify the result. Nothing stops to ask again unless a task blocks, a review finding is Critical, or a merge conflicts.
+> Does this plan cover everything you need? Approving starts the build -- I write the plan, hand it to /work, then verify the result. Nothing stops to ask again unless a task blocks or a merge conflicts.
 
 Options: "Approve -- build it", "Approve the plan only -- do not build yet", "Add or change something", "Start over"
 
 On "Add or change something": ask what to change, update the table, re-present. On "Start over": return to Phase 0.
 
-**"Approve -- build it" is the run's single consent point (R6).** It authorizes the plan write, the handoff to `/work --auto`, every per-task commit, the verification pass, and the one review fix round. Proceed to Phase 3 and do not stop between phases. It does not authorize a push or a pull request -- those are never automatic -- and it does not stand in for a blocker: `/work` still asks when a task cannot proceed, a Critical finding is unaddressed, or a merge conflicts.
+**"Approve -- build it" is the run's single consent point (R6).** It authorizes the plan write, the handoff to `/work --auto`, every per-task commit, and the verification pass. Proceed to Phase 3 and do not stop between phases. It does not authorize a push, a pull request, or a review -- none of those is automatic -- and it does not stand in for a blocker: `/work` still asks when a task cannot proceed or a merge conflicts.
 
 **"Approve the plan only"** writes the plan and stops there, for a user who wants to read or edit it first. Print the plan path and the `/ship --execute` command, then terminate.
 
 ## Phase 3: Plan Write
 
-Get the date via the Bash tool (`date '+%Y-%m-%d'`) and write `.claude/plans/<date>-<project>-ship-plan.md`, creating `.claude/plans/` if it does not exist. The file is a plan in the format `skills/plan/SKILL.md` Step 5 defines -- read that section before writing, and do not improvise a format of your own. `/work` reads this file exactly as it reads a `/plan` output; the format has one home, and this skill does not restate it.
+Get the date via the Bash tool (`date '+%Y-%m-%d'`) and write `.claude/plans/<date>-<project>-ship-plan.md`, creating `.claude/plans/` if it does not exist. When that path already exists, write `<date>-<project>-ship-plan-2.md`, then `-3`, and so on -- the first free name. An existing plan is never overwritten: its basename keys its `/work` ledger at `.claude/work/<plan-basename>/`, and a rewrite under the same name would resume that ledger's `complete` lines against tasks it never built. The file is a plan in the format `skills/plan/SKILL.md` Step 5 defines -- read that section before writing, and do not improvise a format of your own. `/work` reads this file exactly as it reads a `/plan` output; the format has one home, and this skill does not restate it.
 
 What the Q&A answers become:
 
@@ -168,11 +168,11 @@ What the Q&A answers become:
 - **Tasks:** one per row of the approved Phase 2 table, in the task format Step 5 defines, each with its `**Files:**` line, its `**Provides:**` line where another task names what it creates, and its acceptance criterion from the table. A dependency from the `Blocked by` column is written as a `blockedBy: [<task numbers>]` line under the task's `**Files:**` line -- the explicit-dependency field `skills/work/orchestrator.md` Section 1 reads; a task with none carries no line. When `test_command` is not `none`, order each task's steps test-first as Step 5 describes, naming `skills/tdd/SKILL.md`; `/work` follows that cycle when it builds.
 - **Acceptance Criteria:** the category 1 outcomes and the category 6 check, as the plan's closing section.
 
-Then run the eight checks of `skills/plan/SKILL.md` Step 6 by reading that section. The Q&A answers (and the `--seed` spec, when given) are the source specification Check 3 reads. Apply its action routing; do not present the checks to the user.
+Then run the checks of `skills/plan/SKILL.md` Step 6 by reading that section. The Q&A answers (and the `--seed` spec, when given) are the source specification Check 3 reads. Apply its action routing; do not present the checks to the user.
 
-After writing: read the plan back and confirm the `## Global Constraints` heading and at least one `**Provides:**` line are present. Category 2 always names something not being built, so the heading is always there; a plan whose tasks share no symbol is a Check 8 miss, not a valid ship plan -- fix it before continuing.
+After writing: read the plan back and confirm the `## Global Constraints` heading is present -- category 2 always names something not being built, so it always is -- and that every task another task names by symbol carries a `**Provides:**` line. A plan whose tasks share no symbol carries none, and that is correct: Check 8 is a no-op there, not a miss.
 
-Print: `> Plan complete: <N> tasks. Saved to .claude/plans/<date>-<project>-ship-plan.md.`
+Print: `> Plan complete: <N> tasks. Saved to <plan path>.`
 
 Then route on the Phase 2 answer:
 
@@ -189,7 +189,7 @@ Consent for this phase was given at Phase 2's "Approve -- build it", or by the `
 
 **Stay on the branch ship started on.** Ship creates no branch. Started on `main` or `master`, `/work` Phase 2 creates the feature branch itself; started on a feature branch, its auto mode continues there. Do not switch branches to pre-empt either case.
 
-**Hand off.** Invoke the `work` skill through the Skill tool with the plan path and `--auto` as its arguments (`/work <plan path> --auto`), and let it run to completion. `/work` loads the file as a plan (its Case A path), resolves the verification command per `skills/verification/SKILL.md`, follows `skills/tdd/SKILL.md` on every task under its three-attempt fix cap, lets a subagent make the small wiring edits a task needs outside its file list and report them as discovered, commits per task, and in auto mode answers its routine gates from the Phase 2 approval: it continues on the current branch, commits the final leftovers, prints `/review` and `/create-pr` as text instead of running them, and keeps its workspace. It still stops for a blocker, an unaddressed Critical finding, or a merge conflict; when it does, that question is the user's, not ship's -- never answer it for them.
+**Hand off.** Invoke the `work` skill through the Skill tool with the plan path and `--auto` as its arguments (`/work <plan path> --auto`), and let it run to completion. `/work` loads the file as a plan (its Case A path), resolves the verification command per `skills/verification/SKILL.md`, follows `skills/tdd/SKILL.md` on every task under its three-attempt fix cap, lets a subagent make the small wiring edits a task needs outside its file list and report them as discovered, commits per task, and in auto mode answers its routine gates from the Phase 2 approval: it continues on the current branch, commits the final leftovers, prints `/review` and `/create-pr` as text instead of running them, and keeps its workspace. It still stops for a blocker or a merge conflict; when it does, that question is the user's, not ship's -- never answer it for them. A task still failing after its third run is accepted and listed, on both of `/work`'s paths, never retried by ship.
 
 **Continue.** When `/work` returns, print `> Build finished. Verifying.` and continue into `# Verification` in this same invocation. A `/work` run that stopped on a blocker or a merge conflict has said so; still run verification -- its report is where the remaining work is listed.
 
@@ -199,7 +199,7 @@ Consent for this phase was given at Phase 2's "Approve -- build it", or by the `
 
 # Verification
 
-This phase checks what `/work` built. It runs the build, runs the tests, reviews the branch, spends one fix round on the review's Critical and High findings, smoke-launches the app when the plan carries a run command, and writes a report. It changes no plan field.
+This phase checks what `/work` built. It runs the build, runs the tests, smoke-launches the app when the plan carries a run command, and writes a report. It changes no plan field. It runs no review: `skills/review/SKILL.md` carries `disable-model-invocation: true`, so a Skill-tool call to `review` from here is refused, and an unattended review is the case that flag exists to stop. The report names the `/review` command instead, and the user runs it.
 
 ## Entry
 
@@ -221,24 +221,15 @@ When `test_command` is `none`: print `Tests: skipped -- <reason>`.
 
 Otherwise run it via the Bash tool and quote one evidence line per the same Evidence Rule. A run whose summary line shows zero tests executed is `skipped: <reason>`, never `pass` -- cross-cutting rule 1 of that file.
 
-## Step 3 -- Review and One Fix Round
-
-Invoke the `review` skill on the working branch in its default fast mode, passing `--base <default branch>` (`main` or `master`, whichever the repository has) so it does not ask for the base branch, and `--plan <ship plan path>` so its Global Constraints bind the findings. The skill saves its report under `.claude/reports/` and names the path; read that report.
-
-- **No Critical or High findings:** print `Review: <N> findings, none Critical or High` and continue.
-- **Critical or High findings present:** invoke the `work` skill once with the report path and `--auto` as its arguments. `/work` loads the report as its specification (its Case A path); its Critical-finding gate still asks when a Critical finding stays unaddressed after the fix. When it returns, re-read the report and print `Review: <N> findings, <M> Critical/High, fix round done -- <K> still open`. Stop after that single pass whatever remains; a second round is the user's call, and the report lists what is left.
-
-Skip this step with `Review: skipped -- no git repository` when Step 0 detected `NO_GIT`.
-
-## Step 4 -- Smoke
+## Step 3 -- Smoke
 
 When `run_command` is `none`: print `Smoke: skipped -- no run command`.
 
-Otherwise launch the app with the run command via the Bash tool with `run_in_background`, then wait on a cheap readiness condition -- a port answering, a "Ready" log line, a booted simulator -- inside an `until` loop with a deadline of at most 120 seconds and a failure check on the log (a crash line, `Error:`, `EADDRINUSE`). Never poll by re-running the launch command. When a screenshot tool is available in the session (an iOS simulator or browser MCP), capture the first screen and flag placeholder text, a blank screen, or a visible error. Stop the process when done.
+Otherwise launch the app with the run command via the Bash tool with `run_in_background`, then wait on a cheap readiness condition -- a port answering, a "Ready" log line, a booted simulator -- inside an `until` loop with a deadline of at most 120 seconds and a failure check on the log (a crash line, `Error:`, `EADDRINUSE`). Run the wait itself with `run_in_background` too, or with the `Monitor` tool where the session has it: a foreground `sleep` is blocked by the harness, so an `until ... sleep 1; done` issued inline is rejected before it polls once. Never poll by re-running the launch command. When a screenshot tool is available in the session (an iOS simulator or browser MCP), capture the first screen and flag placeholder text, a blank screen, or a visible error. Stop the process when done.
 
 Record `Smoke: pass`, `Smoke: fail -- <first error line>`, or `Smoke: timeout -- <condition> not met in <N>s`.
 
-## Step 5 -- Report
+## Step 4 -- Report
 
 Get a timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`) and write `.claude/reports/ship-<project>-<timestamp>.md`, creating the directory if needed:
 
@@ -249,19 +240,19 @@ Get a timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`) and write `.clau
 - **Branch:** <branch>
 - **Build:** <evidence line or skipped reason>
 - **Tests:** <evidence line or skipped reason>
-- **Review:** <report path> -- <N> findings, <M> Critical/High, <K> open after the fix round
 - **Smoke:** <result>
+- **Review:** not run -- `/review --base <default branch> --plan <ship plan path>`
 
 ## Open Items
 
-<numbered list: every Critical/High finding still open, every task /work reported blocked or failed, every smoke flag. "None." when empty.>
+<numbered list: every task /work reported blocked, failed, or accepted after three attempts, every smoke flag. "None." when empty.>
 
 ## What's Next
 
-<1-3 sentences. When every line above is a pass or a skip and Open Items is empty, say the project appears complete and name the branch to merge.>
+<1-3 sentences. When every line above is a pass or a skip and Open Items is empty, say the project appears complete, name the branch to merge, and name the `/review` command above as the step before merging. `<default branch>` is `main` or `master`, whichever the repository has -- `--base` keeps `/review` from asking for it, and `--plan` lets its Step 1.8 bind the findings to the plan's Global Constraints.>
 ```
 
-Read the report back to confirm it was written (L3). Print `> Verification complete. Report: <path>. <count> open items.` and terminate.
+Read the report back to confirm it was written (L3). Print `> Verification complete. Report: <path>. <count> open items. Next: /review --base <default branch> --plan <plan path>` and terminate.
 
 A second `/ship --verify` writes a new timestamped report; earlier ones are never overwritten.
 
@@ -281,17 +272,18 @@ A second `/ship --verify` writes a new timestamped report; earlier ones are neve
 1. Shell blocks all exit 0 in both git and non-git directories.
 2. Phase 0 reads $ARGUMENTS and presents a 1-2 sentence summary; no AskUserQuestion yet.
 3. Phase 1 asks Q&A via AskUserQuestion until all 6 categories plus platform and deployment target are answered; category 6 records a run command or `none`.
-4. Phase 2 presents the table with a `Blocked by` column; the approve question says `/work` asks before committing or opening a PR.
-5. Phase 3 writes the plan in the `skills/plan/SKILL.md` Step 5 format, runs the Step 6 checks, reads the file back, and confirms `## Global Constraints` and a `**Provides:**` line are present.
-6. "Approve -- build it" flows Q&A -> plan -> `/work --auto` -> verification -> report in one invocation; no question is asked between approval and the report unless a task blocks, a Critical finding stays unaddressed, or a merge conflicts.
+4. Phase 2 presents the table with a `Blocked by` column; the approve question says the build stops only for a blocker or a merge conflict.
+5. Phase 3 writes the plan in the `skills/plan/SKILL.md` Step 5 format, runs the Step 6 checks, reads the file back, and confirms `## Global Constraints` is present and `**Provides:**` lines are present exactly on the tasks another task names by symbol -- none when no symbol crosses tasks.
+6. "Approve -- build it" flows Q&A -> plan -> `/work --auto` -> verification -> report in one invocation; no question is asked between approval and the report unless a task blocks or a merge conflicts.
 7. "Approve the plan only" writes the plan, prints the `/ship --execute` command, and terminates without building.
 8. Execution invokes `work` through the Skill tool with the plan path and `--auto`; ship creates no branch and calls no Agent.
 9. `/ship --execute` on a plan with a ledger re-dispatches no task carrying a `complete` line; on a plan without one, `/work` starts from the first task.
-10. A second bare `/ship` finds the plan and offers Resume / Start fresh / Inspect, with the state read from the ledger and the `status` field.
+10. A second bare `/ship` finds the plan and offers Resume / Start fresh / Inspect, with the state read from the `status` field first and the ledger second; a finished plan whose ledger survived auto mode reads as finished.
 11. Verification Steps 1-2 quote an evidence line each, or a skipped reason; a zero-test run is `skipped`, never `pass`.
-12. Verification Step 3 invokes `review` with `--base` and `--plan`; a report with a Critical or High finding triggers exactly one `work --auto` pass on the report path, and a second round is never started.
-13. Verification Step 4 launches the app only when `run_command` is not `none`; otherwise it prints `Smoke: skipped -- no run command`.
+12. Verification invokes no `review` and no second `work`; the report's Review line and What's Next name `/review --base <default branch> --plan <plan path>` for the user to run.
+13. Verification Step 3 launches the app only when `run_command` is not `none`; otherwise it prints `Smoke: skipped -- no run command`.
 14. The report lands at `.claude/reports/ship-<project>-<timestamp>.md`; a second `--verify` adds a file and overwrites nothing.
+15. A second "Start fresh" on the same day writes `<date>-<project>-ship-plan-2.md`; the first plan and its ledger are untouched, and the Step 1 Glob finds both.
 
 **Verification checklist:**
 - [ ] `/ship` and `/quiver:ship` both appear in the slash command menu after plugin reload.
@@ -301,14 +293,14 @@ A second `/ship --verify` writes a new timestamped report; earlier ones are neve
 - [ ] Phase 1 category 3 lands in the plan: the tech-stack half in `stack`, the restrictions under `## Global Constraints`. A user who answered "no ORM, raw SQL only" can find that sentence in the plan.
 - [ ] Every task carries `**Files:**`; every task another task names carries `**Provides:**`; no task carries a `none` placeholder.
 - [ ] Plan read back after the write (L3); report read back after the write.
-- [ ] Ship invokes `work` and `review` through the Skill tool and never calls the Agent tool itself.
+- [ ] Ship invokes `work` through the Skill tool, never invokes `review` (its `disable-model-invocation: true` refuses the call), and never calls the Agent tool itself.
 - [ ] Ship never creates a branch, never commits, never pushes, and never opens a PR; `/work --auto` commits, and pushes or opens nothing.
-- [ ] Both `work` invocations carry `--auto`; a run with no blocker reaches the report with no question after Phase 2.
+- [ ] The `work` invocation carries `--auto`; a run with no blocker reaches the report with no question after Phase 2.
 - [ ] `--execute` with no ship plan terminates with a message; no prompt.
 - [ ] `--execute` + `--resume` together: `--resume` wins; the Step 1 Resume path runs.
 - [ ] `--verify` + `--resume` together: `--resume` wins.
 - [ ] `--verify` runs only the verification phase and changes no plan field.
-- [ ] Verification Step 3 stops after one fix round however many findings remain.
+- [ ] The report's Review line carries `--base` and `--plan`; ship prints the command and runs nothing.
 - [ ] No `CLAUDE_PLUGIN_ROOT` references in this file (R4).
 - [ ] No Unicode characters or emoji in this file (R8).
 - [ ] No new inline `!` shell blocks beyond the five git blocks (R3).
@@ -318,12 +310,12 @@ A second `/ship --verify` writes a new timestamped report; earlier ones are neve
 
 **Known gotchas:**
 - Plugin auto-discovery requires a plugin reload after the skill is first installed. `/ship` will not appear in the slash menu until the plugin reloads.
-- The Glob for `.claude/plans/*-ship-plan.md` returns empty on the first run -- the skill must not abort on this empty result.
+- The Glob for `.claude/plans/*-ship-plan*.md` returns empty on the first run -- the skill must not abort on this empty result.
 - `.claude/plans/` and `.claude/work/` are the same directories `/plan` and `/work` use, so a ship plan is visible to `/work` Case B's plan picker and resumes from the same ledger. That is the point: ship writes a plan, not a format of its own.
-- Phase 2's approval is the run's last routine question because `/work --auto` answers the rest from it. The questions that survive -- a blocker, an unaddressed Critical finding, a merge conflict -- are the ones whose answer changes what gets built; ship must not answer those for the user, and must not add a flag that skips them.
-- The three-attempt fix cap lives in `/work` (Phase 3 and the orchestrator prompt), not here. Ship adds no retry of its own; a task accepted after three failures shows up in `/work`'s summary and again in verification.
+- Phase 2's approval is the run's last routine question because `/work --auto` answers the rest from it. The questions that survive -- a blocker, a merge conflict -- are the ones whose answer changes what gets built; ship must not answer those for the user, and must not add a flag that skips them.
+- The three-attempt fix cap lives in `/work` (Phase 3 and the orchestrator prompt), not here. Ship adds no retry of its own; in auto mode both of `/work`'s paths accept a task that fails its third run -- the orchestrator's FAILED handling leaves its dependents paused and lists all of them -- and they show up in `/work`'s summary and again under the report's Open Items.
 - Starting ship on a feature branch makes `/work --auto` continue on that branch. Start on the default branch when the build should land on a fresh one.
-- The task format, its `**Provides:**` field, and the eight plan checks live in `skills/plan/SKILL.md`; `tests/skills/test-task-interfaces-contract.sh` pins them there. Restating them here is the drift this rewrite removed.
+- The task format, its `**Provides:**` field, and the Step 6 plan checks live in `skills/plan/SKILL.md`; `tests/skills/test-task-interfaces-contract.sh` pins the `**Provides:**` label and the check count there, and this file carries no count of its own. Restating them here is the drift this rewrite removed.
 - The verification and TDD subagent restatements are pasted only into `skills/work/orchestrator.md`. Ship dispatches no subagent, so it carries neither; the contract tests check the orchestrator's copy alone.
-- Verification Step 3 passes `--base` so `/review` does not prompt for the base branch on a feature branch, and `--plan` so its Step 1.8 finds the Global Constraints. Dropping either makes the pass interactive or blind to the constraints.
+- The review is the user's, not ship's. `skills/review/SKILL.md` carries `disable-model-invocation: true`, so the Skill tool refuses a `review` call from ship -- an earlier draft made that call and could never have run. The report names the command with `--base` so `/review` does not prompt for the base branch on a feature branch, and `--plan` so its Step 1.8 finds the Global Constraints; dropping either makes the user's pass interactive or blind to the constraints.
 - A `/work` run that ends blocked keeps its ledger on purpose; `/ship --execute` is the retry, and the ledger is what makes it cheap.

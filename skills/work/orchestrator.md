@@ -257,6 +257,7 @@ An agent that returns nothing -- killed on a terminal error, or skipped -- is ne
 - All tasks that have a direct or transitive dependency on a BLOCKED/FAILED task are paused — they do not dispatch.
 - Tasks in the same or later groups that are independent of the failed task continue normally.
 - The orchestrator reports the situation to the user and waits for guidance before retrying paused tasks.
+- In auto mode (`skills/work/SKILL.md` Arguments), a FAILED task is not waited on: print `Task <N>: still failing after 3 attempts -- accepted`, keep its dependents paused, let independent tasks continue, and carry on to Post-Merge Validation and Phase 4 with the failed task and every paused dependent listed for the 5d summary. The ledger line stays the `failed` form -- accepted is a routing decision, not a status. BLOCKED waits in auto mode too: a blocker's answer changes what gets built, and auto mode answers no such question.
 
 ---
 
@@ -373,3 +374,5 @@ Blocker (Task 3): "Validation rules not specified in plan — need user input on
 Merged so far: Task 1, Task 2.
 Awaiting: Resolve Task 3 blocker, then Task 3 and Task 4 can proceed.
 ```
+
+In auto mode a FAILED task prints the same table with `FAILED (accepted)` in its Status cell and `Awaiting:` replaced by the list of paused dependents; the run then continues to Post-Merge Validation instead of pausing. A BLOCKED task pauses the run in auto mode as well.

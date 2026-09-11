@@ -118,7 +118,7 @@ After the last group merges, the resolved test command runs once on the combined
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), written as a plan to `.claude/plans/` and handed to `/work --auto` for a build that stops only for a genuine blocker, then a build, test, and `/review` pass with one fix round. `--execute` and `--verify` re-enter a paused run |
+| I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), written as a plan to `.claude/plans/` and handed to `/work --auto` for a build that stops only for a genuine blocker, then a build, test, and smoke pass and a report naming the `/review` command to run before merging. `--execute` and `--verify` re-enter a paused run |
 
 ### Implementing a Design
 
