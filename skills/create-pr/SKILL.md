@@ -78,12 +78,12 @@ If push fails, show the error verbatim and **stop here.**
 
 ## Step 3 -- Generate PR Title & Body
 
-Gather additional context for PR generation:
+Gather the change:
 - `git log --oneline {base}..HEAD` -- all commits on this branch
 - `git diff --stat {base}..HEAD` -- files changed summary
-- `git diff {base}..HEAD` -- **full diff** to understand the actual changes in depth
+- `git diff {base}..HEAD` -- **full diff**
 
-Read the full diff carefully. Understand what was added, modified, and why. Use this understanding to write a PR description that a reviewer can use to evaluate the changes without reading every line of code.
+Then look for a repository PR template with the Read tool (`.github/PULL_REQUEST_TEMPLATE.md`, `.github/pull_request_template.md`, `docs/PULL_REQUEST_TEMPLATE.md`, or `PULL_REQUEST_TEMPLATE.md` at the root). Do this here with the Read tool, not in a `!` block -- the lookup is conditional and those blocks run before any step logic. If a template exists, its sections are the body's structure and the rules below only decide how much goes in each. A section the template asks for and the change has nothing to say about gets one line saying so, not padding. If none exists, build the body from the rules below.
 
 **Title rules:**
 - Concise, imperative mood, no period
@@ -92,45 +92,44 @@ Read the full diff carefully. Understand what was added, modified, and why. Use 
 
 **Body rules:**
 
-The body depth should scale with the PR size:
+The body has one reader: someone who has to approve this diff and was not in this conversation. Anything that does not help that person decide is padding, and padding on a small PR is worse than no description -- it buries the one thing that mattered.
 
-- **Small PR (1 file or < 50 lines changed):** Summary + Test Plan is sufficient.
-- **Medium PR (2-5 files or 50-200 lines):** Add a Changes section with key changes organized by area.
-- **Large PR (5+ files or 200+ lines):** Add "How it works" and/or "Design decisions" sections.
+**1. Budget.** Length scales with how much a reviewer has to hold in their head, not with line count. 400 lines of a regenerated lockfile is the top row; 20 lines rewriting auth logic is not.
 
-**Body template (adapt sections based on PR size):**
+| The change | Body |
+|------------|------|
+| One mechanical edit -- typo, version bump, rename, config value, generated file | 1-2 sentences. No headings at all. |
+| One coherent behavior change, up to ~3 files | 2-4 sentences under `## Summary`. Nothing else unless a gate below opens. |
+| Several files, one theme | `## Summary` plus a short `## Changes` list. Roughly 150-300 words. |
+| Many files, or several themes at once | Add whichever gated sections apply. Roughly 600 words is the ceiling. If the change genuinely needs more than that, say in the body that the PR is large and is best reviewed commit by commit -- do not write more prose instead. |
 
-```
-## Summary
+Never ship a body that is a single sentence with no motivation, and never ship one that narrates the diff the reviewer already has.
 
-{1-3 sentences explaining what this PR does and WHY it exists -- the motivation, not just a restatement of the diff}
+**2. Sections are earned, not filled in.** Start with the Summary and add a section only when its gate is met. A section with nothing behind it is padding -- drop the heading entirely rather than writing a thin paragraph under it.
 
-{For medium+ PRs, add bullet points with key changes organized by area:}
-- **New file:** `path/to/file` -- what it does
-- **Modified:** `path/to/file` -- what changed and why
+| Section | Include only when |
+|---------|-------------------|
+| `## Changes` | The diff touches more than one area and the file list alone does not tell a reviewer what each area does. One bullet per area or file, not per hunk. |
+| `## How it works` | There is control flow, ordering, or an algorithm a reviewer cannot follow from the diff alone. |
+| `## Design decisions` | A real alternative was considered and rejected -- in this conversation, in the commit messages, or in a plan, spec, or review report. Never invent one to fill the section. |
+| `## Risks` | Breaking change, migration, data change, feature flag, or a rollback that is not trivial. |
+| `## Test plan` | The reviewer has to do something themselves: manual steps, a runtime check, or a device or environment CI does not cover. If the diff adds tests and CI runs them, one sentence naming the command replaces the checklist. Never emit a checkbox for "code compiles", "tests pass", or "reviewed the diff". |
 
-### How it works
+**3. Where the motivation comes from.** In order: what the user said in this conversation; the plan, spec, review report, or issue the branch was built from (`.claude/plans/`, `.claude/reports/`, a linked issue); then the commit messages; then the diff. The diff is last because it only ever answers *what*. If none of the first three carry a motivation, state what the change does and stop -- do not manufacture a rationale.
 
-{For large PRs: describe the flow, architecture, or algorithm. Numbered steps work well.}
+**4. The user's instructions outrank the tables.** Anything the user asked for in this invocation or earlier in the conversation -- shorter, longer, a section they want, a number they want quoted, an issue to link, a reviewer to address -- wins over every rule above.
 
-### Design decisions
-
-{For large PRs with non-obvious choices: use a table or bullet list explaining key decisions.}
-
-| Decision | Choice | Why |
-|----------|--------|-----|
-| {what was decided} | {what was chosen} | {why this over alternatives} |
-
-## Test plan
-
-- [ ] {Testing steps or verification checklist}
-```
-
-Generate the body from the full diff content, commit history, and diff stats. Write for a reviewer -- explain the *why* and *how*, not just the *what*.
+**5. Do not write:**
+- Filler openers -- "This PR introduces", "This pull request aims to", "In this change we".
+- A restatement of the files-changed list GitHub already renders.
+- Line-by-line narration of the diff. The diff is attached.
+- Speculative follow-ups, "future improvements", or what you chose not to do, unless the user asked for them.
+- Praise for the change, emoji headings, or a closing paragraph that repeats the Summary.
+- AI attribution of any kind.
 
 **Language rule:** the title and body are always written in English, regardless of the conversation language. Only use another language if the user explicitly asks for it in this invocation. A PR is a repository artifact read by people who were not in this conversation.
 
-**Structure rule:** the body follows the template above -- `## Summary` first, then the size-appropriate sections. Do not collapse it into one prose paragraph. If a section has nothing to say, drop the section rather than padding it.
+**Structure rule:** when the body has headings at all, `## Summary` comes first and the gated sections follow in table order. The one-or-two-sentence tier has no headings -- do not put a `## Summary` heading above a single sentence.
 
 ---
 
@@ -227,15 +226,21 @@ Never retry automatically.
 1. Skill runs the six git shell blocks and stops with a clear message if any of: not a git repo, no remote, dirty working tree.
 2. Skill resolves the base branch via the priority order (`--base` flag > `origin/HEAD` > `main` > `master` > `develop` > prompt).
 3. Skill pushes the branch (`git push` with upstream, otherwise `git push -u origin <branch>`).
-4. Skill builds a title (≤72 chars, imperative mood) and a body whose depth scales with PR size, prints both to chat (body in a fenced block), then asks via `AskUserQuestion` with a one-line question and `Create PR / Create as Draft / Edit / Cancel`.
-5. With `--draft`, skill skips the prompt and runs `gh pr create --draft …`.
+4. Skill builds a title (<= 72 chars, imperative mood) and a body sized by the Step 3 budget table, carrying only the sections whose gates the change opens, prints both to chat (body in a fenced block), then asks via `AskUserQuestion` with a one-line question and `Create PR / Create as Draft / Edit / Cancel`.
+5. With `--draft`, skill skips the prompt and runs `gh pr create --draft ...`.
+7. When the repository has a `PULL_REQUEST_TEMPLATE.md`, the body follows that template's sections instead of the Step 3 section list.
 6. Final output shows the PR URL parsed from `gh` stdout.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/create-pr`.
 - [ ] Skill stops cleanly with a single explanatory line on `NO_GIT`, `NO_REMOTE`, dirty tree, base-branch ambiguity, or zero commits ahead.
 - [ ] Body uses HEREDOC formatting in the actual `gh pr create` invocation.
-- [ ] Title and body are in English even when the conversation is in another language, and the body keeps its `## Summary` / section structure instead of one prose paragraph.
+- [ ] Title and body are in English even when the conversation is in another language.
+- [ ] A one-file mechanical change (typo, version bump) produces 1-2 sentences with no headings, no `## Changes`, and no `## Test plan`.
+- [ ] A multi-theme change produces `## Summary` first, then only the gated sections that apply, and stays inside the word ceiling.
+- [ ] No section appears with nothing behind it -- no `## Test plan` holding "tests pass", no `## Design decisions` describing a choice nobody made.
+- [ ] An instruction the user gave in the conversation ("keep it short", "mention the benchmark") is honored over the budget and gate tables.
+- [ ] A repository PR template, when present, wins over the Step 3 section list.
 - [ ] The full body is visible in the chat stream before the prompt appears; the `AskUserQuestion` question is a single short line containing no body text.
 - [ ] `gh pr create` runs only after the prompt is answered -- printing the preview and creating the PR in one uninterrupted turn is a failure, even when the user's message asked for a PR.
 - [ ] No AI-attribution lines appear in the title or body.
@@ -246,3 +251,5 @@ Never retry automatically.
 - The `AskUserQuestion` question field is rendered single-line and truncated on some surfaces, and ANSI escape codes print literally (`\x1b[2m` shows up as `@[2m`). Keep the question to one short plain-text line and put the preview in the chat stream.
 - `gh pr create` exits non-zero when a PR already exists; the skill must surface the error and suggest `gh pr list --head <branch>` rather than retrying.
 - Bitbucket and Azure DevOps are not supported by `gh`; the user must run a platform-specific tool manually for those.
+- The section gates fail in one direction only: a skipped section is a short PR body, an unearned one is noise a reviewer has to read past on every future PR. When a gate is genuinely ambiguous, drop the section -- the reviewer has the diff, and the Edit option in Step 4b is there for the case where they wanted it.
+- The PR template lookup is a Read tool call inside Step 3, not a `!` block. Those blocks run before any step logic, so a template read there would fire on every invocation including the ones that stop at Step 0, and R3 forbids the conditional logic the lookup needs.
