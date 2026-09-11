@@ -90,7 +90,7 @@ Can an AI agent or script interact with this code programmatically?
 The Diff Manifest is built by the review orchestrator (skills/review/SKILL.md Step 1.5).
 Use it to calibrate audit depth:
 
-- **PROMPT files**: Evaluate discoverability and error message patterns only. Do NOT evaluate prompt quality or content.
+- **PROMPT files**: Evaluate discoverability, error message patterns, and the user-facing text the prompt emits -- `AskUserQuestion` questions, button labels, option descriptions, and printed status lines. A frontmatter field name (`commit_strategy: none`), internal vocabulary (gate, verdict, ledger, manifest), or a rule code in that text is a finding: the user reads the line without ever having seen the file it came from. An option with no description is a finding for the same reason -- on a CLI that renders the question as plain text, the description is all the user gets. Do NOT evaluate prompt quality or content beyond that.
 - **DOCS files**: Skip entirely.
 - **CONFIG files**: Apply Phase 1 (discoverability) and Phase 2 (error messages when config is invalid). Skip Phases 3-4.
 - **SCRIPT/CODE files**: Apply all 4 phases fully.

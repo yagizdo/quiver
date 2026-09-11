@@ -334,6 +334,12 @@ Ask these now, at plan time, so `/design-build` never has to interrupt the build
 ask. One `AskUserQuestion` call carrying every question below that still has an open
 answer.
 
+**Write every question for someone who has never read this file.** Plain words, no
+internal field names (`verify_gate`, `commit_strategy`, `plan_write`), no plugin
+vocabulary. Give each option a one-line description saying what happens when it is
+picked: on a CLI that renders the call as plain text instead of buttons, that line is
+the only thing explaining the choice.
+
 **Resolve the overwrite decision here too.** Before composing the call, use the Glob tool
 on `.claude/plans/*<slug>-design-plan.md`. If a match exists, summarize what this
 extraction changed against the existing plan -- node count, node IDs added or dropped,
@@ -345,21 +351,27 @@ what makes Step 8 the run's last question instead of a promise Step 9 breaks.
 `> --no-commit: this build writes no commit.` Asking a question whose answer is already
 fixed is worse than not asking it. The call carries one question fewer.
 
-**Question 1 -- Commit strategy.** Skipped when `--no-commit` was passed.
+**Question 1 -- Commit strategy.** Header: `Commits`. Skipped when `--no-commit` was passed.
 > How should the build commit its work?
 
 Buttons: `["No commit -- leave changes in the working tree (Recommended)", "One commit per task", "One commit at the end"]`
 
 Record as `commit_strategy: none` / `per-task` / `single`.
 
-**Question 2 -- Verification gate.**
-> What should run before the build accepts a task?
+**Question 2 -- Check after each task.** Header: `After task`.
+> After each task is built, what should run to check nothing broke?
 
-Buttons: `["Run the project's build", "Run the project's tests", "No gate"]`
+Buttons: `["Run the project's build", "Run the project's tests", "Nothing -- skip the check"]`
 
-Record as `verify_gate: build` / `test` / `none`.
+Descriptions, one per button in that order:
+`"Compiles the project. A task that breaks the build is not committed."`,
+`"Runs the test suite. A task whose tests fail is not committed."`,
+`"Fastest. Nothing runs automatically -- you check the result yourself."`
 
-**Question 3 -- Existing plan.** Asked only when the Glob above matched.
+Record as `verify_gate: build` / `test` / `none`. The frontmatter field keeps its
+name; what the user reads never carries it.
+
+**Question 3 -- Existing plan.** Header: `Old plan`. Asked only when the Glob above matched.
 > A design plan for `{slug}` already exists: `{existing path}`.
 > {one line per difference}
 
@@ -368,7 +380,7 @@ Buttons: `["Update the existing plan", "Write a new plan file"]`
 Record as `plan_write: update` / `new`. This one is a routing answer, not plan
 frontmatter -- Step 9 consumes it and it is never written into the plan.
 
-**Question 4 -- Build scope.** Asked only when all four of these hold: Step 3 resolved
+**Question 4 -- Build scope.** Header: `Build scope`. Asked only when all four of these hold: Step 3 resolved
 exactly one top-level node, that node has more than one extracted child, `$ARGUMENTS`
 describes nothing, and the Glob above matched no existing plan. Strip the flags and the
 node IDs from `$ARGUMENTS`; what remains is the description. When the user wrote what they
@@ -673,7 +685,7 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 11. Step 6 resolves `codegraph_available` from a Glob on `.codegraph/*` and dispatches exactly one `quiver:code-navigator` agent, with literals in the prompt, and waits without polling.
 12. Step 7 auto-maps every value-matched variable and asks exactly one approval question regardless of how many rows are unmapped.
 13. Step 7's table carries a `Mode` column with one row per mode for any multi-mode variable, and alias values are resolved before matching.
-14. Step 8 asks commit strategy and verification gate in one grouped `AskUserQuestion`.
+14. Step 8 asks commit strategy and the after-task check in one grouped `AskUserQuestion`, each question carrying its own header and each option a one-line description.
 14b. Step 8 asks the scope question only when Step 3 resolved exactly one top-level node with more than one extracted child, `$ARGUMENTS` carries no description beyond flags and node IDs, and no existing plan matched the slug. A described selection reaches no scope question, and Question 3 and Question 4 never appear in the same call.
 14c. Answering "Only {child}" writes `Scope: reference only -- not built by this plan` on every node spec outside the chosen child's subtree, gives those nodes no task, and names the scope in the `### Goal` section. The chosen child and its own descendants stay in scope. Answering "The whole {node}" writes no `Scope:` line anywhere.
 15. Step 8 finds an existing plan for the same slug, summarizes the differences, and carries the overwrite question in that same call; Step 9 writes on that answer without asking again.
