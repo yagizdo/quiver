@@ -316,7 +316,7 @@ summary line -- that is the case worth a test run, and it is the user's call.
 - [ ] Zero deviations is stated as a valid outcome, not a failure.
 
 **Known gotchas:**
-- This skill carries no `` !`...` `` shell blocks on purpose. It creates no
+- This skill carries no `!` shell blocks on purpose. It creates no
   branch and no commit, so it needs no git state, and the blocks would add an
   R2/R3/L1 failure surface for data nothing reads. A reviewer looking for the
   usual `NO_GIT` pair is looking at a deliberate absence.
