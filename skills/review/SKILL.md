@@ -161,15 +161,9 @@ Before dispatching agents, detect navigation capabilities once.
 
 **LSP:** Follow the detection flow from the `code-navigation` skill:
 
-1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_declined` or `lsp_confirmed` is found, use the cached value and skip to step 4.
+1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_confirmed` is found, use the cached value and skip to step 4.
 2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
-3. If LSP is not available, detect the project language from manifest files and use `AskUserQuestion` to suggest installation:
-   > LSP is not available for this project. Installing a language server (e.g., {recommended_server} for {language}) would enable better code navigation -- go-to-definition, find-references, and symbol search. Would you like to set it up? (You can always use /review without it -- grep-based navigation works fine.)
-
-   Buttons: `["Yes, help me set it up", "No, continue with grep"]`
-
-   - If user accepts: provide installation instructions, re-probe, cache `lsp_confirmed` in project memory.
-   - If user declines: cache `lsp_declined` in project memory.
+3. If LSP is not available, set `lsp_available` to `false`, detect the project language from manifest files, and print one line naming the recommended server from the `code-navigation` skill's table: `> LSP not available; using grep. Install {recommended_server} for {language} to enable go-to-definition and find-references.` No prompt, and no cache of the negative result -- the next run re-probes.
 4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to agents that search the broader codebase (waste-detector, architecture-strategist, stress-tester, and project-context-analyst) in Step 2.
 
 ---

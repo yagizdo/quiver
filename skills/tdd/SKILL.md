@@ -6,7 +6,7 @@ user-invocable: false
 
 # TDD
 
-Reference skill read by `/plan` Step 5, `/work` Phase 3 and `skills/work/orchestrator.md`, `/ship` Step 3, and `/hypothesis-debugging` Step 7. It is never invoked and runs nothing itself: the consumer resolves the test command per `skills/verification/SKILL.md`, follows the cycle here, and quotes the evidence.
+Reference skill read by `/plan` Step 5, `/work` Phase 3 and `skills/work/orchestrator.md`, and `/hypothesis-debugging` Step 7; `/ship` names it where it hands the build to `/work`. It is never invoked and runs nothing itself: the consumer resolves the test command per `skills/verification/SKILL.md`, follows the cycle here, and quotes the evidence.
 
 ## Applicability
 
@@ -51,7 +51,7 @@ Write the test for the behavior before the implementation and run the test comma
 
 ## Test Plan
 
-**Trigger:** Reference skill -- not directly invoked. Read by `/plan` Step 5, `/work` Phase 3 and `skills/work/orchestrator.md`, `/ship` Step 3, and `/hypothesis-debugging` Step 7.
+**Trigger:** Reference skill -- not directly invoked. Read by `/plan` Step 5, `/work` Phase 3 and `skills/work/orchestrator.md`, and `/hypothesis-debugging` Step 7; named by `/ship` where it hands the build to `/work`.
 
 **Setup:**
 - A Go module with tests.
@@ -68,7 +68,7 @@ Write the test for the behavior before the implementation and run the test comma
 - [ ] The Node project prints `skipped: test command none (package.json has no test script)` once, and no `red:` line.
 - [ ] A documentation-only task prints `skipped: no testable behavior (...)`.
 - [ ] A subagent return carrying no `TDD` line is recorded as `skipped: no red evidence` and the task still merges.
-- [ ] The restatement in `skills/work/orchestrator.md` and `skills/ship/SKILL.md` is byte-identical to this file's.
+- [ ] The restatement in `skills/work/orchestrator.md` is byte-identical to this file's; no other skill carries a copy.
 
 **Known gotchas:**
 - pytest interrupts collection on a top-level import of a not-yet-defined name: exit 2, zero tests run, and the file path stands in for the test name. A name error inside the test body is a named `FAILED` at exit 1 instead.

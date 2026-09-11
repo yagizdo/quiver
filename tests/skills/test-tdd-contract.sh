@@ -9,8 +9,8 @@
 #              skills/work/orchestrator.md       -- the brief step names the file, the fenced
 #                                                   prompt carries the restatement, the return
 #                                                   contract carries the TDD line
-#              skills/ship/SKILL.md              -- the Step 3 prompt carries the restatement,
-#                                                   Step 6 keeps the red run out of the attempts
+#              skills/ship/SKILL.md              -- names the file where it hands the build
+#                                                   to /work; no restatement, no TDD line
 #              skills/hypothesis-debugging/SKILL.md -- Step 7 writes the test before the fix
 #   registration .claude/rules/readme-structure.md,
 #              tests/skills/test-when-to-use-contract.sh
@@ -162,8 +162,10 @@ assert_in "$WORK" 'then follow the cycle in `skills/tdd/SKILL\.md`'             
 # --- 4. The restatement copies ---
 # The one line copied out of the producer (Global Constraint 1). It sits two lines below its
 # heading -- heading, blank, paragraph -- and is a single line by construction, so a
-# byte-for-byte comparison is one fixed-string grep. Each copy is reported on its own line so
-# a drift names the file that drifted.
+# byte-for-byte comparison is one fixed-string grep. The orchestrator holds the only copy:
+# /ship hands execution to /work and dispatches no subagent, so it carries none. The loop
+# stays a loop so a future dispatching consumer is one entry, and each copy is reported on
+# its own line so a drift names the file that drifted.
 echo ""
 echo "=== 4. The subagent restatement is copied byte-for-byte ==="
 
@@ -183,7 +185,7 @@ else
   esac
 fi
 
-for f in "$ORCH" "$SHIP"; do
+for f in "$ORCH"; do
   L="${f#$REPO_ROOT/}"
   if [ "$CANON_OK" -ne 1 ]; then
     fail "restatement in $L cannot be compared -- the canonical line was not extracted"
@@ -194,24 +196,23 @@ for f in "$ORCH" "$SHIP"; do
   fi
 done
 
-# --- 5. The return contracts and the tally ---
-# Both dispatching skills return the red step on a TDD line, and both carry the skipped form
+# --- 5. The return contract and the tally ---
+# The one dispatching skill returns the red step on a TDD line and carries the skipped form
 # beside it. A contract carrying only the red form makes a subagent with nothing to report
-# invent one. The orchestrator names the default for a missing line; /ship states the red run
-# is outside its attempt cap (Global Constraint 2); /work's 5d summary tallies the outcomes.
-# The /ship assertion is anchored to the Step 6 sentence itself: its Test Plan checklist
-# restates the phrase, so a whole-file grep would pass on the restatement alone.
+# invent one. The orchestrator names the default for a missing line and tells the subagent
+# the red run is outside its three-attempt cap (Global Constraint 2); /work's 5d summary
+# tallies the outcomes. /ship carries no return contract: it hands the build to /work.
 echo ""
-echo "=== 5. Both return contracts carry the TDD line ==="
+echo "=== 5. The return contract carries the TDD line ==="
 
-for f in "$ORCH" "$SHIP"; do
+for f in "$ORCH"; do
   L="${f#$REPO_ROOT/}"
   assert_in "$f" 'TDD | red: <command> -> exit <code>: <failing test> -- <first error line>' "$L declares the TDD red line form"
   assert_in "$f" 'TDD | skipped: <reason>' "$L declares the TDD skipped line form"
 done
 
 assert_in "$ORCH" 'no red evidence' "orchestrator reads a missing TDD line as 'no red evidence'"
-assert_in "$SHIP" '^The red run in Step 3 .* is not one of the three attempts\.' "ship keeps the red run out of its three-attempt cap"
+assert_in "$ORCH" 'is not one of the three attempts' "orchestrator keeps the red run out of the subagent's three-attempt cap"
 assert_in "$WORK" 'TDD: <n> red-verified' "work 5d summary carries the test-first tally"
 
 # --- 6. Re-growth tripwires ---

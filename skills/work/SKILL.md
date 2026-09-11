@@ -1,8 +1,8 @@
 ---
 name: work
-description: "Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR. Use when you have a plan file, spec, or task list ready to execute."
-argument-hint: "<plan file path or task description>"
-when-to-use: "user wants to execute a saved plan or implement tasks step by step -- '/work', 'start implementation', 'execute the plan', 'work through these tasks'"
+description: "Execute a work plan or specification systematically -- read the plan, set up a branch, implement tasks with continuous testing, commit incrementally, and ship a PR. Use when you have a plan file, spec, or task list ready to execute. --auto answers the routine gates (branch, final commit, PR handoff, workspace cleanup, third failed fix attempt) in advance and stops only for a blocker, a Critical finding, or a merge conflict."
+argument-hint: "<plan file path or task description> [--auto]"
+when-to-use: "user wants to execute a saved plan or implement tasks step by step -- '/work', '/work --auto', 'start implementation', 'execute the plan', 'work through these tasks', 'run the plan without stopping to ask'"
 ---
 
 # Gather Context
@@ -30,6 +30,8 @@ when-to-use: "user wants to execute a saved plan or implement tasks step by step
 Execute a work plan, specification, or task list systematically. The focus is on shipping complete features by understanding requirements quickly, following existing patterns, and maintaining quality throughout.
 
 **Announce:** "Using the work skill to execute the plan."
+
+**Arguments.** `--auto` anywhere in `$ARGUMENTS` sets **auto mode** for this run. Strip it before Phase 1 reads the rest as a path or description. Auto mode pre-answers the routine gates and nothing else: the branch question in Phase 2 (continue on the current branch), the third failed fix attempt in Phase 3 and in the orchestrator's FAILED handling (accepted and listed; an orchestrated failure's dependents stay paused), the final commit in 5a (committed without the prompt), the handoff in 5b (no review, no PR -- the commands are printed as text), and the workspace in 5c-bis (kept). It answers no question whose answer changes what gets built or deletes something: a plan contradiction (1e), a blocker (Phase 3), an unaddressed Critical finding or unmet acceptance criterion (4c), and a merge conflict stop and ask exactly as they do without the flag. `/ship` passes it so a run that answered every question up front is not stopped for a routine one; a user can pass it directly for the same effect. Every `AskUserQuestion` site below names its auto-mode branch; a prompt added any other way stalls an auto run.
 
 **Before starting Phase 1**, use the Glob tool to gather plan context silently (do not show results to the user):
 1. `.claude/plans/*.md` -- existing plans
@@ -127,7 +129,7 @@ If the plan contains genuine contradictions (e.g., two steps that conflict, a re
 **If already on a feature branch** (not main/master), use `AskUserQuestion`:
 > You're on `{branch}`. Continue here or create a new branch?
 Buttons: `["Continue on {branch}", "Create new branch"]`
-If continuing, move to Phase 2.5.
+If continuing, move to Phase 2.5. In auto mode, continue on the current branch without asking.
 
 **If on the default branch**, create a new branch by default: `git checkout -b <meaningful-name>` using a descriptive name (e.g., `feat/user-auth`, `fix/email-validation`). Never commit to the default branch without explicit user confirmation.
 
@@ -193,7 +195,7 @@ When a suffixed workspace is used:
 
 ### Phase 3: Build
 
-Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, then follow the cycle in `skills/tdd/SKILL.md`: write the test the task's test step names, run the resolved test command, and print its `red:` line (this run's exit code, the new test's name, its first error line); implement; run the resolved command again and print its pass line (fix failures before moving on). When the command resolved to `none`, print `skipped: test command none (<reason>)` once for the run and skip the red step on every task; when a task produces no testable behavior, print `skipped: no testable behavior (<what the change is>)` for that task. Then mark `completed` and update plan checkboxes if present.
+Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing tasks included). For each task: mark `in_progress`, read referenced files, match existing patterns, then follow the cycle in `skills/tdd/SKILL.md`: write the test the task's test step names, run the resolved test command, and print its `red:` line (this run's exit code, the new test's name, its first error line); implement; run the resolved command again and print its pass line. Fix failures before moving on, within three runs after the implementation exists -- the red run is not one of them. A task still failing after the third run is a blocker under the rule below; in auto mode it is accepted instead: print `Task {N}: still failing after 3 attempts -- accepted`, list it in the 5d summary, and continue to the next task. The budget is never extended on its own. When the command resolved to `none`, print `skipped: test command none (<reason>)` once for the run and skip the red step on every task; when a task produces no testable behavior, print `skipped: no testable behavior (<what the change is>)` for that task. Then mark `completed` and update plan checkboxes if present.
 
 Every task on this path is subject to the plan's `## Global Constraints` when the plan carries one: a task that cannot be completed without violating a constraint is a blocker, handled by the Blockers rule below.
 
@@ -279,13 +281,13 @@ For **non-review-fix plans** with large, risky, or security-sensitive changes, c
 
 **If git is NOT available (Phase 0 detected `NO_GIT`):** Skip commit and PR steps. Summarize what was completed and remaining follow-ups, then stop.
 
-**CRITICAL: Every git action in this phase requires explicit user confirmation via `AskUserQuestion`. NEVER commit, push, or create a PR without asking first.**
+**CRITICAL: Every git action in this phase requires explicit user confirmation via `AskUserQuestion`. NEVER commit, push, or create a PR without asking first.** Auto mode is the one exception, for the commit alone: the caller's approval stands in for the 5a prompt. Push and PR are never automatic.
 
 **NO ATTRIBUTION: Do not add `Co-Authored-By`, `Generated with Claude`, `Built with AI`, or any similar attribution lines to commit messages or PR descriptions. Only add attribution if the user explicitly requests it.**
 
 #### 5a -- Final commit
 
-If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then delegate to `/quiver:commit`. If the user cancels, do not re-ask or proceed to 5b.
+If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then delegate to `/quiver:commit`. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly with a Conventional Commits message -- the same rule Phase 3 commits under -- instead of delegating to the prompt.
 
 #### 5b -- Create PR
 
@@ -296,6 +298,8 @@ Buttons: `["Review first -- /review", "Create a pull request", "Done -- I'll han
 - **Review first** -- delegate to `/quiver:review`. When it returns, ask this question again without the review button; the user has seen the findings and decides whether to open the PR or fix first. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
 - **Create a pull request** -- delegate to `/quiver:create-pr`.
 - **Done** -- stop here. Move to 5c.
+
+In auto mode, skip the question and act as **Done**: print `/review` and `/create-pr` as the next commands for the user, and invoke neither.
 
 #### 5c -- Update plan status
 
@@ -312,7 +316,7 @@ Runs only when orchestration was used, every task reached DONE, and Phase 4a che
 2. Name `<workspace-dir>` and its file count, then gate the delete on `AskUserQuestion`:
    > Orchestration finished and the work is committed. Delete the run workspace at `<workspace-dir>` ({N} files)?
    Buttons: `["Delete it", "Keep it"]`
-   On "Keep it", print one line saying it was kept and continue to 5d.
+   On "Keep it", print one line saying it was kept and continue to 5d. In auto mode, keep it without asking and print the same line.
 3. On "Delete it", remove `<workspace-dir>` -- the exact path confirmed in step 1 and shown in step 2, no other -- then re-list `.claude/work/` to confirm it is gone, and name what was deleted in the 5d summary.
 
 #### 5d -- Notify user
@@ -320,7 +324,7 @@ Runs only when orchestration was used, every task reached DONE, and Phase 4a che
 Summarize:
 - What was completed
 - Link to the PR (if one was created)
-- Any follow-up work needed or remaining tasks
+- Any follow-up work needed or remaining tasks, including every task accepted after three failed attempts and every discovered edit the group announcements printed (file and reason), so a change outside the plan's file lists is visible before the PR
 - The test-first tally, one line: `TDD: <n> red-verified, <m> skipped (<distinct reasons>)`. The sequential path counts the lines Phase 3 printed; the orchestration path counts the `TDD` lines the group-completion announcements printed. Include this line whenever the run implemented anything.
 
 ---
@@ -343,12 +347,14 @@ Summarize:
 - **Don't** spawn subagents for 1-2 task plans -- the overhead exceeds the benefit. Use sequential execution.
 - **Don't** skip dependency resolution -- check both explicit `blockedBy` and file overlap before dispatching parallel agents; stop dispatching dependent tasks when a dependency fails.
 - **Don't** attempt automatic merge conflict resolution -- report conflicts to the user and stop.
+- **Don't** answer a blocker, a plan contradiction, a Critical finding, or a merge conflict on the user's behalf in auto mode -- auto covers the routine gates named at the top and nothing else.
+- **Don't** extend the three-attempt fix budget on your own, in either mode. A loop that grants itself more attempts has no cap.
 
 ---
 
 ## Test Plan
 
-**Trigger:** `/work [plan-path | plan-name | task description]` (and `/quiver:work` should also work)
+**Trigger:** `/work [plan-path | plan-name | task description] [--auto]` (and `/quiver:work` should also work)
 
 **Setup:** Git repo with at least one plan in `.claude/plans/` or a `plans/` directory. For the review-fix path: a plan with `review_source` frontmatter pointing at an existing `.claude/reports/review-*.md` file.
 
@@ -362,6 +368,9 @@ Summarize:
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 8. Phase 2.5 prints a `Verification:` line naming the resolved test and build commands or `none` with a reason, before any code changes.
 9. Phase 3 prints a `red:` line naming the new test before each task's implementation edit, then a pass line; a `none` resolution prints one `skipped:` line for the run and no `red:` line.
+10. A task whose tests still fail after three runs past the implementation stops as a blocker; in auto mode it prints the accepted notice and the run continues.
+11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/review` and `/create-pr` commands as text, and the workspace is kept.
+12. `--auto` is stripped before the path is read, so `/work .claude/plans/x.md --auto` loads `x.md` through Case A.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/work`; plan banner printed before code changes.
@@ -375,6 +384,8 @@ Summarize:
 - [ ] Phase 4a item 1 output quotes an exit code and a summary line, never a bare "tests pass"
 - [ ] A project with no resolvable test command reaches Phase 5 with `Tests: skipped -- <reason>` in the summary and no pass claim
 - [ ] The 5d summary carries one `TDD:` line with a red-verified count and a skipped count.
+- [ ] Every `AskUserQuestion` site has an auto-mode branch ahead of it, and no auto-mode branch answers a blocker, a contradiction, a Critical finding, or a merge conflict.
+- [ ] Auto mode never pushes and never opens a PR.
 
 **Known gotchas:**
 - Phase 4c parses the synthesized report format from the review skill; the SYNC comment must stay paired with the matching marker in `skills/review/SKILL.md`.

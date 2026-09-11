@@ -8,7 +8,8 @@
 #              skills/work/orchestrator.md       -- briefs carry it, the fenced prompt
 #                                                   carries the restatement, TESTS quotes it
 #              skills/ship/SKILL.md              -- test_command / build_command fields,
-#                                                   the Step 3 prompt carries the restatement
+#                                                   resolved once at plan-write time; no
+#                                                   restatement, ship dispatches no subagent
 #              skills/design-build/SKILL.md      -- the 3d gate command
 #              skills/hypothesis-debugging/SKILL.md -- Step 7 runs the resolved test
 #
@@ -159,8 +160,10 @@ done
 # --- 4. The restatement copies ---
 # The one paragraph copied out of the producer (Global Constraint 1). It sits two lines
 # below its heading -- heading, blank, paragraph -- and is a single line by construction so
-# a byte-for-byte comparison is one fixed-string grep. Each copy is reported on its own
-# line so a drift names the file that drifted.
+# a byte-for-byte comparison is one fixed-string grep. The orchestrator holds the only copy:
+# /ship hands execution to /work and dispatches no subagent, so it carries none. The loop
+# stays a loop so a future dispatching consumer is one entry, and each copy is reported on
+# its own line so a drift names the file that drifted.
 echo ""
 echo "=== 4. The subagent restatement is copied byte-for-byte ==="
 
@@ -180,7 +183,7 @@ else
   esac
 fi
 
-for f in "$ORCH" "$SHIP"; do
+for f in "$ORCH"; do
   L="${f#$REPO_ROOT/}"
   if [ "$CANON_OK" -ne 1 ]; then
     fail "restatement in $L cannot be compared -- the canonical line was not extracted"
@@ -202,7 +205,7 @@ assert_in "$ORCH" 'TESTS | skipped: <reason>' "TESTS skipped line form declared"
 assert_in "$ORCH" 'Test command:' "brief label 'Test command:' declared"
 
 # --- 6. The ship fields and the dead tables ---
-# /ship resolves once at manifest-write time into two named fields, and the two stack
+# /ship resolves once at plan-write time into two named fields, and the two stack
 # tables it used to carry are gone. The flutter test loop is the gate behind the
 # producer's own checklist item: it catches any consumer pasting the table back in, not
 # only /ship.

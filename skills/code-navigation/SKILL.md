@@ -93,23 +93,20 @@ Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detec
 ### LSP Detection Flow
 
 1. **Check project memory** for cached LSP preference.
-   - If `lsp_declined` found: set `lsp_available=false`, skip to step 4.
    - If `lsp_confirmed` found: set `lsp_available=true`, skip to step 4.
+   - A negative result is never cached (see step 3), so nothing else short-circuits here.
 
 2. **Attempt an LSP probe.**
    - Try a lightweight LSP call (e.g., `documentSymbol` on any source file from the project root).
    - If LSP responds with results: set `lsp_available=true`, cache `lsp_confirmed` in project memory, skip to step 4.
 
-3. **LSP not available -- prompt user.**
-   - Detect project language from manifest files (`package.json`, `Gemfile`, `requirements.txt`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `Package.swift`, etc.).
-   - Use `AskUserQuestion` to suggest installation:
+3. **LSP not available -- continue with grep.**
+   - Set `lsp_available=false`.
+   - Detect the project language from manifest files (`package.json`, `Gemfile`, `requirements.txt`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `Package.swift`, etc.) and print one line naming the recommended server from the table below:
 
-     > LSP is not available for this project. Installing a language server (e.g., {recommended_server} for {language}) would enable better code navigation -- go-to-definition, find-references, and symbol search. Would you like to set it up? (You can always use /plan and /review without it -- grep-based navigation works fine.)
+     `> LSP not available; using grep. Install {recommended_server} for {language} to enable go-to-definition and find-references.`
 
-     Buttons: `["Yes, help me set it up", "No, continue with grep"]`
-
-   - If user accepts: provide installation instructions for the detected language server, re-probe LSP, cache result in project memory.
-   - If user declines: set `lsp_available=false`, cache `lsp_declined` in project memory.
+   - No `AskUserQuestion`. LSP is an enhancement, and a question here stops every skill that runs detection, including one another skill invoked with no user at the prompt. Do not cache the negative result: the probe is a single call, and a server installed later is picked up by the next run.
 
 4. **Pass `lsp_available` flag** to all dispatched agents as part of their context.
 
@@ -131,8 +128,8 @@ Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detec
 LSP preference is stored in project memory:
 
 - **File:** `lsp_preference.md` in the project's auto-memory directory
-- **Content:** Whether LSP is available/declined, which language server was detected, date cached
-- **Lifetime:** Persists across sessions. User can reset by saying "forget LSP preference" or by installing a language server and re-running a skill.
+- **Content:** `lsp_confirmed`, which language server responded, date cached. Only a successful probe is written; an absent server is re-probed on every run.
+- **Lifetime:** Persists across sessions. User can reset by saying "forget LSP preference" or by removing the file; installing a server needs no reset.
 
 ## For Agent Authors
 
@@ -167,17 +164,17 @@ Both agents use the tier strategy from this skill (codegraph -> LSP -> grep). `c
 1. Consumer skills run a single navigation detection per session (CodeGraph + LSP) and pass both `codegraph_available` and `lsp_available` flags to every agent prompt that searches the codebase.
 2. Agents that include the Code Navigation Strategy block use LSP `goToDefinition` / `findReferences` / `documentSymbol` first when `lsp_available: true`, falling back to grep on empty results.
 3. With `lsp_available: false`, agents use Grep / Glob / Read for all navigation.
-4. LSP preference (`lsp_confirmed` or `lsp_declined`) is cached in project memory at `lsp_preference.md` and reused across sessions.
+4. A successful LSP probe is cached as `lsp_confirmed` in project memory at `lsp_preference.md` and reused across sessions; a failed probe prints one line, asks nothing, and caches nothing.
 
 **Verification checklist:**
 - [ ] `/plan` and `/review` both run navigation detection (CodeGraph + LSP) exactly once before agent dispatch (not per agent).
 - [ ] At least one dispatched agent prompt contains the literal phrase `lsp_available:` in the agent context.
 - [ ] When LSP returns empty results, the agent prints a fallback notice before running grep.
-- [ ] Project memory ends up with `lsp_preference.md` after the first detection run.
+- [ ] Project memory ends up with `lsp_preference.md` after the first detection run that finds a server; a run without one writes nothing and asks nothing.
 - [ ] `codegraph_available` flag detected and passed to agents when `.codegraph/` exists.
 - [ ] When `.codegraph/` does not exist, `codegraph_available` is false and behavior is unchanged.
 - [ ] Locate jobs (where is X / what calls Y / list uses / verify paths) dispatch `quiver:code-locator`; map/convention jobs dispatch `quiver:code-navigator`.
 
 **Known gotchas:**
-- LSP availability is cached per project; clearing or installing a new language server requires `forget LSP preference` or manual `lsp_preference.md` removal.
+- A confirmed LSP is cached per project; switching to a different server requires `forget LSP preference` or manual `lsp_preference.md` removal. An absent server is never cached, so installing one later needs no reset.
 - Detection is the dispatching skill's responsibility, not the agent's; new agents should NOT re-implement it.

@@ -1,12 +1,13 @@
 #!/bin/bash
 # test-global-constraints-contract.sh
-# Guards the "## Global Constraints" heading that joins /plan to /work and /review:
+# Guards the "## Global Constraints" heading that joins /plan to /work, /review, and /ship:
 #   producer  skills/plan/SKILL.md        -- Step 4.5 derives the block, Step 5 writes the section
 #   consumer  skills/work/orchestrator.md -- reproduces the block verbatim in every task brief
 #   consumer  skills/review/SKILL.md      -- Step 1.8 extracts the block and passes it to every agent
 #   consumer  skills/work/SKILL.md        -- states the block binds every task in the run
+#   consumer  skills/ship/SKILL.md        -- Phase 3 writes the section into every ship plan and greps it on read-back
 #
-# The whole interface between the three skills is one section heading in one file. A rename in
+# The whole interface between the four skills is one section heading in one file. A rename in
 # the producer with no matching rename in the consumers breaks extraction in both of them with
 # NO user-visible symptom: /work writes briefs carrying no constraints and /review reports N/A,
 # and both look exactly like the legitimate no-constraints-derived case. This test is the only
@@ -28,6 +29,7 @@ PLAN="$REPO_ROOT/skills/plan/SKILL.md"
 ORCH="$REPO_ROOT/skills/work/orchestrator.md"
 REVIEW="$REPO_ROOT/skills/review/SKILL.md"
 WORK="$REPO_ROOT/skills/work/SKILL.md"
+SHIP="$REPO_ROOT/skills/ship/SKILL.md"
 
 HEADING='## Global Constraints'
 
@@ -36,7 +38,7 @@ pass() { echo "  PASS: $1"; }
 fail() { echo "  FAIL: $1"; EXIT=1; }
 
 # --- Preflight ---
-# Every later section reads one of these four files. A missing file makes each of those
+# Every later section reads one of these five files. A missing file makes each of those
 # greps report "string not found", which reads as drift rather than as a moved file.
 echo ""
 echo "=== 1. Preflight ==="
@@ -57,13 +59,17 @@ if [ ! -f "$WORK" ]; then
   fail "missing $WORK -- the /work entry point that binds tasks to the block."
   MISSING=1
 fi
+if [ ! -f "$SHIP" ]; then
+  fail "missing $SHIP -- the ship-plan writer that reproduces the block and reads it back."
+  MISSING=1
+fi
 if [ "$MISSING" -ne 0 ]; then
   echo ""
   echo "================================"
   echo "Some tests FAILED."
   exit $EXIT
 fi
-pass "producer and all three consumer files present"
+pass "producer and all four consumer files present"
 
 # --- Producer ---
 # Matched whole-line and literal: the consumers extract on the heading text exactly, so a
@@ -84,7 +90,8 @@ echo "=== 3. Every consumer still names the section ==="
 for entry in \
   "$ORCH|skills/work/orchestrator.md|task briefs would carry no constraints and read as a run that derived none" \
   "$REVIEW|skills/review/SKILL.md|Step 1.8 would extract nothing and the report's Global Constraints field would read N/A on every run" \
-  "$WORK|skills/work/SKILL.md|the run would stop treating the block as binding on its tasks"
+  "$WORK|skills/work/SKILL.md|the run would stop treating the block as binding on its tasks" \
+  "$SHIP|skills/ship/SKILL.md|Phase 3 would write ship plans with no constraints section, and /work would extract nothing from them"
 do
   file="${entry%%|*}"
   rest="${entry#*|}"

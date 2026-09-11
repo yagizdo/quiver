@@ -112,9 +112,9 @@ fi
 # Every /slash name in the workflow section must be a real skill directory. The scan is
 # scoped to that section because it is the only place the bootstrap names actual skills --
 # the section above it writes `/skill-name` as a placeholder, and a whole-file sweep reads
-# that as a missing skill. Plugin skills live in skills/; the two maintainer skills are
-# project-local under .claude/skills/ and are deliberately not chain steps, so a mention
-# of either here would be wrong too.
+# that as a missing skill. Plugin skills live in skills/; maintainer tooling under
+# .claude/skills/ is gitignored and never in the tree, so a mention of it here would be
+# wrong too.
 CHAIN="$(awk '/^## Quiver Workflow/ { f=1 } f' "$BOOTSTRAP")"
 if [ -z "$CHAIN" ]; then
   fail "no '## Quiver Workflow' section in bootstrap.md -- the chain assertions below scan nothing"
