@@ -94,7 +94,7 @@ else
   fail "these lines are executed by the shell when the skill loads:"
   echo "$HITS" | sed 's/^/      /'
   echo "      Write the mention as \`!\` instead -- the form skills/handover/SKILL.md:389"
-  echo "      and skills/ship/SKILL.md:787 already use -- or move the example out of the body."
+  echo "      and skills/ship/SKILL.md:314 already use -- or move the example out of the body."
 fi
 
 # --- The detector ---

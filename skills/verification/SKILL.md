@@ -74,7 +74,7 @@ Run the test command you were given exactly as written, and report a pass only b
 
 ## Test Plan
 
-**Trigger:** Reference skill -- not directly invoked. Read by `/work` Phase 2.5 and 4a, `/ship` Phase 3 and Verification Steps 2-3, `/design-build` 3d, and `/hypothesis-debugging` Step 7.
+**Trigger:** Reference skill -- not directly invoked. Read by `/work` Phase 2.5 and 4a, `/ship` Phase 3 and Verification Steps 1-2, `/design-build` 3d, and `/hypothesis-debugging` Step 7.
 
 **Setup:**
 - A Node project whose `package.json` has no `test` script.
@@ -92,7 +92,7 @@ Run the test command you were given exactly as written, and report a pass only b
 - [ ] The `make check` project prints `source: docs`, and the stack table is not consulted.
 - [ ] A zero-test run is reported `skipped`, never `pass`.
 - [ ] No consumer contains the string `flutter test`.
-- [ ] The restatement in `skills/work/orchestrator.md` and `skills/ship/SKILL.md` is byte-identical to this file's.
+- [ ] The restatement in `skills/work/orchestrator.md` is byte-identical to this file's; no other skill carries a copy.
 
 **Known gotchas:**
 - Go, Ruby, Rust, and node:test exit 0 when zero tests ran; only the summary line separates `pass` from `skipped`.

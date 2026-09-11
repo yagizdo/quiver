@@ -125,6 +125,8 @@ Task 3 — Files: src/api/users.ts, src/api/admin.ts
 
 Tasks 2 and 3 both touch `src/api/users.ts`. Since 2 < 3, Task 3 gets an implicit `blockedBy: [2]`. Tasks 1 and 2 share no files, so no implicit dependency is added between them.
 
+The graph is built from the plan's file lists only. An edit a subagent reports on a `DISCOVERED` line (Section 2) is outside it by construction -- the file was not known when the groups were formed -- so two parallel tasks can discover the same file. That case is caught at the merge, not here.
+
 ### Step 3 — Build Execution Groups
 
 After resolving all dependencies (explicit + implicit), partition tasks into execution groups:
@@ -180,12 +182,12 @@ Write your full account to .claude/work/<plan-basename>/task-{N}-report.md.
 1. Sync your worktree before reading anything else: run `git reset --hard {working branch}`, then confirm with `git log --oneline -3` that the commits from earlier execution groups are present. Your worktree is cut from the default branch, so until you do this every file you are about to read is missing the changes this run has already merged. If `{working branch}` does not resolve, report BLOCKED rather than working from the default branch.
 2. Read all files listed in the brief to understand current state and existing patterns.
 3. Follow the test-first cycle: write the test for the behavior the brief describes, run the test command named on the brief's Test command line exactly as written, and record the red line -- this run's exit code, the new test's name, and its first error line. When that line reads none, skip the red step and report TDD | skipped: test command none (<the reason on that line>); when the brief describes no behavior a test can assert, report TDD | skipped: no testable behavior (<what the change is>).
-4. Implement the changes described, following the codebase's existing conventions, then run the test command again exactly as written. When the Test command line reads none, run nothing and report TESTS | skipped: <the reason on that line>.
+4. Implement the changes described, following the codebase's existing conventions, then run the test command again exactly as written. When the Test command line reads none, run nothing and report TESTS | skipped: <the reason on that line>. On a failure, fix and run again, at most three runs after the implementation exists -- the red run in instruction 3 is not one of the three attempts. When the third run still fails, stop, report STATUS | FAILED, and put the first failing test and its first error line on REASON. Never grant yourself more attempts.
 5. Self-review your changes: check for missing edge cases, naming consistency, and adherence to acceptance criteria.
 6. Commit each logical unit on your worktree branch, then report every commit on a COMMITS line. If the tree already matched the spec and there was nothing to commit, return no COMMITS line.
 
 ## Constraints
-- Only modify the files listed in the brief. If you discover a needed change in another file, report it as a blocker instead of making the change.
+- Modify the files listed in the brief. When the task cannot work without a change in a file the brief does not list -- an import, a registration, a route entry, a config key, an export the brief's file needs -- make that change, keep it as small and additive as you can, and report it on a DISCOVERED line. A change that is a deliverable of its own -- a new module, a feature the brief does not describe, a rewrite of a file another task owns -- is not discovered work: report BLOCKED naming it.
 - Follow existing code patterns (naming, structure, error handling).
 - Do not add AI attribution comments or generated-by markers.
 - The brief's Global Constraints bind every change you make. A change you cannot make without violating one is a BLOCKER, not a judgment call.
@@ -206,11 +208,14 @@ TESTS | <command> -> exit <code>: <summary line>
 TESTS | skipped: <reason>                       (the alternate form; exactly one TESTS line is returned)
 TDD | red: <command> -> exit <code>: <failing test> -- <first error line>
 TDD | skipped: <reason>                         (the alternate form; exactly one TDD line is returned)
+DISCOVERED | <repo-relative path> | <one line: what changed and why the task needed it>   (zero or more lines)
 REASON | <one line, only when STATUS is not DONE>
 REPORT | <path to task-<N>-report.md>
 ```
 
 `COMMITS` is one line per commit rather than a pipe-delimited list, because a commit subject can contain `|` and the field separator would then be ambiguous. `<base7>` in Section 0's `complete` line is the `BASE` value; `<head7>` is the short sha on the last `COMMITS` line. When there is no `COMMITS` line the task changed nothing to commit -- write `commits none` in place of `commits <base7>..<head7>` and merge no branch for that task. The summary line on `TESTS` is the runner's own (`47 passed, 0 failed`, `Tests: 12 passed, 12 total`); a `TESTS` line that is not in the `skipped:` form and carries no exit code or no summary is treated as `skipped: no evidence returned`. The `TDD` line carries the red step: `red:` quotes the run made after the test was written and before the implementation and names the test the task wrote; `skipped:` carries the reason. A return with no `TDD` line is read as `TDD | skipped: no red evidence`. It never changes the task's status and never blocks the merge -- it is a fact about how the task was built, not about whether it landed -- and the ledger grammar in Section 0 does not carry it; the report file and the group-completion announcement do.
+
+A `DISCOVERED` line records an edit outside the brief's file list, one line per file. It never changes the task's status and the ledger grammar in Section 0 does not carry it; the group-completion announcement prints it and the report file holds the detail. The bound on discovered edits is the merge, not a prompt: a file two tasks both discovered conflicts at Section 3's Per-Branch Merge and stops the run there, which is the one case that earns a question. Keeping the edit small and additive is what makes that case rare.
 
 Anything beyond these lines is ignored. The detail belongs in the report file, which the orchestrator reads only when it needs it -- that is what keeps a run's controller context a function of the number of tasks rather than the size of the work each task did.
 
@@ -325,10 +330,11 @@ Group 0 complete. All tasks DONE.
           red: npm test -> exit 1: parses a manifest -- ReferenceError: parseManifest is not defined
   Task 2: go test ./... -> exit 0: ok  example.com/m/pkg  0.41s
           skipped: no testable behavior (README section)
+          discovered: src/router.ts -- registered the /users route the handler needs
 Dispatching Group 1 (2 tasks in parallel)...
 ```
 
-Print each task's `TESTS` line and its `TDD` line from the return contract in the group-completion announcement. That announcement is the one place either line is consumed, which is why both fields are in the contract; `skills/work/SKILL.md` 5d counts the `TDD` lines from these announcements.
+Print each task's `TESTS` line, its `TDD` line, and every `DISCOVERED` line from the return contract in the group-completion announcement. That announcement is the one place these lines are consumed, which is why the fields are in the contract; `skills/work/SKILL.md` 5d counts the `TDD` lines and lists the discovered edits from these announcements.
 
 ### At End — Success
 
