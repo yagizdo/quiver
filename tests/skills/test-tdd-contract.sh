@@ -127,7 +127,7 @@ fi
 
 # Each heading is a full line, counted exactly. A second copy of ### Subagent restatement makes
 # the extractor in section 4 read the wrong paragraph; a missing one makes it read nothing.
-for h in '## Applicability' '## The Cycle' '## Evidence' '## For Skill Authors' '### Subagent restatement' '## Test Plan'; do
+for h in '## Applicability' '## The Cycle' '## Evidence' '## For Skill Authors' '### Subagent restatement'; do
   N="$(grep -cxF -- "$h" "$REF")"
   if [ "$N" = "1" ]; then
     pass "heading '$h' appears exactly once"
@@ -135,6 +135,16 @@ for h in '## Applicability' '## The Cycle' '## Evidence' '## For Skill Authors' 
     fail "heading '$h' appears $N time(s), expected exactly once"
   fi
 done
+
+# The Test Plan is a sibling file, not a body heading: SKILL.md loads on every read of the
+# producer and the test instructions do not. Non-empty and carrying its Trigger, because a
+# stub satisfies a file-exists check and tells a reviewer nothing.
+REF_TP="$REPO_ROOT/skills/tdd/TEST-PLAN.md"
+if [ -s "$REF_TP" ] && grep -q 'Trigger' "$REF_TP"; then
+  pass "skills/tdd/TEST-PLAN.md is present, non-empty and carries Trigger"
+else
+  fail "skills/tdd/TEST-PLAN.md is missing, empty, or carries no Trigger line"
+fi
 
 # The two evidence line forms and the third skipped reason live here. Section 5 asserts the
 # consumers' return contracts quote the same shapes.
@@ -153,9 +163,11 @@ for f in "$ORCH" "$SHIP" "$HYPOTHESIS"; do
   assert_in "$f" 'skills/tdd/SKILL\.md' "${f#$REPO_ROOT/} names skills/tdd/SKILL.md"
 done
 
-# /plan and /work each name the producer a second time, in a Test Plan checklist and a gotchas
-# bullet, so a whole-file grep stays green after the build-step pointer itself is deleted. Both
-# are pinned to the sentence that has to carry it instead.
+# /plan and /work each name the producer a second time -- /plan in its TEST-PLAN.md checklist,
+# /work in a gotchas bullet -- so a whole-file grep over SKILL.md stays green after the
+# build-step pointer itself is deleted. Both are pinned to the sentence that has to carry it
+# instead. The checklist copy now sits in the sibling file and is out of reach of these greps,
+# which is why neither assertion below may be loosened to a whole-file match.
 assert_in "$PLAN" 'order each task.s steps as `skills/tdd/SKILL\.md` describes' "plan orders task steps test-first by naming the producer"
 assert_in "$WORK" 'then follow the cycle in `skills/tdd/SKILL\.md`'             "work Phase 3 names the producer at its build step"
 

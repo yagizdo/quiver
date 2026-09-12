@@ -125,7 +125,7 @@ fi
 # Each heading is a full line, counted exactly. A second copy of a heading makes the
 # restatement extractor in section 4 read the wrong paragraph; a missing one makes it
 # read nothing.
-for h in '## Command Resolution' '## Evidence Rule' '## For Skill Authors' '### Subagent restatement' '## Test Plan'; do
+for h in '## Command Resolution' '## Evidence Rule' '## For Skill Authors' '### Subagent restatement'; do
   N="$(grep -cxF -- "$h" "$REF")"
   if [ "$N" = "1" ]; then
     pass "heading '$h' appears exactly once"
@@ -133,6 +133,16 @@ for h in '## Command Resolution' '## Evidence Rule' '## For Skill Authors' '### 
     fail "heading '$h' appears $N time(s), expected exactly once"
   fi
 done
+
+# The Test Plan is a sibling file, not a body heading: SKILL.md loads on every read of the
+# producer and the test instructions do not. Non-empty and carrying its Trigger, because a
+# stub satisfies a file-exists check and tells a reviewer nothing.
+REF_TP="$REPO_ROOT/skills/verification/TEST-PLAN.md"
+if [ -s "$REF_TP" ] && grep -q 'Trigger' "$REF_TP"; then
+  pass "skills/verification/TEST-PLAN.md is present, non-empty and carries Trigger"
+else
+  fail "skills/verification/TEST-PLAN.md is missing, empty, or carries no Trigger line"
+fi
 
 # Six bold-led table rows: Node, Python, Go, Rust, Ruby, Flutter/Dart. A seventh is a
 # stack Global Constraint 6 excludes; five is a stack a consumer has to guess at.

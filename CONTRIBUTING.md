@@ -29,7 +29,7 @@ CI runs the same command on every PR. The tests are bash scripts under `tests/`,
 
 A new test goes at `tests/<area>/test-<name>.sh`. The runner discovers it, so nothing else needs editing. It must run under `bash` from any directory, exit 0 on pass, and exit nonzero on fail. Shared helpers are named `lib-*.sh` so the runner does not treat them as tests.
 
-Skill behaviour has no automated tests; the contract tests only check that a skill's strings still match their copies elsewhere. Each `SKILL.md` ends with a `## Test Plan` section. Run it in a real session and say in the PR what you saw.
+Skill behaviour has no automated tests; the contract tests only check that a skill's strings still match their copies elsewhere. Each skill carries a `TEST-PLAN.md` beside its `SKILL.md`. Run it in a real session and say in the PR what you saw.
 
 ## Code
 
