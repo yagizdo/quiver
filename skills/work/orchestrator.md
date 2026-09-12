@@ -2,7 +2,7 @@
 
 This document defines the subagent orchestration logic used by the work skill when a plan has 3+ tasks. It is NOT a standalone skill — it is referenced by `skills/work/SKILL.md` Phase 2.5.
 
-> **Scope distinction:** This document handles work-specific orchestration (dependency resolution, worktree isolation, merge procedure). For general-purpose agent team assembly and delegation, see `skills/orchestrate-agents/SKILL.md`.
+> **Scope:** This document is the reference for subagent orchestration in Quiver -- dependency resolution, worktree isolation, task briefs, and the merge procedure. Any skill that dispatches implementation subagents reads it here.
 
 ---
 
