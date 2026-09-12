@@ -5,6 +5,12 @@ on:
     branches: [master]
   pull_request:
 
+# One run per ref. A new push to a PR cancels the run still queued or running for
+# the previous commit, so superseded commits stop holding a place in the runner queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     runs-on: ubuntu-latest
