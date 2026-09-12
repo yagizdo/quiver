@@ -12,7 +12,7 @@
 # session, and the only symptom is a skill that stops auto-firing.
 #
 # The reverse direction matters more. The hook tells the model to invoke a matching skill
-# *silently, before any other response*. R10 exempts four internal reference skills, which
+# *silently, before any other response*. R10 exempts three internal reference skills, which
 # are read by other skills and never invoked at all; giving one a `when-to-use:` string
 # wires a non-invocable skill into that path. So this test asserts the exempt skills carry
 # no `when-to-use:` rather than treating the field as merely optional for them.
@@ -47,8 +47,8 @@ SKILLS_DIR="$REPO_ROOT/skills"
 
 # R10's exemptions, restated. Section 1 binds this list to the rule text so a name
 # dropped from the rule cannot stay silently skipped here.
-EXEMPT="code-navigation orchestrate-agents verification tdd"
-EXEMPT_COUNT=4
+EXEMPT="code-navigation verification tdd"
+EXEMPT_COUNT=3
 
 EXIT=0
 pass() { echo "  PASS: $1"; }

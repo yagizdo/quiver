@@ -270,7 +270,7 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
 
 **SKIP this phase entirely if this is a review-fix plan.** The Phase 4c verification is the quality gate for review-fix work. Dispatching review agents on review-fix changes creates infinite loops -- the agents will always find new issues that weren't in the original scope.
 
-For **non-review-fix plans** with large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them using the `orchestrate-agents` skill patterns.
+For **non-review-fix plans** with large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them in parallel -- one `Agent` call per agent, all in a single response, the way `skills/review/SKILL.md` Step 2 does it.
 
 **Do not use review agents by default.** Tests + linting + pattern-following is sufficient for most work. Reserve agent reviews for:
 - Large refactors (10+ files) that are NOT review-fix plans
