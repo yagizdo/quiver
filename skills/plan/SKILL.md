@@ -98,12 +98,9 @@ Before dispatching agents, detect navigation capabilities once.
 
 **CodeGraph:** Check if `.codegraph/` exists at project root. Set `codegraph_available` to `true` or `false`. No user prompt.
 
-**LSP:** Follow the detection flow from the `code-navigation` skill:
+**LSP:** Run the LSP detection flow in `skills/code-navigation/SKILL.md` (cached preference, one probe, no prompt); it yields `lsp_available`.
 
-1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_confirmed` is found, use the cached value and skip to step 4.
-2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
-3. If LSP is not available, set `lsp_available` to `false`, detect the project language from manifest files, and print one line naming the recommended server from the `code-navigation` skill's table: `> LSP not available; using grep. Install {recommended_server} for {language} to enable go-to-definition and find-references.` No prompt, and no cache of the negative result -- the next run re-probes.
-4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to all agents dispatched in Step 3.
+Pass both `codegraph_available` and `lsp_available` to all agents dispatched in Step 3.
 
 ### Navigation tier (use in all codebase searches from Step 4 onward)
 
