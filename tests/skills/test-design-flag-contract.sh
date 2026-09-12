@@ -77,8 +77,9 @@ assert_in "$BUILD" 'sits on an `Otherwise` line' \
 
 echo "=== 4. every prompt site in /design-build is guarded ==="
 
-# The instruction body only. Anti-Patterns and Test Plan mention AskUserQuestion to forbid
-# and to verify it; neither is a call site.
+# The instruction body only. Anti-Patterns names AskUserQuestion to forbid it, which is not
+# a call site. The Test Plan used to be the other exclusion; it is a sibling TEST-PLAN.md
+# now and never reaches this scan.
 BODY="$(mktemp)"
 MENTIONS="$(mktemp)"
 trap 'rm -f "$BODY" "$MENTIONS"' EXIT

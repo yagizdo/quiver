@@ -204,12 +204,42 @@ for f in "$DESIGN" "$BUILD"; do
   fi
 done
 
-# Every skill must carry a Test Plan -- the merge gate in CLAUDE.md.
-for f in "$DESIGN" "$BUILD"; do
-  if grep -q "^## Test Plan" "$f"; then
-    pass "Test Plan present in ${f#$REPO_ROOT/}"
+# Every skill must carry a Test Plan -- the merge gate in CLAUDE.md. It lives in
+# TEST-PLAN.md beside SKILL.md, not inside it: the body loads on every invocation and the
+# test instructions do not. Presence alone is not the gate -- an empty file or a stub with
+# no Trigger line satisfies a file-exists check and tells a reviewer nothing -- so the file
+# must also be non-empty and carry its Trigger. The second loop is the other half: a
+# section left behind in SKILL.md is a copy that drifts from the sibling and still loads.
+SKILL_DIRS=0
+for d in "$REPO_ROOT"/skills/*/; do
+  [ -f "$d/SKILL.md" ] || continue
+  SKILL_DIRS=$((SKILL_DIRS + 1))
+  name="$(basename "$d")"
+  tp="$d/TEST-PLAN.md"
+  if [ ! -f "$tp" ]; then
+    fail "skills/$name/TEST-PLAN.md missing -- the merge gate in CLAUDE.md"
+  elif [ ! -s "$tp" ]; then
+    fail "skills/$name/TEST-PLAN.md is empty"
+  elif ! grep -q "Trigger" "$tp"; then
+    fail "skills/$name/TEST-PLAN.md carries no Trigger line"
   else
-    fail "Test Plan missing in ${f#$REPO_ROOT/}"
+    pass "skills/$name/TEST-PLAN.md present, non-empty, carries Trigger"
+  fi
+done
+
+# A scan that finds no skill directories passes on nothing.
+if [ "$SKILL_DIRS" -gt 0 ]; then
+  pass "$SKILL_DIRS skill directories checked for a sibling Test Plan"
+else
+  fail "no skills/*/SKILL.md found -- this section asserted nothing"
+fi
+
+for f in "$REPO_ROOT"/skills/*/SKILL.md; do
+  name="$(basename "$(dirname "$f")")"
+  if grep -q "^## Test Plan" "$f"; then
+    fail "skills/$name/SKILL.md still carries a '## Test Plan' section -- it belongs in TEST-PLAN.md"
+  else
+    pass "skills/$name/SKILL.md carries no inline Test Plan"
   fi
 done
 
