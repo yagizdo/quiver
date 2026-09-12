@@ -159,12 +159,9 @@ Before dispatching agents, detect navigation capabilities once.
 
 **CodeGraph:** Check if `.codegraph/` exists at project root. Set `codegraph_available` to `true` or `false`. No user prompt.
 
-**LSP:** Follow the detection flow from the `code-navigation` skill:
+**LSP:** Run the LSP detection flow in `skills/code-navigation/SKILL.md` (cached preference, one probe, no prompt); it yields `lsp_available`.
 
-1. Check project memory for a cached LSP preference (`lsp_preference.md`). If `lsp_confirmed` is found, use the cached value and skip to step 4.
-2. Attempt a lightweight LSP probe (e.g., `documentSymbol` on any source file from the project root).
-3. If LSP is not available, set `lsp_available` to `false`, detect the project language from manifest files, and print one line naming the recommended server from the `code-navigation` skill's table: `> LSP not available; using grep. Install {recommended_server} for {language} to enable go-to-definition and find-references.` No prompt, and no cache of the negative result -- the next run re-probes.
-4. Set `lsp_available` to `true` or `false`. Pass both `codegraph_available` and `lsp_available` to agents that search the broader codebase (waste-detector, architecture-strategist, stress-tester, and project-context-analyst) in Step 2.
+Pass both `codegraph_available` and `lsp_available` to agents that search the broader codebase (waste-detector, architecture-strategist, stress-tester, and project-context-analyst) in Step 2.
 
 ---
 
@@ -620,50 +617,17 @@ Evaluate in order:
 
 ## Status Messages: Plain Language Required
 
-Every character of text the user sees in their terminal during or after a review run is read by a human who has not memorized this file's internal rule codes. This covers: mid-run status lines between tool calls, `AskUserQuestion` prompt bodies and button labels, the Step 4b terminal summary, the final verdict line, and any warning, confirmation, or error message. The review pipeline is dense with internal terms (rule codes, hash prefixes, invariant names) and it is tempting to narrate your work by referencing them directly. Resist that. A user running `/quiver:review` wants to know what is being checked and why, not which numbered rule in which internal document is being enforced.
+Every character the user sees in the terminal is read by someone who has not memorized this file. This covers mid-run status lines, `AskUserQuestion` prompt bodies and button labels, the Step 4b terminal summary, the final verdict line, and every warning, confirmation, and error message. State what you are checking in plain English with a short clause on why it matters -- the problem the check prevents, not the rule that demands it.
 
-**Rewrite rule:** before printing any chat-stream text, re-read it once. If it contains a rule code, a raw SHA or hash prefix, a commit SHA without plain-language context, or an internal invariant name, rewrite it. State what you are checking in plain English, and attach a short clause explaining why it matters -- the concrete problem the check prevents, not the rule that demands it. Being slightly more verbose is fine and preferred; two clear sentences beat one cryptic one.
+**Pre-print scan (mandatory gate, not a suggestion).** Before any chat-stream text leaves you -- the Step 4b summary and the verdict line included, they are not exempt for coming after the last tool call -- scan the draft for the categories below. On a match, rewrite and re-scan; text that has not passed the scan must not be printed. If you need a concept on this list and cannot find a plain-English version, omit the detail rather than leaking the jargon -- a correct but shorter status line beats a complete but cryptic one.
 
-**Pre-print scan (mandatory gate, not a suggestion).** Before any chat-stream output leaves you -- including the Step 4b terminal summary and the final verdict line, which are fully in scope -- scan your drafted text for the patterns below. If any match, rewrite and re-scan before printing. This is a gate. Text that has not passed the scan must not be printed.
+- **Rule codes** -- `RA`/`LA`/`R`/`L` followed by a digit, "rule N", "lesson N". Say what the rule requires: "the exact wording every review agent must carry".
+- **Hash material** -- any unbroken run of 8 or more hexadecimal characters, full SHAs and `5fc168ad...` truncations alike. Omit it; hashes are never user-facing.
+- **Bare commit SHAs** -- `[0-9a-f]{7,}` with no plain-language label. Name the commit by what it did: "the commit that added the status-message section".
+- **Internal invariant names** -- "canonical text", "byte-identical", "drift check", "exemption variant", "subsumption rule", "proportional severity floor", "Profile A/B/C", "diff manifest", "discipline section", "stability test". Say what the thing does: "the classified list of changed files", "a filter that drops low-severity findings on small diffs", "the 'would I still flag this cold tomorrow' check".
+- **Section references into the rule files** -- "Step 2 item 9", "sub-item 4a", "hard rule N". Name the check, not its address.
 
-- Rule codes: any `RA` followed by a digit, any `LA` followed by a digit, `R[0-9]` or `L[0-9]` references to hard rules, any "rule N" / "lesson N" phrasing that only makes sense if you have read the Quiver rule files.
-- Hash material: any unbroken run of 8 or more hexadecimal characters (full SHAs, hash prefixes, `5fc168ad...` style truncations).
-- Bare commit SHAs: any `[0-9a-f]{7,}` appearing without a short plain-language label ("the commit that added the status-message section" is fine; `337eab3` by itself is not).
-- Internal invariant names: "canonical text", "byte-identical", "drift check", "drift-detection workflow", "exemption variant", "adversarial exemption", "research-shaped exemption", "subsumption rule", "proportional floor", "severity floor", "Profile A", "Profile B", "Profile C", "diff manifest", "discipline section", "stability test", "RA1-RA8", "LA1-LA4".
-- Section references into the rule files that mean nothing to an outside reader: "Step 2 item 9", "sub-item 4a", "hard rule N", etc.
-
-If you need a concept that appears on this list and you cannot find a plain-English version, omit the detail rather than leaking the jargon. A correct but shorter status line is better than a complete but cryptic one.
-
-**Plain-language translation table.** When you would otherwise reach for one of the banned terms, use the replacement on the right. If a term is missing from this table and you cannot paraphrase it, drop the detail.
-
-| Jargon | Plain-language replacement |
-|--------|---------------------------|
-| RA2 / canonical text / byte-identical | "the exact rule text that must appear in every agent word-for-word" |
-| LA1 drift check / drift-detection workflow | "confirming the rule text has not silently diverged between agent files" |
-| SHA256 hash, hash prefix | omit entirely -- hashes are never user-facing |
-| bare commit SHA (`337eab3`) | "the commit that added X" or "the most recent commit on this branch" |
-| RA3 exemption variant / adversarial exemption | "the adversarial agents use their own wording of the rule" |
-| research-shaped exemption | "research agents are treated differently because they only report facts, not graded findings" |
-| proportional severity floor | "a filter that drops low-severity findings on small diffs" |
-| subsumption rule | "a narrower finding absorbed into a broader one it is a symptom of" |
-| Profile A / Profile B / Profile C | "small / medium / large-or-risky diff" |
-| diff manifest | "the classified list of changed files" |
-| stability test / RA4 | "the 'would I still flag this cold tomorrow' check" |
-| discipline section | "the top-of-file rules every review agent follows" |
-
-**What stays technical:** file paths, agent names (`waste-detector`, `project-context-analyst`), line counts, file counts, finding severities (Critical/High/Medium/Low), commit counts in a delta. These are concrete and users expect them. The rule applies only to terms that only make sense if you have read the Quiver rules files.
-
-**Example -- bad:**
-
-> Before finalizing I'll verify the one concrete constraint worth checking: that the RA2 canonical text is byte-identical across the seven non-adversarial agents.
-> All seven non-adversarial agents carry the byte-identical canonical RA2 text (SHA256 5fc168ad...), matching the baseline from commit d55d5fb. LA1 drift check passes.
-
-**Example -- good:**
-
-> One last check before I write the report. This PR copies the same "no speculation" rule text into seven different agent files. That kind of duplication drifts over time -- someone edits one copy, forgets the others, and the rule quietly splits into inconsistent variants. I'll hash all seven copies and confirm they are still word-for-word identical.
-> All seven agent files carry the exact same rule text, matching the version the project has recorded as the baseline. No drift detected. Writing the report now.
-
-**Scope:** this rule governs every chat-stream character printed during or after a review run, including mid-run status lines, `AskUserQuestion` prompt bodies, the Step 4b terminal summary, and the final verdict line. "Between tool calls" is not a loophole -- the Step 4b terminal summary and verdict line are fully covered even though they come after the last tool call. The only place rule codes, hashes, and internal invariant names are allowed is inside the saved report file on disk; that file is a persisted artifact that lives alongside the rules, not live conversation. If the text appears in the user's terminal, the ban applies.
+**What stays technical:** file paths, agent names (`waste-detector`, `project-context-analyst`), line and file counts, severities (Critical/High/Medium/Low), commit counts in a delta. Users expect these. The ban covers only terms that need the Quiver rule files to parse, and the saved report file on disk is the one place they are allowed.
 
 ---
 
