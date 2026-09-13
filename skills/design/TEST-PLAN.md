@@ -1,6 +1,6 @@
-# Test Plan -- /design
+# Test Plan -- /quiver:design
 
-**Trigger:** `/design`, `/design 4029:12345`, `/design --auto`, `/quiver:design`
+**Trigger:** `/quiver:design`, `/quiver:design 4029:12345`, `/quiver:design --auto`, `/quiver:design`
 
 **Setup:**
 - figma-bridge MCP server configured, plugin running inside a Figma file.
@@ -15,7 +15,7 @@
 5. A node ID passed as `4029-12345` is normalized to `4029:12345` before any tool call.
 6. With nothing selected and no ID argument, Step 3 prints the selection instruction and stops.
 7. Step 4 writes reference PNGs into `.claude/plans/assets/<slug>/` at scale 2, plus one file per icon and image leaf node (`.svg` for vectors, `.png` at scale 3 otherwise).
-8. Re-running `/design` against a node whose asset already exists does not throw, and does not delete the existing file -- the new export takes a suffixed name and the previous plan's references still resolve.
+8. Re-running `/quiver:design` against a node whose asset already exists does not throw, and does not delete the existing file -- the new export takes a suffixed name and the previous plan's references still resolve.
 9. A `save_screenshots` sandbox rejection prints the reported sandbox root and writes there, recording it as `screenshot_dir`.
 10. Step 5 emits an Anchor line for every node, and a Reconciliation line for every node whose anchor references excluded chrome.
 11. Step 6 resolves `codegraph_available` from a Glob on `.codegraph/*` and dispatches exactly one `quiver:code-navigator` agent, with literals in the prompt, and waits without polling.
@@ -30,15 +30,15 @@
 17. Every applicable node spec carries `Fit:`, `Content:`, and `Route:` lines.
 18. The plan carries an `### Assets` section naming every exported file.
 19. Step 10 reads the plan back, verifies the assets exist, dispatches `quiver:plan-reviewer` exactly once, applies its findings, and offers the three-button handoff via `AskUserQuestion`.
-20. `/design --auto` still asks every plan-time question -- file, nodes, unmapped tokens, build preferences, overwrite -- and the `--auto` token never reaches Step 3's node-ID resolution.
-21. `/design --auto` skips Step 10's handoff question entirely, prints `> Building.`, and invokes `design-build` with the plan path and `--auto` in the same run.
+20. `/quiver:design --auto` still asks every plan-time question -- file, nodes, unmapped tokens, build preferences, overwrite -- and the `--auto` token never reaches Step 3's node-ID resolution.
+21. `/quiver:design --auto` skips Step 10's handoff question entirely, prints `> Building.`, and invokes `design-build` with the plan path and `--auto` in the same run.
 22. Picking "Build it now" in the interactive handoff invokes `design-build` without `--auto`, so the build keeps its own prompts.
-23. `/design --no-commit` asks Step 8's Question 2 only, writes `commit_strategy: none`, and says so once.
-24. `/design --auto --no-commit` forwards both flags to `design-build`; `/design --auto` forwards only `--auto`.
+23. `/quiver:design --no-commit` asks Step 8's Question 2 only, writes `commit_strategy: none`, and says so once.
+24. `/quiver:design --auto --no-commit` forwards both flags to `design-build`; `/quiver:design --auto` forwards only `--auto`.
 25. `--no-commit` works without `--auto`, and `--auto` works without `--no-commit`.
 
 **Verification checklist:**
-- [ ] `/design` and `/quiver:design` both appear in the slash menu after plugin reload.
+- [ ] `/quiver:design` and `/quiver:design` both appear in the slash menu after plugin reload.
 - [ ] Both `!` blocks exit 0 with `NO_GIT` output in a non-git directory.
 - [ ] No figma-bridge write tool is ever called.
 - [ ] The saved plan contains no raw `{...}` placeholder text.

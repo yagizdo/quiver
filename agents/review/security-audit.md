@@ -187,6 +187,8 @@ Group findings by severity. Within each group, order by exploitability (easiest 
 
 **Low** -- Hardening opportunity. Missing security headers, dependency pinning, logging improvements. Track for follow-up.
 
+Reachability is part of the tier, not a footnote appended after it. The Critical list above names categories, and a category alone does not earn the tier: the finding is Critical when some path in the repository or in its public surface carries attacker-influenced input into the sink. When the sink exists but nothing reaches it yet -- a helper the diff adds with no caller, a branch behind a flag that is off -- report it one tier down and name the caller that is missing. A Critical on code nothing calls is severity assigned to a hypothetical caller, which rule 1 already forbids in the body of a finding and forbids here for the same reason. Do not split the difference or hedge between two tiers: state the tier and the sentence that earns it.
+
 Each finding uses this format:
 
 ```

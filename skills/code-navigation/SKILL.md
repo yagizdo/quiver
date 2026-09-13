@@ -81,7 +81,7 @@ You have been provided `codegraph_available` and `lsp_available` flags in your c
 
 ## Skill-Level Navigation Detection
 
-Skills that dispatch code-exploration agents (`/plan`, `/review`) run this detection once before agent dispatch. Results are passed as `codegraph_available` and `lsp_available` flags to `quiver:code-navigator` and other agents that search the codebase.
+Skills that dispatch code-exploration agents (`/plan`, `/quiver:review`) run this detection once before agent dispatch. Results are passed as `codegraph_available` and `lsp_available` flags to `quiver:code-navigator` and other agents that search the codebase.
 
 ### CodeGraph Detection Flow
 

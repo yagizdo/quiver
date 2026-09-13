@@ -94,42 +94,79 @@ Then look for a repository PR template with the Read tool (`.github/PULL_REQUEST
 
 The body has one reader: someone who has to approve this diff and was not in this conversation. Anything that does not help that person decide is padding, and padding on a small PR is worse than no description -- it buries the one thing that mattered.
 
-**1. Budget.** Length scales with how much a reviewer has to hold in their head, not with line count. 400 lines of a regenerated lockfile is the top row; 20 lines rewriting auth logic is not.
+**1. Work out what this reviewer needs, then write only that.** Before drafting, answer three questions against the change in front of you. Each answer that exists becomes body text. An answer that does not exist contributes nothing, and no heading stands in for it.
 
-| The change | Body |
-|------------|------|
-| One mechanical edit -- typo, version bump, rename, config value, generated file | 1-2 sentences. No headings at all. |
-| One coherent behavior change, up to ~3 files | 2-4 sentences under `## Summary`. Nothing else unless a gate below opens. |
-| Several files, one theme | `## Summary` plus a short `## Changes` list. Roughly 150-300 words. |
-| Many files, or several themes at once | Add whichever gated sections apply. Roughly 600 words is the ceiling. If the change genuinely needs more than that, say in the body that the PR is large and is best reviewed commit by commit -- do not write more prose instead. |
+1. **Why** -- what the change is for, which the diff cannot show. Almost always answerable.
+2. **The trap** -- what the reviewer would get wrong, miss, or argue with if nobody told them: an ordering that matters, an alternative already tried and rejected, a breaking edge, a file that looks unrelated and is not.
+3. **The ask** -- what the reviewer has to do that CI will not do for them.
 
-Never ship a body that is a single sentence with no motivation, and never ship one that narrates the diff the reviewer already has.
+Length is the length of those answers. There is no quota and no target. A rename answers the first question in a sentence and has nothing for the other two, so its body is a sentence. A change that rewires authentication answers all three and earns every word it takes. Judge by what the reviewer has to hold in their head, not by how many lines changed: 400 lines of a regenerated lockfile is the sentence, 20 lines moving a permission check is not.
 
-**2. Sections are earned, not filled in.** Start with the Summary and add a section only when its gate is met. A section with nothing behind it is padding -- drop the heading entirely rather than writing a thin paragraph under it.
+Never ship a body that is a single sentence with no motivation, and never ship one that narrates the diff the reviewer already has. A body that keeps going after the three answers are given is not thorough -- it is unread. The reviewer skims, the detail that mattered is buried in what surrounds it, and a wall of generated prose is the thing people point at when they say a PR was written by a machine.
 
-| Section | Include only when |
-|---------|-------------------|
-| `## Changes` | The diff touches more than one area and the file list alone does not tell a reviewer what each area does. One bullet per area or file, not per hunk. |
-| `## How it works` | There is control flow, ordering, or an algorithm a reviewer cannot follow from the diff alone. |
-| `## Design decisions` | A real alternative was considered and rejected -- in this conversation, in the commit messages, or in a plan, spec, or review report. Never invent one to fill the section. |
-| `## Risks` | Breaking change, migration, data change, feature flag, or a rollback that is not trivial. |
-| `## Test plan` | The reviewer has to do something themselves: manual steps, a runtime check, or a device or environment CI does not cover. If the diff adds tests and CI runs them, one sentence naming the command replaces the checklist. Never emit a checkbox for "code compiles", "tests pass", or "reviewed the diff". |
+**2. Sections carry the answers; they are not slots to fill.** Include a section when it carries an answer you actually have, and drop the heading entirely otherwise -- a thin paragraph under an unearned heading is the padding this rule exists to prevent.
 
-**3. Where the motivation comes from.** In order: what the user said in this conversation; the plan, spec, review report, or issue the branch was built from (`.claude/plans/`, `.claude/reports/`, a linked issue); then the commit messages; then the diff. The diff is last because it only ever answers *what*. If none of the first three carry a motivation, state what the change does and stop -- do not manufacture a rationale.
+| Section | Carries | Include when |
+|---------|---------|--------------|
+| `## Summary` | Why | The body has headings at all. It comes first. |
+| `## Changes` | Why, per area | The diff touches several areas and the file list does not tell a reviewer what each one does. One line per area, never per hunk. |
+| `## How it works` | The trap | There is control flow, ordering, or an algorithm a reviewer cannot follow from the diff. |
+| `## Design decisions` | The trap | A real alternative was rejected and a reviewer would otherwise propose it. Only the ones they would argue with -- never a log of every choice made while building, and never invented to fill the section. |
+| `## Risks` | The trap | Breaking change, migration, data change, feature flag, or a rollback that is not trivial. |
+| `## Test plan` | The ask | The reviewer has to do something themselves: manual steps, a runtime check, a device or environment CI does not cover. When the diff adds tests and CI runs them, one sentence naming the command replaces the checklist. Never a checkbox for "code compiles", "tests pass", or "reviewed the diff". |
 
-**4. The user's instructions outrank the tables.** Anything the user asked for in this invocation or earlier in the conversation -- shorter, longer, a section they want, a number they want quoted, an issue to link, a reviewer to address -- wins over every rule above.
+**3. Calibrate against these.** The three sizes are not tiers to assign a change to -- they are what the three questions produce when a change has one answer, one answer plus a detail, or all three.
 
-**5. Do not write:**
+A dependency bump, one answer:
+
+```
+Bumps `requests` to 2.32.4 for CVE-2024-35195. The three call sites in `client.py` use the same API and are unchanged.
+```
+
+One behavior change across a few files:
+
+```
+## Summary
+Upload retries fired on 4xx as well as 5xx, so a file the server rejected was re-sent three times before the error surfaced. The predicate now checks the status class; backoff is unchanged.
+```
+
+Nothing here answers the trap or the ask -- no ordering to explain, no alternative a reviewer would propose, nothing to run by hand.
+
+A new subsystem plus the problems it surfaced, all three answers:
+
+```
+## Summary
+Adds a behavior eval for the review command: a fixture repo with three planted defects and three baits, a real review run against it, and a grader over the report. Four runs while building it found two real problems, both fixed here.
+
+## Changes
+- `tests/eval/` -- runner, fixture builder, expectations.
+- `agents/review/security-audit.md` -- the severity rubric mixed a category test with a reachability test, so an unreachable sink flapped between High and Critical between runs. A reachability paragraph settled it; the two runs after it agreed.
+- Docs -- `/review` and `/design` resolve to bundled commands, not to this plugin, so user-facing text now names them with the plugin prefix.
+
+## Test plan
+`bash tests/eval/run-review-golden.sh` -- spends real API credit, so it sits outside the glob CI discovers and is run by hand before a release.
+```
+
+Every other choice that went into building that eval is absent on purpose.
+
+**4. Where the motivation comes from.** In order: what the user said in this conversation; the plan, spec, review report, or issue the branch was built from (`.claude/plans/`, `.claude/reports/`, a linked issue); then the commit messages; then the diff. The diff is last because it only ever answers *what*. If none of the first three carry a motivation, state what the change does and stop -- do not manufacture a rationale.
+
+**5. The user's instructions outrank everything above.** Anything the user asked for in this invocation or earlier in the conversation -- shorter, longer, a section they want, a number they want quoted, an issue to link, a reviewer to address -- wins over every rule here.
+
+**6. Do not write:**
 - Filler openers -- "This PR introduces", "This pull request aims to", "In this change we".
 - A restatement of the files-changed list GitHub already renders.
 - Line-by-line narration of the diff. The diff is attached.
 - Speculative follow-ups, "future improvements", or what you chose not to do, unless the user asked for them.
 - Praise for the change, emoji headings, or a closing paragraph that repeats the Summary.
+- A measurement, a cost figure, or a date the reviewer does not need in order to approve the diff. It belongs in the code or in the file that records it.
 - AI attribution of any kind.
+
+**7. Read it back as the reviewer before you print it.** Go through the draft one sentence at a time and ask what the reviewer does with that sentence. A sentence they would skip comes out, and a section whose sentences all come out goes with it. Cut, do not compress: rewording the same content shorter keeps every idea and removes only the words that made them readable.
 
 **Language rule:** the title and body are always written in English, regardless of the conversation language. Only use another language if the user explicitly asks for it in this invocation. A PR is a repository artifact read by people who were not in this conversation.
 
-**Structure rule:** when the body has headings at all, `## Summary` comes first and the gated sections follow in table order. The one-or-two-sentence tier has no headings -- do not put a `## Summary` heading above a single sentence.
+**Structure rule:** when the body has headings at all, the sections follow in table order. A body of one or two sentences has no headings -- do not put a `## Summary` heading above a single sentence.
 
 ---
 

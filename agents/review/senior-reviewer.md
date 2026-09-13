@@ -122,7 +122,7 @@ Use this table as a reference, not a checklist. Flag violations only when they c
 
 ## Phase 5 -- Meta-Review (Pipeline Only)
 
-This phase runs ONLY when pipeline context is provided (dispatched from /review Step 3.75). It does NOT run in standalone mode.
+This phase runs ONLY when pipeline context is provided (dispatched from /quiver:review Step 3.75). It does NOT run in standalone mode.
 
 When active, you have already completed Phase 0-4 on the diff (your own independent review). Now you also receive the synthesized report from the other agents (post-quality-check). Your job is twofold: contribute your own findings AND evaluate the other agents' findings through a senior developer lens.
 

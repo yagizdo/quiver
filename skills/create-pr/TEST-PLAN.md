@@ -10,7 +10,7 @@
 1. Skill runs the six git shell blocks and stops with a clear message if any of: not a git repo, no remote, dirty working tree.
 2. Skill resolves the base branch via the priority order (`--base` flag > `origin/HEAD` > `main` > `master` > `develop` > prompt).
 3. Skill pushes the branch (`git push` with upstream, otherwise `git push -u origin <branch>`).
-4. Skill builds a title (<= 72 chars, imperative mood) and a body sized by the Step 3 budget table, carrying only the sections whose gates the change opens, prints both to chat (body in a fenced block), then asks via `AskUserQuestion` with a one-line question and `Create PR / Create as Draft / Edit / Cancel`.
+4. Skill builds a title (<= 72 chars, imperative mood) and a body sized by the Step 3 questions, carrying only the sections that answer one of them, prints both to chat (body in a fenced block), then asks via `AskUserQuestion` with a one-line question and `Create PR / Create as Draft / Edit / Cancel`.
 5. With `--draft`, skill skips the prompt and runs `gh pr create --draft ...`.
 7. When the repository has a `PULL_REQUEST_TEMPLATE.md`, the body follows that template's sections instead of the Step 3 section list.
 6. Final output shows the PR URL parsed from `gh` stdout.
@@ -21,9 +21,10 @@
 - [ ] Body uses HEREDOC formatting in the actual `gh pr create` invocation.
 - [ ] Title and body are in English even when the conversation is in another language.
 - [ ] A one-file mechanical change (typo, version bump) produces 1-2 sentences with no headings, no `## Changes`, and no `## Test plan`.
-- [ ] A multi-theme change produces `## Summary` first, then only the gated sections that apply, and stays inside the word ceiling.
+- [ ] A multi-theme change produces `## Summary` first, then only the sections that carry an answer, and stops when the answers run out.
 - [ ] No section appears with nothing behind it -- no `## Test plan` holding "tests pass", no `## Design decisions` describing a choice nobody made.
-- [ ] An instruction the user gave in the conversation ("keep it short", "mention the benchmark") is honored over the budget and gate tables.
+- [ ] `## Design decisions` carries only the alternatives a reviewer would propose, not a log of every choice made while building.
+- [ ] An instruction the user gave in the conversation ("keep it short", "mention the benchmark") is honored over every rule in Step 3.
 - [ ] A repository PR template, when present, wins over the Step 3 section list.
 - [ ] The full body is visible in the chat stream before the prompt appears; the `AskUserQuestion` question is a single short line containing no body text.
 - [ ] `gh pr create` runs only after the prompt is answered -- printing the preview and creating the PR in one uninterrupted turn is a failure, even when the user's message asked for a PR.

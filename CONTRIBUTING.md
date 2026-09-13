@@ -29,6 +29,8 @@ CI runs the same command on every PR. The tests are bash scripts under `tests/`,
 
 A new test goes at `tests/<area>/test-<name>.sh`. The runner discovers it, so nothing else needs editing. It must run under `bash` from any directory, exit 0 on pass, and exit nonzero on fail. Shared helpers are named `lib-*.sh` so the runner does not treat them as tests.
 
+One skill does have a behaviour check: `bash tests/eval/run-review-golden.sh` runs a real `/quiver:review` over a throwaway fixture repo and grades the report against a list of regexes in `tests/eval/review-golden/expectations.txt`. Three of them pin defects planted in the fixture diff and must match; three pin deliberate bait -- a defect outside the diff, a bounded loop advertised as slow, correct-but-odd tested code -- and must not. It calls the API, so it costs money on every run, and that is why it is not named `test-*.sh`: `tests/run-all.sh` and CI discover tests by that glob and must never pick this one up. Run it by hand before a release or after changing a review agent, and put the scoreboard in the PR. If a planted defect goes unreported, say so -- that is the measurement, not a fixture to adjust until it passes.
+
 Skill behaviour has no automated tests; the contract tests only check that a skill's strings still match their copies elsewhere. Each skill carries a `TEST-PLAN.md` beside its `SKILL.md`. Run it in a real session and say in the PR what you saw.
 
 ## Code

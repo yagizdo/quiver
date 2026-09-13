@@ -23,7 +23,7 @@ when-to-use: "user wants to build a design plan into working pixel-accurate UI -
 
 # Instructions
 
-You are a design implementation specialist. You take a plan written by `/design`, build it against the numbers the plan already carries, and gate every task on the project's own build or tests. You do not open Figma -- the plan is self-contained -- and you do not capture, screenshot, or measure anything.
+You are a design implementation specialist. You take a plan written by `/quiver:design`, build it against the numbers the plan already carries, and gate every task on the project's own build or tests. You do not open Figma -- the plan is self-contained -- and you do not capture, screenshot, or measure anything.
 
 **Announce:** "Using the design-build skill to implement the design plan."
 
@@ -37,7 +37,7 @@ Proceed. Skip branch creation in Phase 2 and all commit steps in Phase 3d.
 
 **Arguments.** `--auto` anywhere in `$ARGUMENTS` sets **auto mode**: no `AskUserQuestion`
 is reachable from any path in this skill. Strip it before resolving a path -- a flag is not
-a plan path. `/design --auto` forwards it here; a user can also type it directly against an
+a plan path. `/quiver:design --auto` forwards it here; a user can also type it directly against an
 existing plan.
 
 `--no-commit` anywhere in `$ARGUMENTS` forces `commit_strategy: none` for this run,
@@ -63,13 +63,13 @@ site takes that shape or it does not go in.
 - Several matches, otherwise: use `AskUserQuestion` with one button per plan, most recent first, plus `"Other -- I'll give a path"`.
 - No matches: print
   ```
-  > No design plan found. Run /design first to extract a Figma design into a plan.
+  > No design plan found. Run /quiver:design first to extract a Figma design into a plan.
   ```
   **Stop here.**
 
 **Validate the plan.** It must have `design_source: figma-bridge` in frontmatter and a `### Node Specs` section. If either is missing, print:
 ```
-> {filename} is not a design plan. It has no Node Specs section. Run /design to
+> {filename} is not a design plan. It has no Node Specs section. Run /quiver:design to
 > produce one, or pass a design plan path explicitly.
 ```
 **Stop here.**
@@ -219,7 +219,7 @@ once on the first task, in place of the `none` line below rather than alongside 
 `> --no-commit: changes stay in the working tree.` The override is run-scoped --
 it never rewrites the plan, so the same plan still commits on a run without the flag. This
 is the only way to run a plan carrying `per-task` or `single` without commits, because Step
-8 of `/design` is not re-asked here.
+8 of `/quiver:design` is not re-asked here.
 
 - `none` (the default) -- write no commit. Say so once, on the first task:
   `> No commit: changes stay in the working tree for you to review.` Do not repeat it per
@@ -268,7 +268,7 @@ Print the branch name and the commit count.
 **In auto mode**, print the next steps as text and stop:
 
 ```
-> Next: /review to read the diff, /commit to commit, /create-pr to open a PR.
+> Next: /quiver:review to read the diff, /commit to commit, /create-pr to open a PR.
 ```
 
 Invoke none of them. The consent this run carries covers the build -- not a review, not a
@@ -278,7 +278,7 @@ Otherwise call `AskUserQuestion`:
 
 > Build finished. What next?
 
-Buttons: `["Review the changes -- /review", "Commit -- /commit", "Open a PR -- /create-pr", "Stop here"]`
+Buttons: `["Review the changes -- /quiver:review", "Commit -- /commit", "Open a PR -- /create-pr", "Stop here"]`
 
 - **Review the changes:** invoke the `review` skill.
 - **Commit:** invoke the `commit` skill.
@@ -300,8 +300,8 @@ Follow all rules in `.claude/rules/skill-rules.md`. Additionally:
 - **Don't** loop the fix cycle without a bound. Three attempts, then ask -- or, in auto mode, accept and move on.
 - **Don't** re-run the gate after "Accept as-is". That is the 3c-to-3d cycle the attempt budget does not bound.
 - **Don't** extend the retry budget on your own. Only the user's "Try 3 more attempts" resets it, and auto mode never reaches that button.
-- **Don't** call `AskUserQuestion` from any path in auto mode. The whole contract is that `/design` Step 8 was the run's last question.
-- **Don't** invoke `/review`, `/commit`, or `/create-pr` from the auto handoff. Naming them is the handoff; running them is a decision nobody consented to.
+- **Don't** call `AskUserQuestion` from any path in auto mode. The whole contract is that `/quiver:design` Step 8 was the run's last question.
+- **Don't** invoke `/quiver:review`, `/commit`, or `/create-pr` from the auto handoff. Naming them is the handoff; running them is a decision nobody consented to.
 - **Don't** replace a precedent mechanism with a simpler one because it compiles. The precedent is in the plan because the simple version is what looks wrong.
 - **Don't** center at page level when a Reconciliation line names a chrome-excluded region.
 - **Don't** write a `fill` axis as the literal `Box:` number.

@@ -13,7 +13,7 @@
 4. A successful LSP probe is cached as `lsp_confirmed` in project memory at `lsp_preference.md` and reused across sessions; a failed probe prints one line, asks nothing, and caches nothing.
 
 **Verification checklist:**
-- [ ] `/plan` and `/review` both run navigation detection (CodeGraph + LSP) exactly once before agent dispatch (not per agent).
+- [ ] `/plan` and `/quiver:review` both run navigation detection (CodeGraph + LSP) exactly once before agent dispatch (not per agent).
 - [ ] At least one dispatched agent prompt contains the literal phrase `lsp_available:` in the agent context.
 - [ ] When LSP returns empty results, the agent prints a fallback notice before running grep.
 - [ ] Project memory ends up with `lsp_preference.md` after the first detection run that finds a server; a run without one writes nothing and asks nothing.

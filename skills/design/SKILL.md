@@ -44,7 +44,7 @@ implies the other.
 **What `--no-commit` is for.** `none` is already the recommended answer to Step 8's commit
 question, so here the flag buys a guarantee that does not depend on clicking the right
 button: it closes Question 1 before the call is composed rather than after. The
-existing-plan case belongs to `/design-build --no-commit`, not to this flag -- `/design`
+existing-plan case belongs to `/design-build --no-commit`, not to this flag -- `/quiver:design`
 always reaches Step 8, including on the update-the-existing-plan path.
 
 **What auto mode changes, and what it does not.** It removes the handoff prompt between
@@ -78,7 +78,7 @@ If `ToolSearch` returns no figma-bridge tools, the MCP server is not configured.
 >      https://github.com/gethopp/figma-mcp-bridge/releases
 >      then in Figma: Plugins > Development > Import plugin from manifest
 >
-> Run the plugin inside the Figma file you want to read, then retry /design.
+> Run the plugin inside the Figma file you want to read, then retry /quiver:design.
 ```
 
 **Stop here.**
@@ -93,7 +93,7 @@ Call `list_files`.
   ```
   > No Figma file connected. Open the figma-mcp-bridge plugin inside the Figma
   > file you want to read (Plugins > Development > figma-mcp-bridge), leave it
-  > running, then retry /design.
+  > running, then retry /quiver:design.
   ```
   **Stop here.**
 - **Exactly one file:** use its `fileKey` for every later call. Print `> Connected file: {fileName}`.
@@ -111,8 +111,8 @@ Resolve the target nodes in this order:
 3. **Selection is empty and no ID was given.** Print:
    ```
    > Nothing selected in Figma. Select the frame or component you want built,
-   > then retry /design. You can also pass a node ID directly:
-   >   /design 4029:12345
+   > then retry /quiver:design. You can also pass a node ID directly:
+   >   /quiver:design 4029:12345
    ```
    **Stop here.**
 
@@ -152,7 +152,7 @@ Run these against the resolved `fileKey`:
      assume the server's working directory is the project root.
    - **Writes use flag `wx` and throw on an existing file.** Before writing, list the
      target directory. When a file of the same name already exists, **write a suffixed
-     name** (`<node-id>-2.png`, incrementing until the name is free). A second `/design`
+     name** (`<node-id>-2.png`, incrementing until the name is free). A second `/quiver:design`
      run against the same node must not throw.
 
      **Never delete the existing file.** Step 8 has not yet asked whether this run

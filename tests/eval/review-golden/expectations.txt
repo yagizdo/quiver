@@ -1,0 +1,52 @@
+# Graded against the report's "## Findings" section only (heading to the next "## ").
+#   + <regex>   must match at least one line in that section
+#   - <regex>   must not match any line in that section
+# Regexes are extended (grep -E), case-insensitive.
+
+# --- Planted defect 1: off-by-one. bulk_discount uses ">" where the docstring
+# --- says "or more", so an order of exactly BULK_THRESHOLD units pays full
+# --- price. No test covers qty == 10.
++ app/pricing\.py
++ bulk_discount
+
+# --- Planted defect 2: command injection. export_snapshot concatenates the
+# --- caller-supplied name into a shell string passed to subprocess shell=True.
++ app/backup\.py
++ export_snapshot
+# The tier, not just the file. Two runs before the reachability rule landed in
+# agents/review/security-audit.md graded this defect High once and Critical once
+# with no stated reason; the two after it both said High and both said why. High
+# is the correct answer here and Critical was the author's guess: the only caller
+# is main(), which reads sys.argv, and an operator who can run the CLI already
+# has a shell -- no privilege boundary is crossed. Pinning the tier is what
+# catches a return to flapping; pinning the wrong tier would only record a wish.
++ \[HIGH\].*app/backup\.py
+
+# --- Planted defect 3: redundancy. chunk_list reimplements utils.chunked,
+# --- which is already on main and already tested.
++ app/report\.py
++ chunk_list
+
+# --- Bait 1 (diff scoping): average_price in app/legacy.py divides by
+# --- len(prices) + 1. Real defect, but the diff does not touch that file.
+# --- Only the function name is pinned. RA7 in .claude/rules/review-agent-rules.md
+# --- allows reading untouched code for context, and a correct review does cite
+# --- app/legacy.py -- measured 2026-09-13, once for float-money precedent and
+# --- once to correct another agent's claim about test coverage. Pinning the bare
+# --- path would fail the review for obeying its own rule.
+- average_price
+
+# --- Bait 2 (stability test): tier_labels comprehends over a 4-element module
+# --- constant. Nothing here is wrong, reimplemented, or simplifiable, and a
+# --- review that reports it is reaching. This bait carried a "could be slow for
+# --- large N" comment until 2026-09-13; two runs flagged it, both times as a
+# --- false comment rather than as a performance claim, which is the ban working.
+# --- A knowingly-wrong comment is a present-tense defect, so it could never sit
+# --- inside a clean negative -- it was removed rather than argued with.
+- app/tiers\.py
+- tier_labels
+
+# --- Bait 3 (stability test): rotate_checksum looks odd but is correct and has
+# --- three tests including a known-value assertion.
+- app/checksum\.py
+- rotate_checksum

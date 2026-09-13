@@ -23,7 +23,7 @@
 5. With several nodes selected, the skill asks which one and compares exactly
    one.
 6. When no implementation of the node is found, the skill prints the
-   "nothing to compare yet" message naming `/design` and `/design-build`, and
+   "nothing to compare yet" message naming `/quiver:design` and `/design-build`, and
    stops without any `AskUserQuestion`.
 7. The report table lists deviations highest severity first, with a `file:line`
    for every code value.
@@ -65,10 +65,10 @@
 - The field list in Step 3 is this skill's own. It deliberately does not
   hand-sync with the `### Node Specs` list in `skills/design/SKILL.md`, so
   there is no contract test binding the two and no drift to catch. Adding a
-  field here does not require touching `/design`.
+  field here does not require touching `/quiver:design`.
 - A plan read in Step 1 path 1 is a snapshot. When the Figma file moved after
   the plan was written, this skill compares against the old design and cannot
-  tell. Re-run `/design` when the report disagrees with what you see in Figma.
+  tell. Re-run `/quiver:design` when the report disagrees with what you see in Figma.
 - Figma reports a `fill` axis with a concrete measured number, which is why the
   Fit rule needs to be stated rather than inferred. The node data alone looks
   like a fixed width.

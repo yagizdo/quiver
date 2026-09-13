@@ -1,6 +1,6 @@
-# Test Plan -- /review
+# Test Plan -- /quiver:review
 
-**Trigger:** `/review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--plan <path>`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
+**Trigger:** `/quiver:review` (with optional flags: PR URL, `--base <branch>`, `--deep`, `--plan <path>`, `--output <path>`, `--set-output <path>`, `--terminal`, `--comment-pr`, `--with-codex`); `/quiver:review` should also work.
 
 **Setup:**
 - Current directory is a git repo with at least one diff source (PR URL, branch ahead of base, or uncommitted changes).
@@ -21,16 +21,16 @@
 11. Skill discovers the plan whose `## Global Constraints` section binds the review (Step 1.8), passes the block to every dispatched agent as context item 10, and names the source plan in the report's `Global Constraints` field. With no block found, the run is silent about it and the field reads `N/A`.
 
 **Verification checklist:**
-- [ ] Slash menu shows `/review`.
+- [ ] Slash menu shows `/quiver:review`.
 - [ ] All qualifying agents are spawned in a single response (multiple Agent tool calls in one assistant turn).
 - [ ] Re-review mode produces a `Delta` line and `Scope: Delta-only` in the saved report's `## Review Context`.
 - [ ] Report path defaults to `.claude/reports/` and respects `--output`/`--set-output`/saved preference, with path validation rejecting absolute paths and `..` segments.
 - [ ] `--with-codex` is silently skipped when the `codex` CLI is missing (does not error).
 - [ ] `--with-codex` is silently skipped when the diff exceeds 2000 lines (skip note shows actual line count).
 - [ ] No internal jargon (rule codes, hashes, invariant names) appears in the terminal summary; report file content may include them.
-- [ ] `/review` (no flags) dispatches at most 5 agents (logic-reviewer, security-audit, waste-detector, best-practices-researcher, project-context-analyst).
-- [ ] `/review --deep` dispatches all qualifying agents (same as pre-optimization behavior).
-- [ ] `/review --with-codex` (without --deep) prints "--with-codex requires --deep" note and proceeds.
+- [ ] `/quiver:review` (no flags) dispatches at most 5 agents (logic-reviewer, security-audit, waste-detector, best-practices-researcher, project-context-analyst).
+- [ ] `/quiver:review --deep` dispatches all qualifying agents (same as pre-optimization behavior).
+- [ ] `/quiver:review --with-codex` (without --deep) prints "--with-codex requires --deep" note and proceeds.
 - [ ] Fast mode report includes `(fast)` in the Mode line of Review Context.
 - [ ] Fast mode report's Agents Dispatched section does not list deep-mode-only agents as skipped.
 - [ ] Deep mode report includes `(deep)` in the Mode line of Review Context.
@@ -43,7 +43,7 @@
 
 **Known gotchas:**
 - Step 1.8 takes the newest plan in `.claude/plans/` with no matching heuristic, so an unrelated plan can supply constraints in branch mode. The `Global Constraints` field names the plan for exactly this reason; re-run with `--plan <path>` when the named plan is wrong.
-- The `## Global Constraints` heading is the whole interface between `/plan`, `/work`, and `/review`. Renaming it in `skills/plan/SKILL.md` makes extraction here return nothing, silently, on the degrade-cleanly path.
+- The `## Global Constraints` heading is the whole interface between `/plan`, `/work`, and `/quiver:review`. Renaming it in `skills/plan/SKILL.md` makes extraction here return nothing, silently, on the degrade-cleanly path.
 - Bitbucket/Azure DevOps PR URLs fall back to Mode 2 because there is no diff CLI; PR commenting also skips on those platforms with a manual-paste hint.
 - Two-dot `git diff <base>..<head>` is wrong for branch diffs; the skill uses three-dot `git diff <base>...HEAD` instead.
 - The synthesized report SYNC contract pairs with `skills/work/SKILL.md` Phase 4c parsing; changing section headings or finding-ID format requires updating the work skill verification logic.
