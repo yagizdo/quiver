@@ -20,7 +20,7 @@
 # is main(), which reads sys.argv, and an operator who can run the CLI already
 # has a shell -- no privilege boundary is crossed. Pinning the tier is what
 # catches a return to flapping; pinning the wrong tier would only record a wish.
-+ \[HIGH\][^\n]*app/backup\.py
++ \[HIGH\].*app/backup\.py
 
 # --- Planted defect 3: redundancy. chunk_list reimplements utils.chunked,
 # --- which is already on main and already tested.

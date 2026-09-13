@@ -70,34 +70,6 @@ esac
 # file, and spawned 0 subagents where quiver:review fans out to 5.
 PROBE='/quiver:review --base main --output ./review-out'
 
-# $1 is the attempt label; each attempt keeps its own JSON so a retry cannot
-# erase the evidence from the attempt before it. run.json always points at the
-# latest attempt.
-run_claude() {
-  attempt=$1
-  shift
-  raw="$tmp/run-$attempt.jsonl"
-  if [ "$#" -gt 0 ]; then
-    claude -p "$PROBE" \
-      --plugin-dir "$repo_root" \
-      --max-budget-usd 8 \
-      --permission-mode bypassPermissions \
-      --output-format stream-json --verbose \
-      --append-system-prompt "$1" > "$raw"
-  else
-    claude -p "$PROBE" \
-      --plugin-dir "$repo_root" \
-      --max-budget-usd 8 \
-      --permission-mode bypassPermissions \
-      --output-format stream-json --verbose > "$raw"
-  fi
-  # The stream's final result event carries the same totals --output-format json
-  # returns on its own. Pull it out so the grader reads one shape either way.
-  grep '"type":"result"' "$raw" | tail -1 > "$tmp/run-$attempt.json"
-  cp "$tmp/run-$attempt.json" "$tmp/run.json"
-  cp "$raw" "$tmp/run.jsonl"
-}
-
 # What the run actually did, for the blocked path. A typed slash command is
 # expanded into the prompt by the CLI -- it does not travel through the Skill
 # tool -- so "did quiver:review run" is NOT answerable by looking for a Skill
@@ -122,23 +94,23 @@ find_report() {
   find "$fixture/review-out" -name 'review-*.md' -type f 2>/dev/null | sort | tail -1
 }
 
-echo "Running /review (fast mode, 5 agents)..."
-run_claude 1
+echo "Running /quiver:review (fast mode, 5 agents)..."
+claude -p "$PROBE" \
+  --plugin-dir "$repo_root" \
+  --max-budget-usd 8 \
+  --permission-mode bypassPermissions \
+  --output-format stream-json --verbose > "$tmp/run.jsonl"
+# Keep the full stream and extract its final result for grading and diagnostics.
+grep '"type":"result"' "$tmp/run.jsonl" | tail -1 > "$tmp/run.json"
 report=$(find_report)
 
 if [ -z "$report" ]; then
-  echo "No review-*.md produced. Retrying once with an explicit Skill-tool instruction..."
-  run_claude 2 "Invoke the quiver:review skill through the Skill tool with the arguments given in the prompt, then stop."
-  report=$(find_report)
-fi
-
-if [ -z "$report" ]; then
   echo
-  echo "HARNESS BLOCKED: /review produced no report file on either attempt."
-  echo "Per-attempt JSON kept: $tmp/run-1.json, $tmp/run-2.json (streams: run-N.jsonl)"
-  echo "What the last attempt did:"
+  echo "HARNESS BLOCKED: /quiver:review produced no report file."
+  echo "JSON kept: $tmp/run.json (stream: $tmp/run.jsonl)"
+  echo "What the run did:"
   run_evidence "$tmp/run.jsonl"
-  echo "Evidence from the last attempt:"
+  echo "Evidence from the run:"
   python3 - "$tmp/run.json" <<'PY'
 import json, sys
 try:
