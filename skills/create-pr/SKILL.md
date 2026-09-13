@@ -130,7 +130,7 @@ One behavior change across a few files:
 Upload retries fired on 4xx as well as 5xx, so a file the server rejected was re-sent three times before the error surfaced. The predicate now checks the status class; backoff is unchanged.
 ```
 
-Nothing here answers the trap or the ask -- no ordering to explain, no alternative a reviewer would propose, nothing to run by hand. Those sections stay out, and their absence is what keeps the body worth reading.
+Nothing here answers the trap or the ask -- no ordering to explain, no alternative a reviewer would propose, nothing to run by hand.
 
 A new subsystem plus the problems it surfaced, all three answers:
 
@@ -147,7 +147,7 @@ Adds a behavior eval for the review command: a fixture repo with three planted d
 `bash tests/eval/run-review-golden.sh` -- spends real API credit, so it sits outside the glob CI discovers and is run by hand before a release.
 ```
 
-Every other choice that went into building that eval is absent on purpose. Two decisions a reviewer would question are a `## Design decisions` section; eight are a decision log, and nobody reads a decision log.
+Every other choice that went into building that eval is absent on purpose.
 
 **4. Where the motivation comes from.** In order: what the user said in this conversation; the plan, spec, review report, or issue the branch was built from (`.claude/plans/`, `.claude/reports/`, a linked issue); then the commit messages; then the diff. The diff is last because it only ever answers *what*. If none of the first three carry a motivation, state what the change does and stop -- do not manufacture a rationale.
 
@@ -163,9 +163,10 @@ Every other choice that went into building that eval is absent on purpose. Two d
 - AI attribution of any kind.
 
 **7. Read it back as the reviewer before you print it.** Go through the draft one sentence at a time and ask what the reviewer does with that sentence. A sentence they would skip comes out, and a section whose sentences all come out goes with it. Cut, do not compress: rewording the same content shorter keeps every idea and removes only the words that made them readable.
+
 **Language rule:** the title and body are always written in English, regardless of the conversation language. Only use another language if the user explicitly asks for it in this invocation. A PR is a repository artifact read by people who were not in this conversation.
 
-**Structure rule:** when the body has headings at all, `## Summary` comes first and the gated sections follow in table order. The one-or-two-sentence tier has no headings -- do not put a `## Summary` heading above a single sentence.
+**Structure rule:** when the body has headings at all, the sections follow in table order. A body of one or two sentences has no headings -- do not put a `## Summary` heading above a single sentence.
 
 ---
 
