@@ -18,7 +18,7 @@
 #     build-fixture.sh          ->  the suite's fixture/setup step
 #     expectations.txt          ->  regex graders; "+" is a match grader and
 #                                   "-" is a not-match grader, one per line
-#     the prompt on line ~PROBE  ->  prompt.md
+#     the prompt at PROBE below ->  prompt.md
 #
 # The one piece that does not port verbatim is the "## Findings" extraction
 # below. Graders match the whole transcript, so each ported regex needs the
@@ -76,21 +76,40 @@ PROBE='/quiver:review --base main --output ./review-out'
 run_claude() {
   attempt=$1
   shift
+  raw="$tmp/run-$attempt.jsonl"
   if [ "$#" -gt 0 ]; then
     claude -p "$PROBE" \
       --plugin-dir "$repo_root" \
       --max-budget-usd 8 \
       --permission-mode bypassPermissions \
-      --output-format json \
-      --append-system-prompt "$1" > "$tmp/run-$attempt.json"
+      --output-format stream-json --verbose \
+      --append-system-prompt "$1" > "$raw"
   else
     claude -p "$PROBE" \
       --plugin-dir "$repo_root" \
       --max-budget-usd 8 \
       --permission-mode bypassPermissions \
-      --output-format json > "$tmp/run-$attempt.json"
+      --output-format stream-json --verbose > "$raw"
   fi
+  # The stream's final result event carries the same totals --output-format json
+  # returns on its own. Pull it out so the grader reads one shape either way.
+  grep '"type":"result"' "$raw" | tail -1 > "$tmp/run-$attempt.json"
   cp "$tmp/run-$attempt.json" "$tmp/run.json"
+  cp "$raw" "$tmp/run.jsonl"
+}
+
+# Which skill actually handled the prompt. This harness was blocked once because
+# it could not answer that: --output-format json returns the final text only, so
+# a prompt Claude Code's own review skill picked up looked identical to one
+# quiver:review picked up. The stream carries the Skill tool_use events, so the
+# name is readable. Measured 2026-09-13: a bare /review resolved to the built-in
+# and spawned 0 subagents, which is why PROBE addresses quiver:review by name.
+skills_fired() {
+  if grep -q '"name":"Skill"' "$1" 2>/dev/null; then
+    grep -o '"skill":"[^"]*"' "$1" | sed 's/^"skill":"//; s/"$//' | sort -u | tr '\n' ' '
+  else
+    printf 'none -- the Skill tool never fired'
+  fi
 }
 
 find_report() {
@@ -110,7 +129,8 @@ fi
 if [ -z "$report" ]; then
   echo
   echo "HARNESS BLOCKED: /review produced no report file on either attempt."
-  echo "Per-attempt JSON kept: $tmp/run-1.json, $tmp/run-2.json"
+  echo "Per-attempt JSON kept: $tmp/run-1.json, $tmp/run-2.json (streams: run-N.jsonl)"
+  echo "Skills fired on the last attempt: $(skills_fired "$tmp/run.jsonl")"
   echo "Evidence from the last attempt:"
   python3 - "$tmp/run.json" <<'PY'
 import json, sys
@@ -133,6 +153,7 @@ PY
 fi
 
 echo "Report: $report"
+echo "Skills fired: $(skills_fired "$tmp/run.jsonl")"
 
 # Grade only inside "## Findings" -- a mention under "## Filtered Findings" or
 # "## What's Working Well" counts neither for nor against.
