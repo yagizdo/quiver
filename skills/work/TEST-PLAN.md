@@ -10,12 +10,12 @@
 3. Phase 0 NO_GIT handling skips branch creation, commits, and PR steps cleanly.
 4. Phase 2.5 announces the strategy (sequential or parallel) and task count before continuing.
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
-6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`. The 5b question offers `Review first -- /review` ahead of the PR button; picking it delegates to `/quiver:review` and then re-asks 5b without that button.
+6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`. The 5b question offers `Review first -- /quiver:review` ahead of the PR button; picking it delegates to `/quiver:review` and then re-asks 5b without that button.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 8. Phase 2.5 prints a `Verification:` line naming the resolved test and build commands or `none` with a reason, before any code changes.
 9. Phase 3 prints a `red:` line naming the new test before each task's implementation edit, then a pass line; a `none` resolution prints one `skipped:` line for the run and no `red:` line.
 10. A task whose tests still fail after three runs past the implementation stops as a blocker; in auto mode it prints the accepted notice and the run continues.
-11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/review` and `/create-pr` commands as text, and the workspace is kept.
+11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/quiver:review` and `/create-pr` commands as text, and the workspace is kept.
 12. `--auto` is stripped before the path is read, so `/work .claude/plans/x.md --auto` loads `x.md` through Case A.
 
 **Verification checklist:**

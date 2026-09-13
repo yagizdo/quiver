@@ -29,7 +29,7 @@ You are a review orchestrator. Your job is to determine the correct diff source,
 ## Step 0 -- Git Availability
 
 If any gather-context block above returned `NO_GIT`, this directory is not a git repository.
-Print: `> No git repository detected. /review requires a git repo.`
+Print: `> No git repository detected. /quiver:review requires a git repo.`
 **Stop here.**
 
 ## Step 0.5 -- Detect Review Depth
@@ -217,7 +217,7 @@ The canonical gate for every agent is the `## Dispatch Gates` table in `.claude/
 All other agents are skipped in fast mode. Do not print skip notes for agents excluded by mode -- only print skip notes for agents excluded by their file-type gate within the active set (e.g., if fast mode is active and the diff has no CODE files, print the security-audit skip note).
 
 **`--with-codex` in fast mode:** `codex-code-reviewer` is a deep-mode-only agent. If `--with-codex` is passed with fast mode, print:
-> `--with-codex` requires `--deep` mode. Run `/review --deep --with-codex` for Codex coverage.
+> `--with-codex` requires `--deep` mode. Run `/quiver:review --deep --with-codex` for Codex coverage.
 Then continue the fast review without Codex.
 
 **If `review_mode = deep`:** Use the existing dispatch rules below (unchanged).
@@ -519,7 +519,7 @@ After the quality check, dispatch the `senior-reviewer` agent for a pragmatic se
    - The full synthesized report (post-quality-check -- with report-checker fixes applied)
    - The original diff (same diff passed to agents in Step 2)
    - The Diff Manifest from Step 1.5
-   - Pipeline mode context: "You are running inside the /review pipeline. Run Phase 0-4 (your own independent code review) on the diff first, then run Phase 5 (Meta-Review) on the synthesized report. The report has already been quality-checked by report-checker -- findings that were removed are out of scope. Do not attempt to recover or reference them."
+   - Pipeline mode context: "You are running inside the /quiver:review pipeline. Run Phase 0-4 (your own independent code review) on the diff first, then run Phase 5 (Meta-Review) on the synthesized report. The report has already been quality-checked by report-checker -- findings that were removed are out of scope. Do not attempt to recover or reference them."
    - Language context: detected languages from the Diff Manifest file extensions
    - Do NOT pass --quick flag in pipeline mode. Always run full analysis (Phase 0-4 + Phase 5).
 

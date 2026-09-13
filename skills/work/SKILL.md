@@ -293,13 +293,13 @@ If there are uncommitted changes after Phase 4, stage the relevant files (specif
 
 After committing (or if all commits were already made during Phase 3), use `AskUserQuestion`:
 > All work is committed on `{branch_name}`. What would you like to do next?
-Buttons: `["Review first -- /review", "Create a pull request", "Done -- I'll handle the rest"]`
+Buttons: `["Review first -- /quiver:review", "Create a pull request", "Done -- I'll handle the rest"]`
 
-- **Review first** -- delegate to `/quiver:review`. When it returns, ask this question again without the review button; the user has seen the findings and decides whether to open the PR or fix first. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
+- **Review first** -- delegate to `/quiver:review`. When it returns, ask this question again without the review button; the user has seen the findings and decides whether to open the PR or fix first. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
 - **Create a pull request** -- delegate to `/quiver:create-pr`.
 - **Done** -- stop here. Move to 5c.
 
-In auto mode, skip the question and act as **Done**: print `/review` and `/create-pr` as the next commands for the user, and invoke neither.
+In auto mode, skip the question and act as **Done**: print `/quiver:review` and `/create-pr` as the next commands for the user, and invoke neither.
 
 #### 5c -- Update plan status
 

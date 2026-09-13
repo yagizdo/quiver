@@ -40,7 +40,7 @@ A normal feature cycle chains these skills. Each one is self-contained and works
 3. `/work`: execute the plan with continuous testing, branch setup, and incremental commits. Plans of 3+ tasks run as parallel subagents in separate worktrees.
 4. `/commit`: generate a Conventional Commits message from staged changes and commit (optionally pushing).
 5. `/create-pr`: open a GitHub pull request with an auto-generated title and description from the branch diff.
-6. `/review`: dispatch review agents to check code quality, security, and architecture, then synthesize findings into one report. Runs 5 agents by default; `--deep` for the full pipeline.
+6. `/quiver:review`: dispatch review agents to check code quality, security, and architecture, then synthesize findings into one report. Runs 5 agents by default; `--deep` for the full pipeline.
 7. `/handover`: save an 8-section summary of the session so the next session resumes with full context.
 
 ## Installation
@@ -118,41 +118,41 @@ After the last group merges, the resolved test command runs once on the combined
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), written as a plan to `.claude/plans/` and handed to `/work --auto` for a build that stops only for a genuine blocker, then a build, test, and smoke pass and a report naming the `/review` command to run before merging. `--execute` and `--verify` re-enter a paused run |
+| I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), written as a plan to `.claude/plans/` and handed to `/work --auto` for a build that stops only for a genuine blocker, then a build, test, and smoke pass and a report naming the `/quiver:review` command to run before merging. `--execute` and `--verify` re-enter a paused run |
 
 ### Implementing a Design
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| A Figma frame is ready to become code | `/design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
-| Want the frame built without babysitting it | `/design --auto` | Same extraction and same questions, then straight through the build with no further prompt |
+| A Figma frame is ready to become code | `/quiver:design` | Reads the selected nodes through the figma-bridge MCP, maps Figma variables onto the project's own theme tokens, and writes a self-contained plan to `.claude/plans/` |
+| Want the frame built without babysitting it | `/quiver:design --auto` | Same extraction and same questions, then straight through the build with no further prompt |
 | Design plan is ready, want it built pixel-accurate | `/design-build` | Implements each node against its embedded spec, gating every task on the project's build or tests under a bounded retry budget |
 | Built screen does not match the design | `/design-fix` | Compares one node's box, layout, typography, fill, stroke, radius, effects, and content against the code that renders it, reports every deviation, and fixes the ones you pick |
 
 ```
-/design                    # extract whatever is selected in Figma
-/design 4029:12345         # extract a specific node by ID
-/design --auto             # extract, then build without stopping
-/design --auto --no-commit # same, and write no commit whatever the plan says
+/quiver:design                    # extract whatever is selected in Figma
+/quiver:design 4029:12345         # extract a specific node by ID
+/quiver:design --auto             # extract, then build without stopping
+/quiver:design --auto --no-commit # same, and write no commit whatever the plan says
 /design-build              # pick a design plan and build it
 ```
 
 `--auto` removes the handoff between the two stages, not the questions that decide what gets built.
 
-- `/design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and whether to overwrite a plan that already exists for the same screen. When a selection expands into many nodes and you described none of them, it also asks which of those nodes the build should implement.
+- `/quiver:design` still asks which file, which nodes, what an unmapped variable resolves to, how the build should commit and verify, and whether to overwrite a plan that already exists for the same screen. When a selection expands into many nodes and you described none of them, it also asks which of those nodes the build should implement.
 - Those questions all arrive in one call. After that the run stays quiet until the build summary.
 - One task still gets three attempts at its verification gate. Auto mode records a gate that is still failing and moves on rather than asking.
 
 `--no-commit` forces `commit_strategy: none` for a single run.
 
-- On a fresh plan it changes nothing. Not committing is already the recommended answer to `/design`'s commit question, so the flag guarantees that answer rather than overriding it.
+- On a fresh plan it changes nothing. Not committing is already the recommended answer to `/quiver:design`'s commit question, so the flag guarantees that answer rather than overriding it.
 - It earns its keep against an existing plan that carries `per-task` or `single`, because `/design-build` never re-asks that question.
 - The override lasts one run and never edits the plan.
-- The two flags are independent. `/design-build <plan> --no-commit` is as valid as `/design --auto --no-commit`.
+- The two flags are independent. `/design-build <plan> --no-commit` is as valid as `/quiver:design --auto --no-commit`.
 
-`/design` is the only stage that talks to Figma.
+`/quiver:design` is the only stage that talks to Figma.
 
-- The plan carries every measurement, token, and layout anchor `/design` produced, so `/design-build` runs with Figma disconnected.
+- The plan carries every measurement, token, and layout anchor `/quiver:design` produced, so `/design-build` runs with Figma disconnected.
 - The plan keeps its per-node measurement specs and its reference screenshots. Nothing in Quiver measures the built UI against them, so `/design-build` reports fidelity as `skipped -- no verifier` and the numbers stay there for whatever does the measuring. `/design-fix` compares the code against the design rather than the rendered pixels, so it needs no screenshot and no running app.
 - Setup is in [External Dependencies](#external-dependencies).
 
@@ -160,20 +160,20 @@ After the last group merges, the resolved test command runs once on the combined
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| About to merge, want multi-agent review | `/review` | Dispatches 5 review agents, synthesizes findings into one report |
+| About to merge, want multi-agent review | `/quiver:review` | Dispatches 5 review agents, synthesizes findings into one report |
 | Want a quick senior dev sanity check | `/senior-review` | One pragmatic reviewer evaluates structure, quality, risks |
 | Got a review report, not sure which findings matter | `/report-check` | Audits the report for noise, false positives, and overkill |
 
 ```
-/review                    # fast review (5 agents, prompts for base branch)
-/review --deep             # full pipeline: all agents + quality check + senior review
-/review --base main        # review against a specific base branch
-/review <PR-URL>           # review a pull request by URL
+/quiver:review                    # fast review (5 agents, prompts for base branch)
+/quiver:review --deep             # full pipeline: all agents + quality check + senior review
+/quiver:review --base main        # review against a specific base branch
+/quiver:review <PR-URL>           # review a pull request by URL
 ```
 
 Pass `--comment-pr` to post the report as a PR comment. Use `--deep --with-codex` for cross-model coverage (requires `codex` CLI).
 
-Re-review detection: if you run `/review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
+Re-review detection: if you run `/quiver:review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
 
 ### Fixing a Bug
 
@@ -290,9 +290,9 @@ This plugin includes a [Context7](https://context7.com) MCP server for real-time
 
 Supports 100+ frameworks including Rails, React, Next.js, Vue, Django, Laravel, and more. Library/framework names from your codebase are sent to the service only during review agent execution (e.g., best-practices checks), not at plugin load time.
 
-### figma-bridge (optional, for `/design` and `/design-fix`)
+### figma-bridge (optional, for `/quiver:design` and `/design-fix`)
 
-`/design` and `/design-fix` read Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway.
+`/quiver:design` and `/design-fix` read Figma through the [figma-mcp-bridge](https://github.com/gethopp/figma-mcp-bridge) MCP server. It is not bundled in `plugin.json` -- the bridge also needs a Figma plugin installed by hand, so auto-starting the server alone would only get you halfway.
 
 Add the server to your MCP config:
 
@@ -307,11 +307,11 @@ Add the server to your MCP config:
 
 The Figma plugin side is a manual import from the bridge's [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), and its README carries the current steps. Leave the plugin running inside the file you are reading -- it holds the WebSocket, and closing it drops the connection mid-extraction.
 
-`/design` and `/design-fix` only call the bridge's read tools, and `/design-fix` also runs with the bridge absent when you point it at an existing `/design` plan. `/design-build` never calls it at all. Every other Quiver skill works without it.
+`/quiver:design` and `/design-fix` only call the bridge's read tools, and `/design-fix` also runs with the bridge absent when you point it at an existing `/quiver:design` plan. `/design-build` never calls it at all. Every other Quiver skill works without it.
 
 ## CLI Notes
 
-Every CLI runs the same skills and the same agents, and `/review` fans out to 5 agents by default on all of them, or the full pipeline with `--deep`.
+Every CLI runs the same skills and the same agents, and `/quiver:review` fans out to 5 agents by default on all of them, or the full pipeline with `--deep`.
 
 ### Cursor
 

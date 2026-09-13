@@ -3,13 +3,13 @@
 **Trigger:** `/design-build`, `/design-build .claude/plans/2026-08-16-wallet-design-plan.md`, `/design-build <plan> --auto`, `/quiver:design-build`
 
 **Setup:**
-- A design plan written by `/design` with at least two tasks, one node carrying a `Reconciliation:` line, and reference PNGs present under `screenshot_dir`.
+- A design plan written by `/quiver:design` with at least two tasks, one node carrying a `Reconciliation:` line, and reference PNGs present under `screenshot_dir`.
 - A second, legacy plan carrying neither `commit_strategy` nor `verify_gate`.
 - A runnable project.
 
 **Expected behavior:**
 1. All three shell blocks exit 0 in a git repo and in a non-git directory.
-2. With no design plan on disk, Phase 1 prints the `/design` pointer and stops.
+2. With no design plan on disk, Phase 1 prints the `/quiver:design` pointer and stops.
 3. A plan lacking `design_source: figma-bridge` or `### Node Specs` is rejected with a message; no code is written.
 4. The legacy plan loads and builds on the documented defaults, committing nothing.
 5. A node with a `Fit:` axis of `fill` is implemented with the framework's fill mechanism, not the `Box:` literal.
@@ -28,8 +28,8 @@
 15b. "Skip this task" restores the modified files and deletes the created ones when git is available, and leaves them in place with a stated reason under `NO_GIT` or on files an earlier task also wrote.
 16. Phase 4 prints the status table, the `Design match: skipped -- nothing measured the built UI` line, every accepted check failure, and ends with the four-button handoff.
 17. `--auto` is stripped before a plan path is resolved, and `/design-build --auto` with several plans on disk takes the most recent and names the count instead of asking.
-18. A full `/design --auto` run reaches no `AskUserQuestion` after `/design` Step 8, all the way to the Phase 4 summary.
-19. The auto handoff prints the `/review`, `/commit`, and `/create-pr` commands as text and invokes none of them.
+18. A full `/quiver:design --auto` run reaches no `AskUserQuestion` after `/quiver:design` Step 8, all the way to the Phase 4 summary.
+19. The auto handoff prints the `/quiver:review`, `/commit`, and `/create-pr` commands as text and invokes none of them.
 20. `--no-commit` against a plan carrying `commit_strategy: per-task` writes no commit, says so once, and leaves the plan file unchanged. Re-running the same plan without the flag commits normally.
 21. `--no-commit` works with or without `--auto`, and `--auto` works without `--no-commit`.
 

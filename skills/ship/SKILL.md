@@ -31,7 +31,7 @@ when-to-use: "user wants to build a project from scratch or description -- '/shi
 
 # Instructions
 
-You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a mid-run prompt. The one command the report leaves to them is `/review`, which ship cannot invoke. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
+You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a mid-run prompt. The one command the report leaves to them is `/quiver:review`, which ship cannot invoke. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
 
 Ship runs no task and dispatches no subagent. `/work` executes the plan and `skills/work/orchestrator.md` is the only orchestrator. The questions are front-loaded: Phase 1 asks everything the build could otherwise stop to ask, and `/work` runs in its auto mode, which answers the routine gates -- branch, final commit, PR handoff, workspace, third failed fix attempt -- from the approval already given. A blocker or a merge conflict -- anything whose answer changes what gets built or deletes something -- still stops and asks. Ship never decides those on the user's behalf, and never grants a fix attempt past `/work`'s cap.
 
@@ -164,7 +164,7 @@ What the Q&A answers become:
 
 - **Frontmatter:** `name: <project>-ship-plan`, `status: active`, `created: <date>`, then `stack`, `platform`, and `deployment_target` from the Phase 1 answers, then `test_command`, `build_command`, and `run_command`. `stack` carries the tech-stack half of the category 3 answer. `test_command` and `build_command` are resolved once, here, by reading `skills/verification/SKILL.md` and following its Command Resolution, with the Phase 1 category 6 answer as rule 1 when it names a command. Each holds the command string or `none (<reason>)`, never an empty field. `run_command` holds the launch command category 6 named, or `none`.
 - **Goal:** the category 1 outcomes, as the plan's opening section.
-- **`## Global Constraints`:** the section Step 5 defines, holding the category 3 answer -- the library restrictions and stated limits, one imperative sentence per numbered entry -- and the category 2 scope boundaries as "Do not build ..." entries, which is how Step 4.5 treats out-of-scope items. `/work` copies this section verbatim into every task brief and `/review --plan` binds its findings to it, so a constraint the plan does not record is one no implementer can honor.
+- **`## Global Constraints`:** the section Step 5 defines, holding the category 3 answer -- the library restrictions and stated limits, one imperative sentence per numbered entry -- and the category 2 scope boundaries as "Do not build ..." entries, which is how Step 4.5 treats out-of-scope items. `/work` copies this section verbatim into every task brief and `/quiver:review --plan` binds its findings to it, so a constraint the plan does not record is one no implementer can honor.
 - **Tasks:** one per row of the approved Phase 2 table, in the task format Step 5 defines, each with its `**Files:**` line, its `**Provides:**` line where another task names what it creates, and its acceptance criterion from the table. A dependency from the `Blocked by` column is written as a `blockedBy: [<task numbers>]` line under the task's `**Files:**` line -- the explicit-dependency field `skills/work/orchestrator.md` Section 1 reads; a task with none carries no line. When `test_command` is not `none`, order each task's steps test-first as Step 5 describes, naming `skills/tdd/SKILL.md`; `/work` follows that cycle when it builds.
 - **Acceptance Criteria:** the category 1 outcomes and the category 6 check, as the plan's closing section.
 
@@ -189,7 +189,7 @@ Consent for this phase was given at Phase 2's "Approve -- build it", or by the `
 
 **Stay on the branch ship started on.** Ship creates no branch. Started on `main` or `master`, `/work` Phase 2 creates the feature branch itself; started on a feature branch, its auto mode continues there. Do not switch branches to pre-empt either case.
 
-**Hand off.** Invoke the `work` skill through the Skill tool with the plan path and `--auto` as its arguments (`/work <plan path> --auto`), and let it run to completion. `/work` loads the file as a plan (its Case A path), resolves the verification command per `skills/verification/SKILL.md`, follows `skills/tdd/SKILL.md` on every task under its three-attempt fix cap, lets a subagent make the small wiring edits a task needs outside its file list and report them as discovered, commits per task, and in auto mode answers its routine gates from the Phase 2 approval: it continues on the current branch, commits the final leftovers, prints `/review` and `/create-pr` as text instead of running them, and keeps its workspace. It still stops for a blocker or a merge conflict; when it does, that question is the user's, not ship's -- never answer it for them. A task still failing after its third run is accepted and listed, on both of `/work`'s paths, never retried by ship.
+**Hand off.** Invoke the `work` skill through the Skill tool with the plan path and `--auto` as its arguments (`/work <plan path> --auto`), and let it run to completion. `/work` loads the file as a plan (its Case A path), resolves the verification command per `skills/verification/SKILL.md`, follows `skills/tdd/SKILL.md` on every task under its three-attempt fix cap, lets a subagent make the small wiring edits a task needs outside its file list and report them as discovered, commits per task, and in auto mode answers its routine gates from the Phase 2 approval: it continues on the current branch, commits the final leftovers, prints `/quiver:review` and `/create-pr` as text instead of running them, and keeps its workspace. It still stops for a blocker or a merge conflict; when it does, that question is the user's, not ship's -- never answer it for them. A task still failing after its third run is accepted and listed, on both of `/work`'s paths, never retried by ship.
 
 **Continue.** When `/work` returns, print `> Build finished. Verifying.` and continue into `# Verification` in this same invocation. A `/work` run that stopped on a blocker or a merge conflict has said so; still run verification -- its report is where the remaining work is listed.
 
@@ -199,7 +199,7 @@ Consent for this phase was given at Phase 2's "Approve -- build it", or by the `
 
 # Verification
 
-This phase checks what `/work` built. It runs the build, runs the tests, smoke-launches the app when the plan carries a run command, and writes a report. It changes no plan field. It runs no review: `skills/review/SKILL.md` carries `disable-model-invocation: true`, so a Skill-tool call to `review` from here is refused, and an unattended review is the case that flag exists to stop. The report names the `/review` command instead, and the user runs it.
+This phase checks what `/work` built. It runs the build, runs the tests, smoke-launches the app when the plan carries a run command, and writes a report. It changes no plan field. It runs no review: `skills/review/SKILL.md` carries `disable-model-invocation: true`, so a Skill-tool call to `review` from here is refused, and an unattended review is the case that flag exists to stop. The report names the `/quiver:review` command instead, and the user runs it.
 
 ## Entry
 
@@ -241,7 +241,7 @@ Get a timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`) and write `.clau
 - **Build:** <evidence line or skipped reason>
 - **Tests:** <evidence line or skipped reason>
 - **Smoke:** <result>
-- **Review:** not run -- `/review --base <default branch> --plan <ship plan path>`
+- **Review:** not run -- `/quiver:review --base <default branch> --plan <ship plan path>`
 
 ## Open Items
 
@@ -249,9 +249,9 @@ Get a timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`) and write `.clau
 
 ## What's Next
 
-<1-3 sentences. When every line above is a pass or a skip and Open Items is empty, say the project appears complete, name the branch to merge, and name the `/review` command above as the step before merging. `<default branch>` is `main` or `master`, whichever the repository has -- `--base` keeps `/review` from asking for it, and `--plan` lets its Step 1.8 bind the findings to the plan's Global Constraints.>
+<1-3 sentences. When every line above is a pass or a skip and Open Items is empty, say the project appears complete, name the branch to merge, and name the `/quiver:review` command above as the step before merging. `<default branch>` is `main` or `master`, whichever the repository has -- `--base` keeps `/quiver:review` from asking for it, and `--plan` lets its Step 1.8 bind the findings to the plan's Global Constraints.>
 ```
 
-Read the report back to confirm it was written (L3). Print `> Verification complete. Report: <path>. <count> open items. Next: /review --base <default branch> --plan <plan path>` and terminate.
+Read the report back to confirm it was written (L3). Print `> Verification complete. Report: <path>. <count> open items. Next: /quiver:review --base <default branch> --plan <plan path>` and terminate.
 
 A second `/ship --verify` writes a new timestamped report; earlier ones are never overwritten.

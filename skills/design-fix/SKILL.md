@@ -121,7 +121,7 @@ Print the files you resolved: `> Code side: {path}:{line range}`.
 > No implementation found for {node name}. There is nothing to compare yet.
 >
 > Build it first:
->   /design {node id}        writes an implementation plan
+>   /quiver:design {node id}        writes an implementation plan
 >   /design-build            builds the plan
 ```
 
@@ -195,7 +195,7 @@ Then, only when they have entries:
 
 - **Missing** -- nodes in the design with no counterpart in the code. One line
   each: node name, what it is, where it belongs. This skill does not build
-  them; `/design` and `/design-build` do.
+  them; `/quiver:design` and `/design-build` do.
 - **Tokens** -- deviations that trace to a token definition rather than to the
   component. One line each: the token, its value, the design's value, the file
   that defines it. This skill does not edit token files -- a token is shared by
@@ -245,7 +245,7 @@ summary line -- that is the case worth a test run, and it is the user's call.
   Print the message and stop. The pull toward a helpful "shall I build it?" is
   exactly the defect this gate exists to close.
 - Don't build a component that only exists in the design -- report it as
-  missing and name `/design`.
+  missing and name `/quiver:design`.
 - Don't edit a theme token definition to fix one component's deviation.
 - Don't call a figma-bridge write tool. The design is never the thing that is
   wrong here.

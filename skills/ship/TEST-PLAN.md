@@ -20,7 +20,7 @@
 9. `/ship --execute` on a plan with a ledger re-dispatches no task carrying a `complete` line; on a plan without one, `/work` starts from the first task.
 10. A second bare `/ship` finds the plan and offers Resume / Start fresh / Inspect, with the state read from the `status` field first and the ledger second; a finished plan whose ledger survived auto mode reads as finished.
 11. Verification Steps 1-2 quote an evidence line each, or a skipped reason; a zero-test run is `skipped`, never `pass`.
-12. Verification invokes no `review` and no second `work`; the report's Review line and What's Next name `/review --base <default branch> --plan <plan path>` for the user to run.
+12. Verification invokes no `review` and no second `work`; the report's Review line and What's Next name `/quiver:review --base <default branch> --plan <plan path>` for the user to run.
 13. Verification Step 3 launches the app only when `run_command` is not `none`; otherwise it prints `Smoke: skipped -- no run command`.
 14. The report lands at `.claude/reports/ship-<project>-<timestamp>.md`; a second `--verify` adds a file and overwrites nothing.
 15. A second "Start fresh" on the same day writes `<date>-<project>-ship-plan-2.md`; the first plan and its ledger are untouched, and the Step 1 Glob finds both.
@@ -57,5 +57,5 @@
 - Starting ship on a feature branch makes `/work --auto` continue on that branch. Start on the default branch when the build should land on a fresh one.
 - The task format, its `**Provides:**` field, and the Step 6 plan checks live in `skills/plan/SKILL.md`; `tests/skills/test-task-interfaces-contract.sh` pins the `**Provides:**` label and the check count there, and this file carries no count of its own. Restating them here is the drift this rewrite removed.
 - The verification and TDD subagent restatements are pasted only into `skills/work/orchestrator.md`. Ship dispatches no subagent, so it carries neither; the contract tests check the orchestrator's copy alone.
-- The review is the user's, not ship's. `skills/review/SKILL.md` carries `disable-model-invocation: true`, so the Skill tool refuses a `review` call from ship -- an earlier draft made that call and could never have run. The report names the command with `--base` so `/review` does not prompt for the base branch on a feature branch, and `--plan` so its Step 1.8 finds the Global Constraints; dropping either makes the user's pass interactive or blind to the constraints.
+- The review is the user's, not ship's. `skills/review/SKILL.md` carries `disable-model-invocation: true`, so the Skill tool refuses a `review` call from ship -- an earlier draft made that call and could never have run. The report names the command with `--base` so `/quiver:review` does not prompt for the base branch on a feature branch, and `--plan` so its Step 1.8 finds the Global Constraints; dropping either makes the user's pass interactive or blind to the constraints.
 - A `/work` run that ends blocked keeps its ledger on purpose; `/ship --execute` is the retry, and the ledger is what makes it cheap.
