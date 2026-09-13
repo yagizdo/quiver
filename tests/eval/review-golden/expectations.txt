@@ -13,6 +13,14 @@
 # --- caller-supplied name into a shell string passed to subprocess shell=True.
 + app/backup\.py
 + export_snapshot
+# The tier, not just the file. Two runs before the reachability rule landed in
+# agents/review/security-audit.md graded this defect High once and Critical once
+# with no stated reason; the two after it both said High and both said why. High
+# is the correct answer here and Critical was the author's guess: the only caller
+# is main(), which reads sys.argv, and an operator who can run the CLI already
+# has a shell -- no privilege boundary is crossed. Pinning the tier is what
+# catches a return to flapping; pinning the wrong tier would only record a wish.
++ \[HIGH\][^\n]*app/backup\.py
 
 # --- Planted defect 3: redundancy. chunk_list reimplements utils.chunked,
 # --- which is already on main and already tested.
@@ -28,9 +36,13 @@
 # --- path would fail the review for obeying its own rule.
 - average_price
 
-# --- Bait 2 (hypothetical-language ban): tier_labels comprehends over a
-# --- 4-element module constant. The "could be slow for large N" comment is the
-# --- trap; nothing here is wrong, reimplemented, or simplifiable.
+# --- Bait 2 (stability test): tier_labels comprehends over a 4-element module
+# --- constant. Nothing here is wrong, reimplemented, or simplifiable, and a
+# --- review that reports it is reaching. This bait carried a "could be slow for
+# --- large N" comment until 2026-09-13; two runs flagged it, both times as a
+# --- false comment rather than as a performance claim, which is the ban working.
+# --- A knowingly-wrong comment is a present-tense defect, so it could never sit
+# --- inside a clean negative -- it was removed rather than argued with.
 - app/tiers\.py
 - tier_labels
 

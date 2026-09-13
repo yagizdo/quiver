@@ -8,5 +8,4 @@ def tier_labels(counts):
 
     counts maps a tier name to how many customers currently hold it.
     """
-    # Walks every tier; could be slow for large N.
     return [tier + ": " + str(counts.get(tier, 0)) for tier in TIERS]

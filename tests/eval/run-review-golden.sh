@@ -98,17 +98,23 @@ run_claude() {
   cp "$raw" "$tmp/run.jsonl"
 }
 
-# Which skill actually handled the prompt. This harness was blocked once because
-# it could not answer that: --output-format json returns the final text only, so
-# a prompt Claude Code's own review skill picked up looked identical to one
-# quiver:review picked up. The stream carries the Skill tool_use events, so the
-# name is readable. Measured 2026-09-13: a bare /review resolved to the built-in
-# and spawned 0 subagents, which is why PROBE addresses quiver:review by name.
-skills_fired() {
-  if grep -q '"name":"Skill"' "$1" 2>/dev/null; then
-    grep -o '"skill":"[^"]*"' "$1" | sed 's/^"skill":"//; s/"$//' | sort -u | tr '\n' ' '
+# What the run actually did, for the blocked path. A typed slash command is
+# expanded into the prompt by the CLI -- it does not travel through the Skill
+# tool -- so "did quiver:review run" is NOT answerable by looking for a Skill
+# tool_use event. Measured 2026-09-13 against /work, /review and /design in a
+# throwaway directory: none of the three produced one. What separates them is
+# the work itself, so this prints the tools the run reached for; quiver:review
+# opens with its own `!` git blocks, and the bundled reviewer does not.
+run_evidence() {
+  if [ ! -s "$1" ]; then
+    echo "  (no stream captured)"
+    return
+  fi
+  echo "  tools used: $(grep -o '"name":"[A-Za-z]*","input"' "$1" | sed 's/"name":"//; s/","input"//' | sort | uniq -c | tr -s ' ' | tr '\n' ' ')"
+  if grep -q 'rev-parse --is-inside-work-tree' "$1"; then
+    echo "  quiver:review's own git context block ran"
   else
-    printf 'none -- the Skill tool never fired'
+    echo "  quiver:review's git context block never ran -- another skill handled the prompt"
   fi
 }
 
@@ -130,7 +136,8 @@ if [ -z "$report" ]; then
   echo
   echo "HARNESS BLOCKED: /review produced no report file on either attempt."
   echo "Per-attempt JSON kept: $tmp/run-1.json, $tmp/run-2.json (streams: run-N.jsonl)"
-  echo "Skills fired on the last attempt: $(skills_fired "$tmp/run.jsonl")"
+  echo "What the last attempt did:"
+  run_evidence "$tmp/run.jsonl"
   echo "Evidence from the last attempt:"
   python3 - "$tmp/run.json" <<'PY'
 import json, sys
@@ -153,7 +160,6 @@ PY
 fi
 
 echo "Report: $report"
-echo "Skills fired: $(skills_fired "$tmp/run.jsonl")"
 
 # Grade only inside "## Findings" -- a mention under "## Filtered Findings" or
 # "## What's Working Well" counts neither for nor against.
