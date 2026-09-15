@@ -67,14 +67,14 @@ Gather all available context about the bug:
 
 1. **Parse user input.** Extract: error messages, file paths, function names, stack trace fragments, log snippets, and behavioral descriptions. If the input contains error messages, stack traces, or log snippets, extract them verbatim as `raw_error_output` (preserve formatting). If no structured error output is present, note `raw_error_output: none`.
 
+   When the input carries a screenshot or image, treat it as evidence to measure, not text to read. Before Step 2, describe the anomaly region in measurable terms: where it sits relative to a named element, whether its edges are sharp or soft, whether it is symmetric, and its size as a ratio of a known element's size. Record this as `visual_evidence`; when no image is present, note `visual_evidence: none`. Every hypothesis in Step 2 has to account for this geometry -- one that does not is refuted by it, whatever else supports it.
+
 2. **Search the codebase** using the navigation tier from Step 0.7. Based on extracted keywords:
    - When `codegraph_available`: use `codegraph_search` for function/class names, `codegraph_context` with the bug description to find task-relevant files. Fall back to grep for error strings and text patterns.
    - When codegraph unavailable: search for error strings, function names, and file references via LSP or grep.
    - Read relevant files found by the search.
 
-3. **Recent changes (git only).** If git is available:
-   - List recently changed files: `git diff HEAD~5 --name-only`
-   - Note which recently changed files overlap with the bug's affected area.
+3. **Recent changes (git only).** If git is available, after item 2 has named the affected files, run `git log --oneline -n 20 -- <affected files>` with the Bash tool. The window is per file, not per commit count: a change made fifteen commits ago to the file the bug lives in is a recent change to that file. Cross-check the result against the 20-commit list in the gather-context output. A commit whose subject names the affected component or file is a candidate cause and goes into the item 4 summary by hash and subject, whether or not the bug report mentions it.
 
 4. **Summarize.** Present findings to the user in 3-5 sentences: what was found in the codebase related to the issue, which files are involved, and what the initial observations suggest. Do NOT show raw grep output or file listings.
 
@@ -84,7 +84,8 @@ Based on symptoms from Step 1, generate 2-4 ranked hypotheses. Each hypothesis:
 
 - **Statement:** One sentence -- what might be wrong.
 - **Evidence:** Supporting observations from Step 1.
-- **Test:** What to check to confirm or refute this hypothesis.
+- **Test:** What to check to confirm this hypothesis.
+- **Refutation:** What you would observe if this hypothesis were wrong -- a specific file, value, or output, checkable in this codebase. A hypothesis with no refutation entry is not ready to test. A refutation that reads "nothing in particular" means the hypothesis is unfalsifiable; drop it.
 
 Present hypotheses to the user as a brief summary. This is NOT a blocking gate -- share thinking and move forward. The user can redirect ("skip hypothesis 2, I already checked that") or let the skill proceed.
 
@@ -97,6 +98,10 @@ Test each hypothesis in order (highest likelihood first).
 ### 3a -- Determine what to check
 
 For each hypothesis, identify what investigation is needed: file reads, call chain tracing, log parsing, git history analysis, config inspection, or direct code inspection.
+
+Check the hypothesis's Refutation entry first. It is usually one grep, and a hypothesis that fails it is refuted before any confirmation work is spent on it.
+
+Research -- upstream issue trackers, library docs, web search, context7 -- tests a hypothesis that local evidence already produced; it never produces the diagnosis. Do it only after Step 1 has run and a hypothesis names what the research would settle. An upstream issue or doc that matches the symptom is a new hypothesis, not a confirmation: its Test is whether the issue's precondition -- the widget, API, version, or config it requires -- exists in this codebase, and that check runs before anything else. A user asking for deeper research changes nothing here; the research still tests hypotheses grounded in local evidence.
 
 ### 3b -- Agent dispatch decision tree
 
@@ -131,8 +136,9 @@ Dispatch qualifying agents in parallel (multiple Agent tool calls in a single re
 - Relevant file paths from Step 1
 - User's original bug description
 - Symptom summary from Step 1.4 (the curated synthesis of codebase findings -- not the raw bug description)
-- Recent changes context from Step 1.3 (recently changed files and their overlap with the bug area) -- include only if git is available
+- Recent changes context from Step 1.3 (commits touching the affected files and any candidate-cause commit) -- include only if git is available
 - Raw error/log output extracted in Step 1.1 (verbatim stack traces, error messages, log snippets) -- include only if present
+- `visual_evidence` from Step 1.1 -- include only if present
 - `codegraph_available` and `lsp_available` flags from Step 0.7
 
 Pass both flags to each dispatched agent. Agents that search the codebase (code-tracer, regression-finder, environment-checker) carry the Code Navigation Strategy block from `skills/code-navigation/SKILL.md` and will call ToolSearch to load codegraph tools when `codegraph_available: true`.
@@ -145,7 +151,7 @@ For simple single-file checks: handle directly without agent dispatch. Read the 
 
 After agent results (or direct investigation) return:
 
-- Hypothesis **confirmed**: root cause found. Skip remaining hypotheses, go to Step 5.
+- Hypothesis **confirmed**: at least one observation made in this codebase or its runtime -- a value read, a line traced, a command's output -- that the hypothesis explains and no rival hypothesis from Step 2 does, with its Refutation entry checked and found absent. A matching upstream issue, a matching doc, or a fit with the symptom description alone is not confirmation; those are evidence for a hypothesis that still has to pass this test. Name the observation in the Step 5a root cause. Skip remaining hypotheses, go to Step 5.
 - Hypothesis **refuted**: move to next hypothesis.
 - Hypothesis **inconclusive**: note the unknown, move to next hypothesis.
 
@@ -186,6 +192,17 @@ Generate 1-3 fix proposals (simplest first):
 - Each proposal: what changes, which files, why it fixes the root cause, trade-offs (if any).
 - First proposal MUST be the minimal correct fix.
 - Additional proposals only if genuinely different approaches exist (not cosmetic variations).
+
+### 5c -- Pushback Re-audit
+
+When the user questions the diagnosis at any point after 5a -- "are you sure", "is there nothing better", "look again", "that does not seem right" -- do not generate alternative fixes and do not start new research. Re-audit first:
+
+1. Restate the observation that confirmed the root cause in 3d and the Refutation entry that was checked.
+2. Look for one local observation that contradicts the root cause: re-run the Refutation check, read the values the diagnosis assumed, and re-read the `visual_evidence` from Step 1 against the claimed mechanism.
+3. If any observation contradicts it: the root cause was a hypothesis, and it is now refuted. Record it with the contradicting observation as its evidence, then return to Step 3 with the next hypothesis from Step 2 -- or to Step 4 when none remain.
+4. If nothing contradicts it: say so, name the observation the diagnosis rests on, and only then discuss alternative fixes.
+
+The user is questioning the diagnosis, and the fastest answer is to test it, not to widen the fix menu.
 
 ## Step 6 -- Mandatory Fix Review
 
@@ -230,3 +247,5 @@ If user selects "None": stop with a summary of the root cause.
 - Don't show internal routing decisions ("Dispatching code-tracer because...") -- implementation detail
 - Don't continue debugging indefinitely -- 2 exploration rounds max before reporting partial findings
 - Don't write a second patch after a failed fix -- the pull is strong because the failing output looks like a smaller problem than the original bug, but a fix that does not clear its own reproducing test has refuted the diagnosis, not missed a detail. Step 7 sends the run back to Step 2 once.
+- Don't confirm by citation -- an upstream issue, a doc, or a forum answer that matches the symptom is a hypothesis, and the confirmation is its precondition found in this codebase (Step 3a). The pull is strong because the first authoritative-looking match reads like an answer, and it anchors the rest of the run.
+- Don't research before local evidence -- research tests the hypotheses Step 1 produced; a run that opens with a web search produces a diagnosis shaped by whatever was found first.
