@@ -160,7 +160,7 @@ For simple single-file checks: handle directly without agent dispatch. Read the 
 
 After agent results (or direct investigation) return:
 
-- Hypothesis **confirmed**: at least one observation made in this codebase or its runtime -- a value read, a line traced, a command's output -- that the hypothesis explains and no rival hypothesis from Step 2 does, with its Refutation entry checked and found absent. A matching upstream issue, a matching doc, or a fit with the symptom description alone is not confirmation; those are evidence for a hypothesis that still has to pass this test. Write it as `confirmed by: H<n> -- <check> -> <observed>`; Step 5a carries that line verbatim. Skip remaining hypotheses, go to Step 5.
+- Hypothesis **confirmed**: at least one observation made in this codebase or its runtime -- a value read, a line traced, a command's output -- that the hypothesis explains and no rival hypothesis from Step 2 does, with its Refutation entry checked and found absent. Write it as `confirmed by: H<n> -- <check> -> <observed>`; Step 5a carries that line verbatim. Skip remaining hypotheses, go to Step 5.
 - Hypothesis **refuted**: its `refuted:` line is the record; move to next hypothesis.
 - Hypothesis **inconclusive**: note the unknown, move to next hypothesis.
 
@@ -209,7 +209,7 @@ When the user questions the diagnosis at any point after 5a -- "are you sure", "
 
 1. Restate the `confirmed by:` line from 3d and the `refuted:` or `survived:` lines this hypothesis earned.
 2. Look for one local observation that contradicts the root cause: re-run the Refutation check, read the values the diagnosis assumed, and re-read the `visual_evidence` from Step 1 against the claimed mechanism.
-3. If any observation contradicts it: the root cause was a hypothesis, and it is now refuted. Record it with the contradicting observation as its evidence, then return to Step 3 with the next hypothesis from Step 2 -- or to Step 4 when none remain.
+3. If any observation contradicts it: the root cause was a hypothesis, and it is now refuted. Record it with the contradicting observation as its evidence, then return to Step 3 with the next hypothesis from Step 2 -- or to Step 4 when none remain. Step 4's two-round bound is the cap; 5c adds no rounds of its own.
 4. If nothing contradicts it: say so, name the observation the diagnosis rests on, and only then discuss alternative fixes.
 
 The user is questioning the diagnosis, and the fastest answer is to test it, not to widen the fix menu.
