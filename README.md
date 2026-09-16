@@ -71,7 +71,15 @@ Without one, clone into the directory Cursor loads plugins from:
 git clone https://github.com/yagizdo/quiver.git ~/.cursor/plugins/local/quiver
 ```
 
-Run `Developer: Reload Window`. `git -C ~/.cursor/plugins/local/quiver pull` updates it, and one more reload picks the update up. Cloning on top of a Claude Code install leaves two copies on separate update schedules, so do not do both.
+Run `Developer: Reload Window`. Cloning on top of a Claude Code install leaves two copies on separate update schedules, so do not do both.
+
+To update the clone, pull it:
+
+```bash
+git -C ~/.cursor/plugins/local/quiver pull
+```
+
+Then run `Developer: Reload Window` again so Cursor picks up the new version.
 
 ### OpenCode
 
