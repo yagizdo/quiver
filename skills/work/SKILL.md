@@ -287,19 +287,24 @@ For **non-review-fix plans** with large, risky, or security-sensitive changes, c
 
 #### 5a -- Final commit
 
-If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then delegate to `/quiver:commit`. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly with a Conventional Commits message -- the same rule Phase 3 commits under -- instead of delegating to the prompt.
+If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then invoke the `commit` skill. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly with a Conventional Commits message -- the same rule Phase 3 commits under -- instead of delegating to the prompt.
 
 #### 5b -- Create PR
 
-After committing (or if all commits were already made during Phase 3), use `AskUserQuestion`:
-> All work is committed on `{branch_name}`. What would you like to do next?
-Buttons: `["Review first -- /quiver:review", "Create a pull request", "Done -- I'll handle the rest"]`
+After committing (or if all commits were already made during Phase 3), print the review command as text:
+> Review before merging: /quiver:review --base <default branch>
+Add `--plan <plan path>` to that line when the run had a plan file; `<default branch>` is `main` or `master`, whichever the repository has. `skills/review/SKILL.md` carries `disable-model-invocation: true`: the Skill tool blocks a `review` call from this skill and tells the model not to reproduce the review another way, so the review is the user's to run and never a button here. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
 
-- **Review first** -- delegate to `/quiver:review`. When it returns, ask this question again without the review button; the user has seen the findings and decides whether to open the PR or fix first. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
-- **Create a pull request** -- delegate to `/quiver:create-pr`.
+Then use `AskUserQuestion`:
+> All work is committed on `{branch_name}`. What would you like to do next?
+Buttons: `["Create a pull request", "Done -- I'll review or handle the rest"]`
+
+- **Create a pull request** -- invoke the `create-pr` skill.
 - **Done** -- stop here. Move to 5c.
 
-In auto mode, skip the question and act as **Done**: print `/quiver:review` and `/create-pr` as the next commands for the user, and invoke neither.
+In auto mode, skip the question and act as **Done**: the review line is already printed; print `/create-pr` beside it, carry both as the last line of the 5d summary, and invoke neither.
+
+`/create-pr` owns the pull request for the rest of the session, in both modes. When the user asks for one after the run -- 'push and open a PR', 'create the PR' -- invoke the `create-pr` skill; never run `gh pr create` from this skill or from the conversation it leaves behind. A description drafted during the run (a rationale document the user asked to put in the PR, a summary of the branch) is input to that skill, which reads it as something the user said in this conversation, not a substitute for it. Only an explicit instruction to skip the skill -- 'open it with gh directly', 'don't use create-pr' -- overrides this.
 
 #### 5c -- Update plan status
 
@@ -326,6 +331,8 @@ Summarize:
 - Link to the PR (if one was created)
 - Any follow-up work needed or remaining tasks, including every task accepted after three failed attempts and every discovered edit the group announcements printed (file and reason), so a change outside the plan's file lists is visible before the PR
 - The test-first tally, one line: `TDD: <n> red-verified, <m> skipped (<distinct reasons>)`. The sequential path counts the lines Phase 3 printed; the orchestration path counts the `TDD` lines the group-completion announcements printed. Include this line whenever the run implemented anything.
+
+This summary ends `/work`. It does not end the turn when another skill loaded `/work` through the Skill tool -- `/ship` does, and continues into its verification here -- because that skill's instructions are still in this conversation and its next step runs now. Before ending the turn on this summary, check whether a skill invoked `/work` and follow its continuation step.
 
 ---
 

@@ -10,13 +10,14 @@
 3. Phase 0 NO_GIT handling skips branch creation, commits, and PR steps cleanly.
 4. Phase 2.5 announces the strategy (sequential or parallel) and task count before continuing.
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
-6. Phase 5 delegates to `/quiver:commit` and `/quiver:create-pr`, gating each action with `AskUserQuestion`. The 5b question offers `Review first -- /quiver:review` ahead of the PR button; picking it delegates to `/quiver:review` and then re-asks 5b without that button.
+6. Phase 5 invokes the `commit` and `create-pr` skills, gating each action with `AskUserQuestion`. 5b prints the `/quiver:review --base <default branch>` command as text before its question and never invokes it -- `review` carries `disable-model-invocation: true`, so the Skill tool blocks the call -- and the question offers only the PR button and Done.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 8. Phase 2.5 prints a `Verification:` line naming the resolved test and build commands or `none` with a reason, before any code changes.
 9. Phase 3 prints a `red:` line naming the new test before each task's implementation edit, then a pass line; a `none` resolution prints one `skipped:` line for the run and no `red:` line.
 10. A task whose tests still fail after three runs past the implementation stops as a blocker; in auto mode it prints the accepted notice and the run continues.
-11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/quiver:review` and `/create-pr` commands as text, and the workspace is kept.
+11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/quiver:review` and `/create-pr` commands as text, the 5d summary ends on them, and the workspace is kept.
 12. `--auto` is stripped before the path is read, so `/work .claude/plans/x.md --auto` loads `x.md` through Case A.
+13. A PR requested later in the same session, after either an interactive or an auto run, goes through the `create-pr` skill even when a description was drafted during the run; no bare `gh pr create`.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/work`; plan banner printed before code changes.
@@ -32,6 +33,7 @@
 - [ ] The 5d summary carries one `TDD:` line with a red-verified count and a skipped count.
 - [ ] Every `AskUserQuestion` site has an auto-mode branch ahead of it, and no auto-mode branch answers a blocker, a contradiction, a Critical finding, or a merge conflict.
 - [ ] Auto mode never pushes and never opens a PR.
+- [ ] No `gh pr create` is run by /work or by the session it leaves behind; the `create-pr` skill is invoked instead, with any description drafted during the run as its input.
 
 **Known gotchas:**
 - Phase 4c parses the synthesized report format from the review skill; the SYNC comment must stay paired with the matching marker in `skills/review/SKILL.md`.

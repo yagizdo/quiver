@@ -35,6 +35,7 @@
 - [ ] Plan read back after the write (L3); report read back after the write.
 - [ ] Ship invokes `work` through the Skill tool, never invokes `review` (its `disable-model-invocation: true` refuses the call), and never calls the Agent tool itself.
 - [ ] Ship never creates a branch, never commits, never pushes, and never opens a PR; `/work --auto` commits, and pushes or opens nothing.
+- [ ] A PR asked for after the run is opened by the `create-pr` skill, not by a bare `gh pr create`, even when the run drafted a description.
 - [ ] The `work` invocation carries `--auto`; a run with no blocker reaches the report with no question after Phase 2.
 - [ ] `--execute` with no ship plan terminates with a message; no prompt.
 - [ ] `--execute` + `--resume` together: `--resume` wins; the Step 1 Resume path runs.
@@ -59,3 +60,4 @@
 - The verification and TDD subagent restatements are pasted only into `skills/work/orchestrator.md`. Ship dispatches no subagent, so it carries neither; the contract tests check the orchestrator's copy alone.
 - The review is the user's, not ship's. `skills/review/SKILL.md` carries `disable-model-invocation: true`, so the Skill tool refuses a `review` call from ship -- an earlier draft made that call and could never have run. The report names the command with `--base` so `/quiver:review` does not prompt for the base branch on a feature branch, and `--plan` so its Step 1.8 finds the Global Constraints; dropping either makes the user's pass interactive or blind to the constraints.
 - A `/work` run that ends blocked keeps its ledger on purpose; `/ship --execute` is the retry, and the ledger is what makes it cheap.
+- The Skill tool does not return. Invoking `work` loads its file into the conversation and the run continues inline; the only end signal is `/work`'s Phase 5d summary. A 2026-09-16 run with several blocker stops ended the turn on that summary and never verified. The Continue step is keyed to the summary for that reason, and `/work` 5d names the caller's continuation; `/ship --verify` re-enters when a turn still ends there.

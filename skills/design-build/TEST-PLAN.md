@@ -45,6 +45,7 @@
 - [ ] Phase 4 carries the `Design match: skipped -- nothing measured the built UI` line on every run.
 - [ ] The bounded-retry prompt uses `AskUserQuestion`, not plain text -- and is unreachable in auto mode.
 - [ ] Every `AskUserQuestion` site in this skill has an auto-mode branch ahead of it.
+- [ ] The interactive handoff prints `/quiver:review` as text and offers no review button; `commit` and `create-pr` are invoked as skills.
 - [ ] Auto mode changes no gate verdict and no commit rule.
 - [ ] No commit is written when `commit_strategy` is absent.
 - [ ] `--no-commit` overrides the plan for the run and never edits the plan file.

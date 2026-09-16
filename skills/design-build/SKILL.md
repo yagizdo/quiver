@@ -274,16 +274,17 @@ Print the branch name and the commit count.
 Invoke none of them. The consent this run carries covers the build -- not a review, not a
 commit the plan's `commit_strategy` did not authorize, and not a pull request.
 
-Otherwise call `AskUserQuestion`:
+Otherwise print `> Review before merging: /quiver:review` as text, then call `AskUserQuestion`:
 
 > Build finished. What next?
 
-Buttons: `["Review the changes -- /quiver:review", "Commit -- /commit", "Open a PR -- /create-pr", "Stop here"]`
+Buttons: `["Commit -- /commit", "Open a PR -- /create-pr", "Stop here"]`
 
-- **Review the changes:** invoke the `review` skill.
 - **Commit:** invoke the `commit` skill.
 - **Open a PR:** invoke the `create-pr` skill.
 - **Stop here:** stop.
+
+`skills/review/SKILL.md` carries `disable-model-invocation: true`: the Skill tool blocks a `review` call from this skill and tells the model not to reproduce the review another way, so the review is the user's to run and never a button here.
 
 Do not open a pull request directly -- `/create-pr` owns that.
 
