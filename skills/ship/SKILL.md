@@ -152,7 +152,7 @@ Options: "Approve -- build it", "Approve the plan only -- do not build yet", "Ad
 
 On "Add or change something": ask what to change, update the table, re-present. On "Start over": return to Phase 0.
 
-**"Approve -- build it" is the run's single consent point (R6).** It authorizes the plan write, the handoff to `/work --auto`, every per-task commit, and the verification pass. Proceed to Phase 3 and do not stop between phases. It does not authorize a push, a pull request, or a review -- none of those is automatic -- and it does not stand in for a blocker: `/work` still asks when a task cannot proceed or a merge conflicts.
+**"Approve -- build it" is the run's single consent point (R6).** It authorizes the plan write, the handoff to `/work --auto`, every per-task commit, and the verification pass. Proceed to Phase 3 and do not stop between phases. It does not authorize a push, a pull request, or a review -- none of those is automatic -- and it does not stand in for a blocker: `/work` still asks when a task cannot proceed or a merge conflicts. When the user asks for the pull request after the run, `/create-pr` opens it -- `/work` Phase 5b states that rule, and a description the run drafted is that skill's input, not a body to hand to `gh pr create`.
 
 **"Approve the plan only"** writes the plan and stops there, for a user who wants to read or edit it first. Print the plan path and the `/ship --execute` command, then terminate.
 

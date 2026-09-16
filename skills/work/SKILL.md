@@ -287,7 +287,7 @@ For **non-review-fix plans** with large, risky, or security-sensitive changes, c
 
 #### 5a -- Final commit
 
-If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then delegate to `/quiver:commit`. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly with a Conventional Commits message -- the same rule Phase 3 commits under -- instead of delegating to the prompt.
+If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then invoke the `commit` skill. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly with a Conventional Commits message -- the same rule Phase 3 commits under -- instead of delegating to the prompt.
 
 #### 5b -- Create PR
 
@@ -296,10 +296,12 @@ After committing (or if all commits were already made during Phase 3), use `AskU
 Buttons: `["Review first -- /quiver:review", "Create a pull request", "Done -- I'll handle the rest"]`
 
 - **Review first** -- delegate to `/quiver:review`. When it returns, ask this question again without the review button; the user has seen the findings and decides whether to open the PR or fix first. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
-- **Create a pull request** -- delegate to `/quiver:create-pr`.
+- **Create a pull request** -- invoke the `create-pr` skill.
 - **Done** -- stop here. Move to 5c.
 
 In auto mode, skip the question and act as **Done**: print `/quiver:review` and `/create-pr` as the next commands for the user, and invoke neither.
+
+`/create-pr` owns the pull request for the rest of the session, in both modes. When the user asks for one after the run -- 'push and open a PR', 'create the PR' -- invoke the `create-pr` skill; never run `gh pr create` from this skill or from the conversation it leaves behind. A description drafted during the run (a rationale document the user asked to put in the PR, a summary of the branch) is input to that skill, which reads it as something the user said in this conversation, not a substitute for it. Only an explicit instruction to skip the skill -- 'open it with gh directly', 'don't use create-pr' -- overrides this.
 
 #### 5c -- Update plan status
 

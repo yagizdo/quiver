@@ -35,6 +35,7 @@
 - [ ] Plan read back after the write (L3); report read back after the write.
 - [ ] Ship invokes `work` through the Skill tool, never invokes `review` (its `disable-model-invocation: true` refuses the call), and never calls the Agent tool itself.
 - [ ] Ship never creates a branch, never commits, never pushes, and never opens a PR; `/work --auto` commits, and pushes or opens nothing.
+- [ ] A PR asked for after the run is opened by the `create-pr` skill, not by a bare `gh pr create`, even when the run drafted a description.
 - [ ] The `work` invocation carries `--auto`; a run with no blocker reaches the report with no question after Phase 2.
 - [ ] `--execute` with no ship plan terminates with a message; no prompt.
 - [ ] `--execute` + `--resume` together: `--resume` wins; the Step 1 Resume path runs.
