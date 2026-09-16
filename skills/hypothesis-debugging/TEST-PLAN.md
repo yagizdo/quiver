@@ -11,7 +11,7 @@
 2. When a screenshot is attached, the skill describes the anomaly geometry in measurable terms before any hypothesis.
 3. Skill generates 2-4 hypotheses based on symptoms and codebase scan, each carrying a Refutation entry that names what would be observed if it were wrong.
 4. Skill tests hypotheses, dispatching agents conditionally (only when their specialization adds value).
-5. A hypothesis is confirmed only by a local observation no rival hypothesis explains, with its Refutation entry checked first -- never by an upstream issue or doc match alone.
+5. A hypothesis is confirmed only by a local observation no rival hypothesis explains, with its Refutation entry checked first -- never by an upstream issue or doc match alone. The confirmation is quoted as a `confirmed by:` line.
 6. If hypotheses fail, skill enters adaptive exploration (max 2 rounds) with targeted user questions via AskUserQuestion.
 7. On confirmed root cause, skill generates fix proposals (simplest first) and dispatches fix-reviewer.
 8. When the user questions the diagnosis, the skill re-audits it against local evidence (Step 5c) before discussing alternative fixes; a contradiction refutes the root cause and re-enters hypothesis testing.
@@ -32,6 +32,7 @@
 - [ ] Before the fix is applied, a `red:` line names the reproducing test; after it, a pass line follows -- or one `skipped:` reason covers both when no command resolves.
 - [ ] Adaptive exploration bounded to 2 rounds.
 - [ ] Every hypothesis carries a Refutation entry; none reads "nothing in particular".
+- [ ] Every tested hypothesis has a `refuted:` or `survived:` line quoting the check and what it showed; the root cause in Step 5a carries a `confirmed by:` line.
 - [ ] A screenshot in the input yields a geometry description (edges, symmetry, size ratio) in the Step 1 summary, before the hypotheses.
 - [ ] The recent-changes scan is file-scoped (`git log -n 20 -- <files>`), and a commit whose subject names the affected component is listed in the summary by hash.
 - [ ] No root cause is declared confirmed on an upstream issue or doc match; the issue's precondition is shown present in the codebase first.

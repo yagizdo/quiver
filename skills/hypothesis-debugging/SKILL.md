@@ -87,7 +87,7 @@ Based on symptoms from Step 1, generate 2-4 ranked hypotheses. Each hypothesis:
 - **Test:** What to check to confirm this hypothesis.
 - **Refutation:** What you would observe if this hypothesis were wrong -- a specific file, value, or output, checkable in this codebase. A hypothesis with no refutation entry is not ready to test. A refutation that reads "nothing in particular" means the hypothesis is unfalsifiable; drop it.
 
-Present hypotheses to the user as a brief summary. This is NOT a blocking gate -- share thinking and move forward. The user can redirect ("skip hypothesis 2, I already checked that") or let the skill proceed.
+Present the hypotheses to the user as a numbered list `H1`..`Hn`, one line each: the Statement, then the Refutation. Evidence and Test stay internal unless the user asks. This is NOT a blocking gate -- share thinking and move forward. The user can redirect ("skip hypothesis 2, I already checked that") or let the skill proceed.
 
 Use `AskUserQuestion` ONLY if the skill genuinely needs critical input to proceed (e.g., "I found 3 possible entry points for this error -- which one are you seeing?"). Otherwise, proceed directly to testing.
 
@@ -100,6 +100,15 @@ Test each hypothesis in order (highest likelihood first).
 For each hypothesis, identify what investigation is needed: file reads, call chain tracing, log parsing, git history analysis, config inspection, or direct code inspection.
 
 Check the hypothesis's Refutation entry first. It is usually one grep, and a hypothesis that fails it is refuted before any confirmation work is spent on it.
+
+Record every check as one line, quoting what was observed rather than what was concluded:
+
+```
+refuted:   H<n> -- <check> -> <observed>
+survived:  H<n> -- <check> -> <observed>
+```
+
+`<check>` is the command run, the `file:line` read, or the line of `raw_error_output` or `visual_evidence` consulted; `<observed>` is its output or content, not a paraphrase. A hypothesis with no such line has not been tested, whatever the prose around it says. One line per check is the whole cost -- do not print the raw output it summarizes.
 
 Research -- upstream issue trackers, library docs, web search, context7 -- tests a hypothesis that local evidence already produced; it never produces the diagnosis. Do it only after Step 1 has run and a hypothesis names what the research would settle. An upstream issue or doc that matches the symptom is a new hypothesis, not a confirmation: its Test is whether the issue's precondition -- the widget, API, version, or config it requires -- exists in this codebase, and that check runs before anything else. A user asking for deeper research changes nothing here; the research still tests hypotheses grounded in local evidence.
 
@@ -151,8 +160,8 @@ For simple single-file checks: handle directly without agent dispatch. Read the 
 
 After agent results (or direct investigation) return:
 
-- Hypothesis **confirmed**: at least one observation made in this codebase or its runtime -- a value read, a line traced, a command's output -- that the hypothesis explains and no rival hypothesis from Step 2 does, with its Refutation entry checked and found absent. A matching upstream issue, a matching doc, or a fit with the symptom description alone is not confirmation; those are evidence for a hypothesis that still has to pass this test. Name the observation in the Step 5a root cause. Skip remaining hypotheses, go to Step 5.
-- Hypothesis **refuted**: move to next hypothesis.
+- Hypothesis **confirmed**: at least one observation made in this codebase or its runtime -- a value read, a line traced, a command's output -- that the hypothesis explains and no rival hypothesis from Step 2 does, with its Refutation entry checked and found absent. A matching upstream issue, a matching doc, or a fit with the symptom description alone is not confirmation; those are evidence for a hypothesis that still has to pass this test. Write it as `confirmed by: H<n> -- <check> -> <observed>`; Step 5a carries that line verbatim. Skip remaining hypotheses, go to Step 5.
+- Hypothesis **refuted**: its `refuted:` line is the record; move to next hypothesis.
 - Hypothesis **inconclusive**: note the unknown, move to next hypothesis.
 
 ## Step 4 -- Adaptive Exploration
@@ -185,6 +194,7 @@ Once root cause is confirmed:
 - **What** is wrong (one paragraph)
 - **Where** it happens (file:line references)
 - **Why** it happens (the mechanism)
+- **Confirmed by** -- the `confirmed by:` line from 3d, verbatim
 
 ### 5b -- Generate fix proposals
 
@@ -197,7 +207,7 @@ Generate 1-3 fix proposals (simplest first):
 
 When the user questions the diagnosis at any point after 5a -- "are you sure", "is there nothing better", "look again", "that does not seem right" -- do not generate alternative fixes and do not start new research. Re-audit first:
 
-1. Restate the observation that confirmed the root cause in 3d and the Refutation entry that was checked.
+1. Restate the `confirmed by:` line from 3d and the `refuted:` or `survived:` lines this hypothesis earned.
 2. Look for one local observation that contradicts the root cause: re-run the Refutation check, read the values the diagnosis assumed, and re-read the `visual_evidence` from Step 1 against the claimed mechanism.
 3. If any observation contradicts it: the root cause was a hypothesis, and it is now refuted. Record it with the contradicting observation as its evidence, then return to Step 3 with the next hypothesis from Step 2 -- or to Step 4 when none remain.
 4. If nothing contradicts it: say so, name the observation the diagnosis rests on, and only then discuss alternative fixes.
