@@ -84,6 +84,7 @@ CLIENT_JS = """\
 
 IDLE_TIMEOUT = 1800  # 30 minutes
 POLL_INTERVAL = 0.5  # seconds
+SSE_STREAM_LIMIT = 3600  # seconds per SSE connection; the browser reconnects on its own
 
 # ---------------------------------------------------------------------------
 # Server state (module-level, shared across threads)
@@ -330,8 +331,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-cache')
         self.send_header('Connection', 'keep-alive')
         self.end_headers()
+        stream_deadline = time.time() + SSE_STREAM_LIMIT
         try:
-            while True:
+            while time.time() < stream_deadline:
                 ev.wait(timeout=30)
                 if ev.is_set():
                     self.wfile.write(b'data: reload\n\n')
