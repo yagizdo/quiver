@@ -7,8 +7,8 @@
     {
       "name": "quiver",
       "source": {
-        "source": "url",
-        "url": "https://github.com/yagizdo/quiver.git"
+        "source": "local",
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",
