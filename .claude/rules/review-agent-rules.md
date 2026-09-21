@@ -61,6 +61,7 @@ Which agents `/quiver:review` Step 2 dispatches, and what must be true of the di
 | `codex-code-reviewer` | `PRECONDITION` | deep |
 | `report-checker` | `NEVER` | -- |
 | `senior-reviewer` | `NEVER` | -- |
+| `fix-reviewer` | `NEVER` | -- |
 
 The `Gate` cell takes one of four forms.
 
@@ -70,7 +71,7 @@ A class list dispatches when the manifest contains at least one file of any list
 
 `PRECONDITION` means the gate is not manifest-expressible. The conditions are documented at that agent's bullet in `skills/review/SKILL.md` Step 2b, because they read state no manifest carries; this table records only that a gate exists and which modes it applies in.
 
-`NEVER` means the agent is not a Step 2 participant. `report-checker` and `senior-reviewer` run at later steps of `/quiver:review`, so their `Modes` cell is `--`: naming a mode would imply a fan-out they never join.
+`NEVER` means the agent is not a Step 2 participant. `report-checker`, `senior-reviewer` and `fix-reviewer` run at later steps of `/quiver:review`, so their `Modes` cell is `--`: naming a mode would imply a fan-out they never join. `fix-reviewer` lives under `agents/debug/` because `/quiver:hypothesis-debugging` dispatches it too; the row is here because `/quiver:review` Step 3.9 dispatches it as well, and an agent two skills share still needs one gate.
 
 `PROMPT`, `DOCS`, and `CONFIG-MANIFEST` satisfy no class gate. A diff made only of those classes dispatches the `UNCONDITIONAL` agents and nothing else.
 

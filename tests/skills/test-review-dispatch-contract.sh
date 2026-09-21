@@ -20,10 +20,11 @@ RULES="$REPO_ROOT/.claude/rules/review-agent-rules.md"
 SKILL="$REPO_ROOT/skills/review/SKILL.md"
 AGENTS_DIR="$REPO_ROOT/agents"
 
-# Dispatch scope: every file under agents/review/ plus the two cross-category paths
-# skills/review/SKILL.md Step 2a adds by hand as Tier 2. Agents outside this set are
-# not /quiver:review participants and carry no dispatch gate.
-TIER2="agents/research/best-practices-researcher.md agents/research/project-context-analyst.md"
+# Dispatch scope: every file under agents/review/ plus the cross-category paths
+# skills/review/SKILL.md names by hand -- the two Step 2a Tier 2 agents, and
+# agents/debug/fix-reviewer.md, which Step 3.9 dispatches outside the Step 2 fan-out.
+# Agents outside this set are not /quiver:review participants and carry no dispatch gate.
+TIER2="agents/research/best-practices-researcher.md agents/research/project-context-analyst.md agents/debug/fix-reviewer.md"
 
 EXIT=0
 pass() { echo "  PASS: $1"; }
