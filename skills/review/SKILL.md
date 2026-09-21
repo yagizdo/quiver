@@ -40,7 +40,7 @@ Parse `$ARGUMENTS` for the `--deep` and `--plan` flags:
 2. Otherwise, set `review_mode = fast`.
 3. If `$ARGUMENTS` contains `--plan <path>`, set `constraints_plan_path` to the path token that follows the flag, and strip both `--plan` and that path from `$ARGUMENTS` before passing to subsequent steps. Otherwise leave `constraints_plan_path` unset.
 
-`--deep` affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, and 3.75 only. `--plan` affects Step 1.8 only -- it names the plan whose Global Constraints bind this review, and never changes which diff is reviewed. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
+`--deep` affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, 3.75, and 3.9 only. `--plan` affects Step 1.8 only -- it names the plan whose Global Constraints bind this review, and never changes which diff is reviewed. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes.
 
 Announce the mode:
 - Fast: `Running review (5 core agents)...`
@@ -410,7 +410,7 @@ The proportional floor runs AFTER subsumption (Step 3.1) and the 9 filters (Step
    1. Severity (Critical first)
    2. Dependency (if fix A must happen before fix B, A goes first)
    3. Effort (quick wins before large refactors within same severity)
-   **Defer** findings do not enter the table -- their disposition line is the whole instruction. Never omit the table: a report whose findings are all Follow-up or Defer still prints it, carrying the single row `| -- | -- | Nothing blocks the merge | -- | -- | -- |`, so a reader learns that from the report rather than from its absence.
+   **Defer** findings do not enter the table -- their disposition line is the whole instruction. Never omit the table: when no finding is Before merge or Follow-up (every finding deferred, or no findings at all), the table still prints, carrying the single row `| -- | -- | Nothing blocks the merge | -- | -- | -- |`, so a reader learns that from the report rather than from its absence.
 9. **Populate findings overview.** After all filtering, deduplication, and severity assignment, count findings per severity tier. Write the totals into the `Findings overview` line in `## Review Context`. Use the format: `X Critical, Y High, Z Medium, W Low (N filtered)`. Omit tiers with zero findings (e.g., `2 High, 1 Medium (3 filtered)` instead of `0 Critical, 2 High, 1 Medium, 0 Low`).
 
 ### Synthesized report structure
@@ -514,6 +514,7 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
      - REWRITE: Replace the finding's recommendation text with the corrected version.
    - After applying fixes, recalculate:
      - Findings overview counts in `## Review Context`
+     - Disposition counts in `## Review Context`, and the `**Deferred:**` line under the fix order table
      - Severity section contents (move downgraded findings, remove deleted ones)
      - Recommended Fix Order table (remove entries for deleted/downgraded findings)
      - Verdict line (recompute based on remaining finding severities)
@@ -545,16 +546,17 @@ After the quality check, dispatch the `senior-reviewer` agent for a pragmatic se
    - Do NOT pass --quick flag in pipeline mode. Always run full analysis (Phase 0-4 + Phase 5).
 
 2. **Handle results:**
-   - **Zero modifications, zero new findings:** Print `Senior review passed -- no changes to report.` Proceed to Step 4.
+   - **Zero modifications, zero new findings:** Print `Senior review passed -- no changes to report.` Proceed to Step 3.9.
    <!-- SYNC: The apply-fixes procedure below (REMOVE/DOWNGRADE/REWRITE/PROMOTE/ADD actions + recalculation steps) is a superset of the procedure in Step 3.5 and skills/report-check/SKILL.md Step 4. PROMOTE and ADD are unique to Step 3.75. Keep the shared actions (REMOVE/DOWNGRADE/REWRITE) and recalculation steps in sync across all three locations. -->
    - **Modifications or new findings:** Apply the recommended actions:
      - REMOVE: Delete the finding from the report.
      - DOWNGRADE: Change the finding's severity and move it to the correct section.
      - REWRITE: Replace the finding's recommendation text with the corrected version.
      - PROMOTE: Upgrade the finding's severity and move it to the correct section. The senior-reviewer must provide justification for promotion.
-     - ADD: Insert a new finding into the appropriate severity section. New findings from senior-reviewer use the prefix SR (SR1, SR2, etc.) to distinguish them from original agent findings. The senior-reviewer must cite the file and line for each added finding.
+     - ADD: Insert a new finding into the appropriate severity section, with a `Disposition:` line assigned by the Step 3 item 7 rules. New findings from senior-reviewer use the prefix SR (SR1, SR2, etc.) to distinguish them from original agent findings. The senior-reviewer must cite the file and line for each added finding.
    - After applying fixes, recalculate:
      - Findings overview counts in `## Review Context`
+     - Disposition counts in `## Review Context`, and the `**Deferred:**` line under the fix order table
      - Severity section contents (move promoted/downgraded findings, remove deleted ones, insert added ones)
      - Recommended Fix Order table (update entries for promoted/downgraded findings, add entries for new findings, remove deleted ones)
      - Verdict line (recompute based on remaining finding severities)
@@ -562,7 +564,7 @@ After the quality check, dispatch the `senior-reviewer` agent for a pragmatic se
 
 3. **Senior Assessment section.** If the senior-reviewer produced an overall assessment, insert a `## Senior Assessment` section in the report after `## Findings` and before `## Recommended Fix Order`. This section contains the team lead's summary and any meta-review observations. Omit this section if the senior-reviewer returned no assessment text.
 
-4. **No retry.** Unlike report-checker, the senior-reviewer does NOT get a retry. One pass only. Proceed to Step 4.
+4. **No retry.** Unlike report-checker, the senior-reviewer does NOT get a retry. One pass only. Proceed to Step 3.9.
 
 **Status messages (plain language, no rule codes):**
 - Before dispatch: `Running senior developer review (independent code review + meta-review of findings)...`
@@ -587,7 +589,7 @@ Run this step only when at least one finding carries a fix: a fenced code block,
      defects no proposal targets, and do not change any finding's severity.
 
      Read the file each proposal edits before flagging a convention violation or a side
-     effect. Add one check to your Phase 1: a proposal whose comment, doc comment, or
+     effect. Add one check to your Phase 3: a proposal whose comment, doc comment, or
      surrounding prose states a behaviour its own code does not produce is a FLAG under
      CONVENTION_VIOLATION -- quote both halves and say which one is wrong.
 
