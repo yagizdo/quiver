@@ -319,30 +319,21 @@ The Figma plugin side is a manual import from the bridge's [releases page](https
 
 ## CLI Notes
 
-Every CLI runs the same skills and the same agents, and `/quiver:review` fans out to 5 agents by default on all of them, or the full pipeline with `--deep`.
-
 ### Cursor
 
-- Cursor discovers skills by scanning a fixed set of roots: `~/.cursor/skills/`, `~/.cursor/skills-cursor/`, `~/.cursor/cloud-skills/`, `~/.cursor/plugins/`, `~/.claude/skills/`, `~/.claude/plugins/`, `~/.codex/skills/`, `~/.agents/skills/`. A Claude Code install lands in `~/.claude/plugins/`, so Cursor picks it up. A Codex install lands in `~/.codex/plugins/`, which is not on that list.
-- Two installs give you two copies on separate update schedules, and nothing warns you when you are reading the old one. Keep the Claude Code install and let Cursor read it.
-- `~/.cursor/plugins/local/<name>/` has to be a real directory. Cursor scans that directory on startup and rejects an entry that is a symlink pointing outside it, which is why the Cursor install is a clone in place and why `install.sh`, which links into your clone, has no Cursor target. Measured on Cursor 3.17.21: a clone at that path logs `loadUserLocalPlugin quiver loaded`, and a symlink to a clone elsewhere logs `loadUserLocalPlugin quiver rejected: symlink target ... is outside ...` with 0 plugins loaded.
-- The Plugins panel imports the repo by git URL as well. That route indexes the repo through Cursor's servers and pins the install to what came back, so updates are Cursor's to schedule rather than a `git pull`. The clone needs neither the panel nor a sign-in.
-- If the clone fails with `fatal: Unable to read current working directory: Operation not permitted`, the shell is sitting in a directory macOS will not let git read, and the target path has nothing to do with it. Run it from `cd ~` and it goes through. The parent directories need no `mkdir`; git creates them.
-- The `cursor-agent` CLI does not load plugin skills (IDE-only). Use Cursor IDE for skill-using workflows.
-- `WebFetch` and `WebSearch` are unsupported on Cursor; the included context7 MCP covers documentation lookups.
-- If handover auto-save does not fire after install, Cursor's `preCompact` event may use a different JSON field name than Claude Code. Edit `.cursor/hooks.json` to log raw stdin to a file, trigger context compaction, and inspect the log for the actual field names.
+- Cursor sees a Claude Code install but not a Codex install.
+- The clone at `~/.cursor/plugins/local/quiver` has to be a real directory. Cursor ignores a symlink there that points to a clone somewhere else.
+- The `cursor-agent` CLI does not load plugin skills. Use the Cursor IDE.
+- If no handover appears in `.claude/handovers/` after a compaction, run `/handover` yourself.
 
 ### Codex
 
-- Codex uses the bundled default `PreCompact` hook in `hooks/hooks.json` for automatic handover auto-save before automatic compaction. If Codex prompts for hook review, open `/hooks` and trust the Quiver hook; `/handover` also works manually.
-- `AskUserQuestion` is polyfilled as numbered text prompts: reply with the option number.
-- Agent dispatch uses `spawn_agent(worker)` with the agent's persona prompt read from `agents/`.
+- The handover auto-save runs before compaction once the hook is trusted. If Codex asks you to review hooks, open `/hooks` and trust Quiver's.
 
 ### OpenCode
 
-- Installing from an earlier release put a git-backed `quiver` entry in the `plugin` array of your `opencode.json`. That entry no longer resolves: delete it, then run `./install.sh`.
-- The plugin registers the skills directory and the context7 MCP server itself, so you do not need an `mcp` or `skills` entry of your own.
-- Skills do not appear in the `/` autocomplete menu, because OpenCode's TUI filters out anything with `source: "skill"`. Typing `/brainstorm` still runs it.
+- An earlier release added a `quiver` entry to the `plugin` array in your `opencode.json`. That entry no longer resolves: delete it, then run `./install.sh`.
+- Skills do not show in the `/` autocomplete menu. Typing `/brainstorm` still runs it.
 
 ## Uninstall
 
