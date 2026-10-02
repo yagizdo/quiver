@@ -101,8 +101,9 @@ PY
 
 cd "$project"
 
-# bypassPermissions is only acceptable because the working directory is the
-# throwaway project root. Refuse to run anywhere else.
+# dontAsk still lets file reads inside the working directory run unprompted,
+# so the working directory must be the empty throwaway root. Refuse anywhere
+# else.
 cwd=$(pwd -P)
 case "$cwd" in
   "$tmp"/*) : ;;
@@ -128,11 +129,18 @@ END
 EOF
 PROBE=${PROBE//@PROJECT_ROOT@/$project}
 
+# The agent reads open-web pages, and a page can carry instructions. dontAsk
+# denies every call outside this list instead of running it. curl and gh stay
+# off it: curl can post a local file to any host and gh api can call a write
+# endpoint with the maintainer's token. The agent reads pages with WebFetch
+# instead and names the denied curl in its Gaps section.
 echo "Running the stack-researcher agent (one dispatch, three questions)..."
 claude -p "$PROBE" \
   --plugin-dir "$repo_root" \
   --max-budget-usd 5 \
-  --permission-mode bypassPermissions \
+  --permission-mode dontAsk \
+  --allowedTools "Agent" "WebSearch" "WebFetch" "mcp__plugin_quiver_context7" \
+    "Bash(npm view *)" \
   --output-format json > "$tmp/run.json"
 claude_exit=$?
 
@@ -185,7 +193,9 @@ statuses='answered|narrowed|open|needs-measurement|premise-false'
 # 1 MiB written as 1024 * 1024, 1048576, 1 MiB or 1 MB. A product such as
 # 64 * 1024 * 1024, or a size like 51 MB, contains the same characters and is
 # not the default, so neighbouring digits and multiplications do not count.
-one_mib='(^|[^*0-9 ])[ ]*1024[ ]*\*[ ]*1024[ ]*([^ *0-9]|$)|(^|[^0-9.,])1,?048,?576([^0-9]|$)|(^|[^0-9.,])1 ?Mi?B([^A-Za-z]|$)'
+# Parentheses around the pair are looked through, so 64 * (1024 * 1024) is
+# still a product while (1024 * 1024 bytes) still counts.
+one_mib='(^|[^*0-9 (])[ ]*\(?[ ]*1024[ ]*\*[ ]*1024[ ]*\)?[ ]*([^ *0-9)]|$)|(^|[^0-9.,])1,?048,?576([^0-9]|$)|(^|[^0-9.,])1 ?Mi?B([^A-Za-z]|$)'
 
 passes=0
 fails=0

@@ -134,7 +134,7 @@ Ask here anything that would otherwise become a question during the build: a ser
 
 ### Research
 
-**When.** After outcomes, platform + deployment, and constraints + prior decisions are answered. When the description or the `--seed` spec already answers them, research runs right after Phase 0.
+**When.** After outcomes, scope boundaries, platform + deployment, and constraints + prior decisions are answered. When the description or the `--seed` spec already answers them, research runs right after Phase 0.
 
 **What to look up.** List every fact the task breakdown or verification depends on that the answers and the seed do not state: a library or tool choice left open, a default or limit an output depends on, what a platform command returns, version compatibility. Write each as `<question> -- settled by: <what answer would settle it>`. With no such fact, print `> Research: nothing to look up -- every technical choice is already set.`, dispatch nothing, and continue with task breakdown.
 

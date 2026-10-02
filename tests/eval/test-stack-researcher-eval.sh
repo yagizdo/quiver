@@ -42,10 +42,11 @@ Measure: adb shell dumpsys window displays on an API 36 emulator; the inset line
 """
 
 # Each defect below is aimed at one check. The 1 MiB check is baited with
-# products that contain "1024 * 1024" without being 1 MiB, and with a "1 MiB"
-# outside the Q1 block, which must not count for Q1.
+# products that contain "1024 * 1024" without being 1 MiB, one of them
+# parenthesized, and with a "1 MiB" outside the Q1 block, which must not count
+# for Q1.
 FLAWED_REPORT = """### Q1 -- answered
-Answer: Call execFile('adb', ['exec-out', 'screencap', '-p'], { maxBuffer: 64 * 1024 * 1024 }) and read stdout; a 1024 * 1024 * 64 limit holds about 51 MB.
+Answer: Call execFile('adb', ['exec-out', 'screencap', '-p'], { maxBuffer: 64 * 1024 * 1024 }) and read stdout; a 1024 * 1024 * 64 limit holds about 51 MB, the same as 64 * (1024 * 1024).
 - documented | https://nodejs.org/docs/latest-v22.x/api/child_process.html | v22 | "maxBuffer <number> Largest amount of data in bytes allowed on stdout or stderr."
 
 ### Q2 -- partially answered
@@ -154,7 +155,14 @@ class StackResearcherEvalTest(unittest.TestCase):
         self.assertIn("- no runtime dependencies beyond the Node standard library", prompt)
         self.assertEqual(argv[argv.index("--plugin-dir") + 1], repo_root)
         self.assertEqual(argv[argv.index("--max-budget-usd") + 1], "5")
-        self.assertEqual(argv[argv.index("--permission-mode") + 1], "bypassPermissions")
+        # The agent reads open-web pages, so nothing outside this list may run
+        # unprompted: no curl or gh, which can send a local file or call a
+        # write API, and never bypassPermissions.
+        self.assertEqual(argv[argv.index("--permission-mode") + 1], "dontAsk")
+        self.assertNotIn("bypassPermissions", argv)
+        self.assertEqual(argv[argv.index("--allowedTools") + 1:argv.index("--output-format")],
+                         ["Agent", "WebSearch", "WebFetch", "mcp__plugin_quiver_context7",
+                          "Bash(npm view *)"])
         self.assertEqual(argv[argv.index("--output-format") + 1], "json")
         self.assertEqual(call["entries"], [], "project root was not empty when the run started")
         self.assertEqual(os.path.basename(call["cwd"]), "project", call["cwd"])
