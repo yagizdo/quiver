@@ -9,7 +9,8 @@
 #                                                   carries the restatement, TESTS quotes it
 #              skills/ship/SKILL.md              -- test_command / build_command fields,
 #                                                   resolved once at plan-write time; no
-#                                                   restatement, ship dispatches no subagent
+#                                                   restatement, ship dispatches no
+#                                                   implementing subagent
 #              skills/design-build/SKILL.md      -- the 3d gate command
 #              skills/hypothesis-debugging/SKILL.md -- Step 7 runs the resolved test
 #
@@ -171,7 +172,7 @@ done
 # The one paragraph copied out of the producer (Global Constraint 1). It sits two lines
 # below its heading -- heading, blank, paragraph -- and is a single line by construction so
 # a byte-for-byte comparison is one fixed-string grep. The orchestrator holds the only copy:
-# /ship hands execution to /work and dispatches no subagent, so it carries none. The loop
+# /ship hands execution to /work and dispatches no implementing subagent, so it carries none. The loop
 # stays a loop so a future dispatching consumer is one entry, and each copy is reported on
 # its own line so a drift names the file that drifted.
 echo ""
