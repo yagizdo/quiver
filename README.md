@@ -97,7 +97,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 |-----------|-------|
 | Hooks | 3 |
 | Skills | 21 |
-| Agents | 20 |
+| Agents | 21 |
 
 ## What Do I Use?
 
@@ -228,10 +228,11 @@ Review, research, and debug agents run with the `Edit`, `Write`, `NotebookEdit`,
 report findings, not to change it. `Bash` stays enabled because these agents need
 `git diff`, `git log`, and `git blame`, so the denial is a guardrail against
 accidental edits rather than a sandbox: a shell command can still write a file or
-reach the network. Two agents carry a narrower denylist: `best-practices-researcher`
+reach the network. Three agents carry a narrower denylist: `best-practices-researcher`
 keeps web access so it can check library versions against upstream release notes,
-and `codex-code-reviewer` can write because it persists the raw output of the
-external reviewer it wraps.
+`stack-researcher` keeps it because it answers open questions from current docs
+and package registries, and `codex-code-reviewer` can write because it persists
+the raw output of the external reviewer it wraps.
 
 <!-- agents-start -->
 
@@ -259,6 +260,7 @@ external reviewer it wraps.
 | Agent | What it catches |
 |-------|-----------------|
 | `best-practices-researcher` (`quiver:best-practices-researcher`) | Deprecated APIs and outdated patterns versus current library docs |
+| `stack-researcher` (`quiver:stack-researcher`) | Answers open technical questions before code is written, with a source for every answer |
 | `project-context-analyst` (`quiver:project-context-analyst`) | Prior decisions, past bugs, and churn patterns in this area of the codebase |
 | `code-locator` (`quiver:code-locator`) | Fast file:line locations for "where is X / what calls Y" without heavy mapping |
 | `code-navigator` (`quiver:code-navigator`) | CodeGraph-first codebase explorer that maps files, symbols, and patterns relevant to a task |

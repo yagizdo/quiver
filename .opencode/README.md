@@ -87,10 +87,10 @@ The full skill list lives in the `skill` tool. Run `use skill tool to list skill
 
 ### Agents
 
-Quiver provides 20 specialist agents. Invoke them with `@agentname`:
+Quiver provides 21 specialist agents. Invoke them with `@agentname`:
 
 - **Review:** `@architecture-strategist`, `@logic-reviewer`, `@waste-detector`, `@stress-tester`, `@security-audit`, `@test-reviewer`, `@developer-experience-auditor`, `@codex-code-reviewer`, `@report-checker`, `@senior-reviewer`
-- **Research:** `@best-practices-researcher`, `@project-context-analyst`, `@code-navigator`, `@code-locator`
+- **Research:** `@best-practices-researcher`, `@project-context-analyst`, `@code-navigator`, `@code-locator`, `@stack-researcher`
 - **Debug:** `@code-tracer`, `@log-analyzer`, `@regression-finder`, `@environment-checker`, `@fix-reviewer`
 - **Workflow:** `@plan-reviewer`
 
