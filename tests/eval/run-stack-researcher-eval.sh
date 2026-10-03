@@ -13,11 +13,11 @@
 #
 #   bash tests/eval/run-stack-researcher-eval.sh [--keep]
 #
-# Refuses to run while `adb devices` lists a device or a running emulator. The
-# input tells the agent no device is attached, and the Q3 check expects
-# needs-measurement; with a device attached the agent may run the command
-# itself and answer from a measurement, which is correct behavior the check
-# would fail.
+# Q3 asks what a customer's own Android build prints. No maintainer has that
+# head unit and no emulator image of it exists, so needs-measurement is the
+# only correct status whatever `adb devices` lists, and the run does not look
+# at attached devices. The agent cannot run adb here anyway: its only Bash
+# permission is npm view.
 #
 # The Q2 check compares against the typescript-eslint peer range read from the
 # npm registry at run time, not a pinned string: the range moves with every
@@ -33,17 +33,6 @@ keep=false
 
 here=$(cd "$(dirname "$0")" && pwd)
 repo_root=$(cd "$here/../.." && pwd -P)
-
-if command -v adb >/dev/null 2>&1; then
-  attached=$(adb devices 2>/dev/null | awk 'NF && $1 !~ /^\*/ && !/^List of devices attached/')
-  if [ -n "$attached" ]; then
-    echo "ABORT: adb lists an attached Android device:"
-    echo "$attached" | sed 's/^/  /'
-    echo "Q3 expects needs-measurement because the agent is told no device is attached."
-    echo "Disconnect the device or stop the emulator, then run again."
-    exit 1
-  fi
-fi
 
 if ! command -v npm >/dev/null 2>&1; then
   echo "ABORT: npm is not on PATH. The Q2 check reads the live typescript-eslint peer range with npm view."
@@ -115,16 +104,16 @@ IFS= read -r -d '' PROBE <<'EOF' || true
 Dispatch exactly one subagent: call the Agent tool with subagent_type="quiver:stack-researcher" and pass it the block between BEGIN and END below as its prompt, unchanged. Do not research anything yourself. When the agent returns, print its report verbatim and nothing else: no preamble, no summary, no code fence.
 
 BEGIN
-Objective: build a Node.js CLI in TypeScript that captures an Android emulator screenshot through adb and lints its source.
+Objective: build a Node.js CLI in TypeScript that captures a screenshot from an Android Automotive head unit through adb and lints its source.
 Stack: TypeScript 7 on Node.js 22, Node standard library only; adb (Android platform-tools) as an external tool
-Environment: macOS host; target is an Android emulator on API 36, not attached to this machine
+Environment: macOS host; target is a customer's Android Automotive head unit running their own build based on API 36; it is not attached to this machine and no emulator image of that build exists
 Project root: @PROJECT_ROOT@ (empty)
 Constraints:
 - no runtime dependencies beyond the Node standard library
 Questions:
 1. How should the CLI read the PNG that `adb exec-out screencap -p` writes to stdout from Node child_process, and does a default limit stop it? -- settled by: the API, the option values and the default limit with its source
 2. Which linter fits a TypeScript 7 project: typescript-eslint or oxlint? -- settled by: whether each supports TypeScript 7, from registry metadata or the project's support policy
-3. What is the exact format of the inset lines `adb shell dumpsys window displays` prints on Android API 36? -- settled by: the literal line format on that API level
+3. What is the exact format of the inset lines `adb shell dumpsys window displays` prints on the customer's head unit build? -- settled by: the literal line format on that build
 END
 EOF
 PROBE=${PROBE//@PROJECT_ROOT@/$project}

@@ -31,8 +31,8 @@ Options: oxlint
 Recommended: oxlint, because typescript-eslint excludes TypeScript 7.
 
 ### Q3 -- needs-measurement
-Answer: The inset line format is decided by the device build, and no device is attached.
-Measure: adb shell dumpsys window displays on an API 36 emulator; the inset lines settle it.
+Answer: The inset line format is decided by the customer's build, and that head unit is not attached.
+Measure: adb shell dumpsys window displays on the customer's head unit; the inset lines settle it.
 
 ## Gaps
 - none
@@ -151,7 +151,7 @@ class StackResearcherEvalTest(unittest.TestCase):
         self.assertIn("Project root: %s (empty)" % call["cwd"], prompt)
         # Backticks reach the model as text, not as command substitution.
         self.assertIn("1. How should the CLI read the PNG that `adb exec-out screencap -p` writes", prompt)
-        self.assertIn("3. What is the exact format of the inset lines `adb shell dumpsys window displays` prints on Android API 36?", prompt)
+        self.assertIn("3. What is the exact format of the inset lines `adb shell dumpsys window displays` prints on the customer's head unit build?", prompt)
         self.assertIn("- no runtime dependencies beyond the Node standard library", prompt)
         self.assertEqual(argv[argv.index("--plugin-dir") + 1], repo_root)
         self.assertEqual(argv[argv.index("--max-budget-usd") + 1], "5")
@@ -200,13 +200,14 @@ class StackResearcherEvalTest(unittest.TestCase):
         kept = Path(out.split("Workspace kept for inspection: ")[1].split()[0])
         self.assertEqual(json.loads((kept / "run.json").read_text())["num_turns"], 7)
 
-    def test_attached_device_refuses_before_the_run(self):
+    def test_attached_device_does_not_stop_the_run(self):
+        # Q3's target is a customer build no maintainer has, so a phone or
+        # emulator on adb cannot answer it and must not block the eval.
         run = self.run_harness(GOOD_REPORT, extra={"ADB_DEVICE": "1"})
         out = run.stdout + run.stderr
-        self.assertEqual(run.returncode, 1, out)
-        self.assertIn("ABORT", out)
-        self.assertIn("emulator-5554", out)
-        self.assertFalse(self.calls.exists(), "claude ran with a device attached")
+        self.assertEqual(run.returncode, 0, out)
+        self.assertIn("Score: 10 passed, 0 failed", out)
+        self.assertTrue(self.calls.exists(), "claude did not run with a device attached")
 
     def test_missing_npm_refuses_before_the_run(self):
         (self.bin / "npm").unlink()
