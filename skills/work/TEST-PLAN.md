@@ -32,7 +32,7 @@
 - [ ] Phase 4a item 1 output quotes an exit code and a summary line, never a bare "tests pass"
 - [ ] A project with no resolvable test command reaches Phase 5 with `Tests: skipped -- <reason>` in the summary and no pass claim
 - [ ] The 5d summary carries one `TDD:` line with a red-verified count and a skipped count.
-- [ ] The 5d summary repeats the `Strategy:`, `Reason:`, and `Verification:` lines verbatim; a prose restatement such as "no test script" fails this item. Measured 2026-10-04 on a 1-task plan: the mid-run Phase 2.5 print was skipped in 4 of 4 runs while the summary's fixed-form lines were printed every time.
+- [ ] The 5d summary repeats the `Strategy:`, `Reason:`, and `Verification:` lines verbatim; a prose restatement such as "no test script" fails this item. Measured 2026-10-04: the mid-run Phase 2.5 print was skipped in every run, sequential and orchestrated (7 of 7), while the summary's fixed-form lines were printed every time.
 - [ ] Every `AskUserQuestion` site has an auto-mode branch ahead of it, and no auto-mode branch answers a blocker, a contradiction, a Critical finding, or a merge conflict.
 - [ ] Auto mode never pushes and never opens a PR.
 - [ ] No `gh pr create` is run by /work or by the session it leaves behind; the `create-pr` skill is invoked instead, with any description drafted during the run as its input.
