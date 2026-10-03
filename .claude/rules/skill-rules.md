@@ -14,7 +14,7 @@ Non-negotiable. Every command must follow all of these. Violations break things.
 
 **R1. Frontmatter required.** YAML frontmatter with `name` + `description`. `name` must match filename without `.md`. Enables prefix-free access (`/handover` not `/quiver:handover`).
 
-**R2. Shell blocks exit 0.** Even when targets don't exist. Use `2>/dev/null || echo "NOT_FOUND: <path>"` or `|| echo "NO_GIT"`. Non-zero exit causes Claude Code to report shell failure before prompt logic runs.
+**R2. Shell blocks exit 0.** Even when targets don't exist. Use `2>/dev/null || echo "NOT_FOUND: <path>"` or `|| echo "NO_GIT"`. Non-zero exit causes Claude Code to report shell failure before prompt logic runs. A `git log` block falls back to `NO_COMMITS`, never `NO_GIT`: it exits 128 in a repository with no commit yet, and a `NO_GIT` from it stops Step 0 inside a real repository. Verified by `bash tests/skills/test-git-log-fallback.sh`.
 
 **R3. No shell logic.** No `$()` substitution, variable assignment, `if/else`, or logic-bearing pipes in `!` blocks. Claude Code blocks these in marketplace plugins.
 

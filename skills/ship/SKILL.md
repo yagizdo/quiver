@@ -16,7 +16,7 @@ when-to-use: "user wants to build a project from scratch or description -- '/shi
 ```
 
 ```
-!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
+!`git log --oneline -5 2>/dev/null || echo "NO_COMMITS"`
 ```
 
 ```

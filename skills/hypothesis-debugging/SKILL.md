@@ -16,7 +16,7 @@ when-to-use: "user wants to debug an error, bug, or failure -- '/hypothesis-debu
 ```
 
 ```
-!`git log --oneline -20 2>/dev/null || echo "NO_GIT"`
+!`git log --oneline -20 2>/dev/null || echo "NO_COMMITS"`
 ```
 
 ---

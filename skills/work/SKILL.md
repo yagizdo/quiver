@@ -16,7 +16,7 @@ when-to-use: "user wants to execute a saved plan or implement tasks step by step
 ```
 
 ```
-!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
+!`git log --oneline -5 2>/dev/null || echo "NO_COMMITS"`
 ```
 
 ```
