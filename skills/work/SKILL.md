@@ -265,7 +265,7 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
    Review-Fix Cycle Status: Iteration {review_iteration} | Findings {addressed}/{total_in_scope} | Criteria {met}/{total_criteria} | COMPLETE
    ```
 
-<!-- SYNC: This verification parses the report format defined in skills/review/SKILL.md, section `### Synthesized report structure`. If the report structure changes, update the parsing logic here. New sections (What's Working Well, Recommended Fix Order, Senior Assessment) are additive and do not affect this parsing. -->
+<!-- SYNC: This verification parses the report format defined in skills/review/SKILL.md, section `### Synthesized report structure`. If the report structure changes, update the parsing logic here. It reads each finding's severity, file path, title, and text, and nothing else: the What's Working Well, Recommended Fix Order and Senior Assessment sections, each finding's `Disposition:` line, the `Dispositions:` line in Review Context, the `**Deferred:**` line, and the `Fix corrected:`, `Fix flagged:` and `No verified fix` notes are invisible to it. A Critical marked Not addressed blocks in item 5 whatever its disposition. -->
 
 #### 4d -- Optional: Agent-assisted review
 

@@ -47,6 +47,7 @@
 - [ ] `## Recommended Fix Order` is present even when nothing blocks the merge, and its `Disposition` column matches each finding's own disposition line.
 - [ ] Deep review of a report carrying at least one fix snippet prints the fix-check line and dispatches `fix-reviewer` exactly once; a report with no fix snippet prints `No fix proposals to check.` instead.
 - [ ] A rejected fix leaves its finding in place with `No verified fix -- {reason}` where the snippet was, at the original severity and disposition.
+- [ ] A flagged fix whose flag carries no replacement keeps the original snippet with a `Fix flagged:` note under it, and no replacement code appears that the fix check did not return.
 - [ ] Fast mode skips Step 3.9 along with Steps 3.5 and 3.75.
 
 **Known gotchas:**

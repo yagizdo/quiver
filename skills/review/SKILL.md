@@ -505,7 +505,7 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
    - Do NOT pass individual agent outputs -- the checker evaluates the report as a reader would.
 
 2. **Handle results:**
-   - **Zero issues:** Print `Quality check passed -- report is ready.` Proceed to Step 4.
+   - **Zero issues:** Print `Quality check passed -- report is ready.` Proceed to Step 3.75.
    <!-- SYNC: The apply-fixes procedure below (REMOVE/DOWNGRADE/REWRITE actions + recalculation steps) is duplicated in skills/report-check/SKILL.md Step 4 "Apply fixes" block. Keep both in sync. -->
    - **Issues found:** Apply the recommended actions:
      - REMOVE: Delete the finding from the report.
@@ -520,8 +520,8 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
    - Print: `Quality check: {N} issues found and fixed.`
 
 3. **Retry (max 1).** Re-dispatch `report-checker` with the corrected report.
-   - **Zero issues on retry:** Proceed to Step 4.
-   - **Issues remain on retry:** Proceed to Step 4 anyway. Do NOT retry again. Append a `## Quality Check Notes` section to the end of the report (before Verdict) listing the unresolved items with their QA IDs and descriptions.
+   - **Zero issues on retry:** Proceed to Step 3.75.
+   - **Issues remain on retry:** Proceed to Step 3.75 anyway. Do NOT retry again. Append a `## Quality Check Notes` section to the end of the report (before Verdict) listing the unresolved items with their QA IDs and descriptions.
    - Print: `Quality check: {N} items remain after correction. Proceeding with the report.`
 
 4. The max iteration count (1 retry after initial check) is a hard limit. This prevents infinite correction loops. The same discipline that applies to the report-checker agent applies here: if the report is good enough after one correction pass, stop.
@@ -600,7 +600,8 @@ Run this step only when at least one finding carries a fix: a fenced code block,
 
 2. **Handle results.** Every action lands on the fix, never on the finding:
    - **APPROVE:** leave the finding untouched.
-   - **FLAG:** replace the fix block with the corrected version, and add a one-line `Fix corrected:` note under it naming what was wrong with the original.
+   - **FLAG with a corrected fix** (its `Suggestion:` gives replacement code or a concrete edit): replace the fix block with the corrected version, and add a one-line `Fix corrected:` note under it naming what was wrong with the original.
+   - **FLAG with no corrected fix:** keep the original fix block, and add a one-line `Fix flagged:` note under it carrying the flag's problem. Never write a replacement the fix-reviewer did not give -- an invented snippet carries the same authority as a checked one.
    - **REJECT:** delete the fix block and put `No verified fix -- {one line naming why the proposed one does not work}` in its place.
 
    Do not remove a finding, change a severity, or change a disposition at this step. A fix that does not work is not evidence that the defect is not there, and Steps 3.5 and 3.75 have already had their pass at the findings themselves.
@@ -611,7 +612,7 @@ Run this step only when at least one finding carries a fix: a fenced code block,
 
 **Status messages (plain language, no rule codes):**
 - Before dispatch: `Checking the fixes the report recommends...`
-- After completion: `Fix check: {N} proposals reviewed, {M} corrected, {K} left without a verified fix.`
+- After completion: `Fix check: {N} proposals reviewed, {M} corrected, {F} kept with a warning, {K} left without a verified fix.`
 
 ## Step 4 -- Save Review Report
 
