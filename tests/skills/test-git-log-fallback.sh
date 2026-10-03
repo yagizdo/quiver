@@ -10,6 +10,11 @@
 # and /ship treated the setup its own test plan describes as a directory with no git.
 # Every git log block falls back to NO_COMMITS instead.
 #
+# /work is the one skill that reads the token: with no commit yet, its working branch
+# does not resolve, so every worktree subagent's first step (reset to that branch) would
+# come back BLOCKED. Phase 2.5 routes a NO_COMMITS run to the sequential path, and the
+# second section pins that line so a renamed token cannot leave /work orchestrating.
+#
 # Finding no git log block is a failure, not a pass. A reworded block form would
 # otherwise leave this test asserting nothing.
 #
@@ -37,6 +42,15 @@ else
   done <<EOF
 $BLOCKS
 EOF
+fi
+
+echo ""
+echo "=== /work runs a repository with no commit sequentially ==="
+WORK="$REPO_ROOT/skills/work/SKILL.md"
+if grep -E '^- \*\*No commit yet' "$WORK" | grep -q 'NO_COMMITS'; then
+  pass "skills/work/SKILL.md Phase 2.5 has a 'No commit yet' line naming NO_COMMITS"
+else
+  fail "skills/work/SKILL.md has no '- **No commit yet' line naming NO_COMMITS -- a run in a repository with no commit would orchestrate, and every worktree subagent would come back BLOCKED"
 fi
 
 echo ""

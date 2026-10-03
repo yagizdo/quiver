@@ -151,8 +151,9 @@ Verification: test <command | none (<reason>)>, build <command | none (<reason>)
 
 The orchestrator copies the test value into every brief's `Test command:` line. `none` is printed as-is and carried forward -- it is never replaced by a guess.
 
-Then split on the task count:
+Then choose the path; the first line that matches wins:
 
+- **No commit yet** (the `git log` gather block printed `NO_COMMITS`): Sequential, whatever the task count, and the Reason line says the repository has no commit yet. The working branch does not resolve until a first commit exists, so every worktree subagent's first step -- resetting to that branch -- would come back BLOCKED. The commits Phase 3 makes give the next run a base to orchestrate from.
 - **1-2 tasks:** Sequential. Proceed to Phase 3 with the verification command resolved above. The ledger below is orchestration-path-only; the sequential path keeps TodoWrite unchanged and writes nothing to disk.
 - **3+ tasks:** Parallel orchestration. Resolve the workspace and check for a ledger (below), then follow `skills/work/orchestrator.md`. Skip Phase 3 entirely -- orchestration replaces it.
 
