@@ -8,11 +8,11 @@
 1. Skill runs four git shell blocks plus the silent Glob over `.claude/plans/` and `**/plans/*.md`.
 2. Phase 1 loads the plan via Case A/B/C, printing the executing-plan banner before proceeding.
 3. Phase 0 NO_GIT handling skips branch creation, commits, and PR steps cleanly.
-4. Phase 2.5 announces the strategy (sequential or parallel) and task count before continuing.
+4. The 5d summary carries the Phase 2.5 `Strategy:` and `Reason:` lines verbatim, naming the strategy (sequential or parallel) and the task count.
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
 6. Phase 5 invokes the `commit` and `create-pr` skills, gating each action with `AskUserQuestion`. 5b prints the `/quiver:review --base <default branch>` command as text before its question and never invokes it -- `review` carries `disable-model-invocation: true`, so the Skill tool blocks the call -- and the question offers only the PR button and Done.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
-8. Phase 2.5 prints a `Verification:` line naming the resolved test and build commands or `none` with a reason, before any code changes.
+8. The 5d summary carries the Phase 2.5 `Verification:` line verbatim, naming the resolved test and build commands or `none` with a reason, and the source.
 9. Phase 3 prints a `red:` line naming the new test before each task's implementation edit, then a pass line; a `none` resolution prints one `skipped:` line for the run and no `red:` line.
 10. A task whose tests still fail after three runs past the implementation stops as a blocker; in auto mode it prints the accepted notice and the run continues.
 11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/quiver:review` and `/create-pr` commands as text, the 5d summary ends on them, and the workspace is kept.
@@ -32,6 +32,7 @@
 - [ ] Phase 4a item 1 output quotes an exit code and a summary line, never a bare "tests pass"
 - [ ] A project with no resolvable test command reaches Phase 5 with `Tests: skipped -- <reason>` in the summary and no pass claim
 - [ ] The 5d summary carries one `TDD:` line with a red-verified count and a skipped count.
+- [ ] The 5d summary repeats the `Strategy:`, `Reason:`, and `Verification:` lines verbatim; a prose restatement such as "no test script" fails this item. Measured 2026-10-04: the mid-run Phase 2.5 print was skipped in every run, sequential and orchestrated (7 of 7), while the summary's fixed-form lines were printed every time.
 - [ ] Every `AskUserQuestion` site has an auto-mode branch ahead of it, and no auto-mode branch answers a blocker, a contradiction, a Critical finding, or a merge conflict.
 - [ ] Auto mode never pushes and never opens a PR.
 - [ ] No `gh pr create` is run by /work or by the session it leaves behind; the `create-pr` skill is invoked instead, with any description drafted during the run as its input.
