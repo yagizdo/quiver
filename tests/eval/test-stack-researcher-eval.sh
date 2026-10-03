@@ -157,7 +157,9 @@ class StackResearcherEvalTest(unittest.TestCase):
         self.assertEqual(argv[argv.index("--max-budget-usd") + 1], "5")
         # The agent reads open-web pages, so nothing outside this list may run
         # unprompted: no curl or gh, which can send a local file or call a
-        # write API, and never bypassPermissions.
+        # write API, and never bypassPermissions. User settings stay unloaded,
+        # since dontAsk also runs whatever their allow rules permit.
+        self.assertEqual(argv[argv.index("--setting-sources") + 1], "project,local")
         self.assertEqual(argv[argv.index("--permission-mode") + 1], "dontAsk")
         self.assertNotIn("bypassPermissions", argv)
         self.assertEqual(argv[argv.index("--allowedTools") + 1:argv.index("--output-format")],

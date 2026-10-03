@@ -134,9 +134,14 @@ PROBE=${PROBE//@PROJECT_ROOT@/$project}
 # off it: curl can post a local file to any host and gh api can call a write
 # endpoint with the maintainer's token. The agent reads pages with WebFetch
 # instead and names the denied curl in its Gaps section.
+# dontAsk also runs whatever the loaded settings files allow, so user settings
+# stay out: a maintainer's own allow rules, such as Bash(curl *) or a wildcard
+# around a script name, would otherwise widen this list. Project and local
+# settings come from the empty temp root and add nothing.
 echo "Running the stack-researcher agent (one dispatch, three questions)..."
 claude -p "$PROBE" \
   --plugin-dir "$repo_root" \
+  --setting-sources project,local \
   --max-budget-usd 5 \
   --permission-mode dontAsk \
   --allowedTools "Agent" "WebSearch" "WebFetch" "mcp__plugin_quiver_context7" \
