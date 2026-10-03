@@ -142,11 +142,15 @@ fi
 # Step 1.8 reads constraints from --plan alone. It used to take the newest file in
 # .claude/plans/, and a plan carries no branch, so that bound a branch to another open
 # branch's plan and its rules. A listing of the plans directory inside Step 1.8 is the
-# replaced rule growing back.
+# replaced rule growing back. Each term is matched on its own: requiring the directory and
+# the pick on one line let "take the newest plan in the plans directory" and "Glob
+# .claude/plans/ and take the most recent file" through. A negation trips it too -- a grep
+# cannot tell "pick the newest" from "never pick the newest" -- and Step 1.8 states its rule
+# without any of these words.
 if awk '
     /^## Step 1\.8/ { s = 1; next }
     /^## / { s = 0 }
-    s && index($0, ".claude/plans/") > 0 && (index($0, "ls -") > 0 || index($0, "newest") > 0) { found = 1 }
+    s && tolower($0) ~ /plans\/|plans director|newest|most recent|latest/ { found = 1 }
     END { exit found ? 1 : 0 }' "$REVIEW"; then
   pass "skills/review/SKILL.md Step 1.8 does not pick a plan from .claude/plans/ on its own"
 else

@@ -391,6 +391,7 @@ The proportional floor runs AFTER subsumption (Step 3.1) and the 9 filters (Step
    - Proper error handling
    - Clean abstractions or well-chosen framework conventions
    If the diff has no notable strengths, omit the "What's Working Well" section rather than fabricating praise.
+   A strength that states a fact about the tree -- a count, a test result, a line citation, an absence, or an "every"/"only"/"matches" claim -- meets the same bar as a finding's citation: it rests on a file read or a command run in this review, and says no more than that check showed. Cut it to what was checked, or drop it.
 7. **Assign a disposition to every finding.** Every finding that survives filtering carries exactly one disposition, Low findings included. Severity says how big the consequence is; disposition says what the reader does about it, and a report that states only the first leaves every Low finding unowned:
    - **Before merge** -- the change is not safe to ship without this. Critical and High start here.
    - **Follow-up** -- real, worth an issue, not worth holding the merge.
