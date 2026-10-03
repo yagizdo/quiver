@@ -139,6 +139,20 @@ else
   fail "skills/review/SKILL.md Step 1.8 no longer says 'no note' -- a review with no plan block would start reporting the absence instead of behaving exactly as it did before Step 1.8 existed"
 fi
 
+# Step 1.8 reads constraints from --plan alone. It used to take the newest file in
+# .claude/plans/, and a plan carries no branch, so that bound a branch to another open
+# branch's plan and its rules. A listing of the plans directory inside Step 1.8 is the
+# replaced rule growing back.
+if awk '
+    /^## Step 1\.8/ { s = 1; next }
+    /^## / { s = 0 }
+    s && index($0, ".claude/plans/") > 0 && (index($0, "ls -") > 0 || index($0, "newest") > 0) { found = 1 }
+    END { exit found ? 1 : 0 }' "$REVIEW"; then
+  pass "skills/review/SKILL.md Step 1.8 does not pick a plan from .claude/plans/ on its own"
+else
+  fail "skills/review/SKILL.md Step 1.8 lists or picks the newest plan in .claude/plans/ -- a plan is not tied to a branch, so the review can apply another branch's rules; constraints come from --plan only"
+fi
+
 echo ""
 echo "================================"
 if [ $EXIT -eq 0 ]; then
