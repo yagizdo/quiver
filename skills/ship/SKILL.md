@@ -33,7 +33,7 @@ when-to-use: "user wants to build a project from scratch or description -- '/shi
 
 You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a mid-run prompt. The one command the report leaves to them is `/quiver:review`, which ship cannot invoke. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
 
-Ship runs no task and dispatches no subagent. `/work` executes the plan and `skills/work/orchestrator.md` is the only orchestrator. The questions are front-loaded: Phase 1 asks everything the build could otherwise stop to ask, and `/work` runs in its auto mode, which answers the routine gates -- branch, final commit, PR handoff, workspace, third failed fix attempt -- from the approval already given. A blocker or a merge conflict -- anything whose answer changes what gets built or deletes something -- still stops and asks. Ship never decides those on the user's behalf, and never grants a fix attempt past `/work`'s cap.
+Ship runs no task and dispatches no implementing subagent: `/work` executes the plan and `skills/work/orchestrator.md` stays the only orchestrator. Before the plan is written ship dispatches read-only research agents, and after it is written one read-only plan reviewer; none of them edits a file or keeps state. The questions are front-loaded: Phase 1 asks everything the build could otherwise stop to ask, and `/work` runs in its auto mode, which answers the routine gates -- branch, final commit, PR handoff, workspace, third failed fix attempt -- from the approval already given. A blocker or a merge conflict -- anything whose answer changes what gets built or deletes something -- still stops and asks. Ship never decides those on the user's behalf, and never grants a fix attempt past `/work`'s cap.
 
 ## Step 0 -- Git Availability
 
@@ -124,12 +124,33 @@ Batching rules:
 - Ask outcomes first (standalone).
 - Batch platform + deployment together (independent questions).
 - Batch constraints + prior decisions together if neither depends on the other's answer.
-- Ask task breakdown after outcomes and scope are known (it depends on them).
+- Research runs next, before task breakdown -- see Research below.
+- Ask task breakdown after outcomes, scope, and research are known (it depends on them).
 - Ask verification after task breakdown (user knows what tasks to verify).
 
 Q&A runs until all categories are answered. If the user answers partially (e.g., "not sure about verification"), prompt once more for that category before proceeding.
 
-Ask here anything that would otherwise become a question during the build: a service or library choice the task list leaves open, a data shape two tasks share, a name the user cares about, an environment the tests need. Ten questions up front cost less than one interruption mid-run. After Phase 2 the only questions left are `/work`'s blocker gates.
+Ask here anything that would otherwise become a question during the build: a service or library choice the task list leaves open, a data shape two tasks share, a name the user cares about, an environment the tests need. Ten questions up front cost less than one interruption mid-run. Research, below, settles many of these from sources before they are asked, and what it settled is not asked again. After Phase 2 the only questions left are `/work`'s blocker gates.
+
+### Research
+
+**When.** After outcomes, scope boundaries, platform + deployment, and constraints + prior decisions are answered. When the description or the `--seed` spec already answers them, research runs right after Phase 0.
+
+**What to look up.** List every fact the task breakdown or verification depends on that the answers and the seed do not state: a library or tool choice left open, a default or limit an output depends on, what a platform command returns, version compatibility. Write each as `<question> -- settled by: <what answer would settle it>`. With no such fact, print `> Research: nothing to look up -- every technical choice is already set.`, dispatch nothing, and continue with task breakdown.
+
+**Dispatch, in one response.** Read `agents/research/stack-researcher.md` and dispatch `quiver:stack-researcher` with the input block its `## Input` section defines: the objective from category 1; the stack and versions from category 3; the environment from platform and deployment, including whether the target device, service or runtime is attached to this machine; the project root (the path from Step 0.5, otherwise the current directory) and whether it holds source; the constraints from categories 2 and 3; the numbered questions; and a `search_language:` line only when the user named a search language. With more than six questions, split them into at most three non-overlapping groups and dispatch one agent per group. Dispatch `quiver:code-navigator` alongside it only when the project root holds a file other than `.git/`, `.claude/` and Markdown files -- on an empty root it returns nothing. Use the code-navigator block in `skills/plan/SKILL.md` Step 3, with the Phase 0 description and the category 1 outcomes as its task, and `codegraph_available` and `lsp_available` resolved as `skills/plan/SKILL.md` Step 2.5 describes. Wait for the completion notifications; never schedule a wakeup as a fallback.
+
+**Use the answers.** Each question comes back under a `### Q<n> -- <status>` heading, as the agent's `## Output Format` defines. What research leaves for the user is asked in the next question batch, ahead of task breakdown, because the breakdown depends on it. Route on the status:
+
+- `answered` -- the question is not asked. The fact goes into the plan with its evidence line.
+- `narrowed` -- ask it in the next question batch, with the recommended option first and the fact that decides between the options in each option's description.
+- `open` -- ask it the way Phase 1 asks any choice the user has not made.
+- `needs-measurement` -- put "measure <what> on the target first" at the start of the task that depends on it in the proposed task breakdown, so the user approves that step or replaces it with a value they already know.
+- `premise-false` -- say what was wrong in the next question batch.
+
+A limit a task could violate becomes a constraint candidate. Ask all of them in that same batch as one multi-select question, each option's description naming the source the limit came from; the ones the user selects join the category 3 answer. code-navigator's report supplies the file paths and current patterns for the proposed task breakdown.
+
+Print one status line: `> Research: <N> questions -- <a> answered from sources, <b> need your pick, <c> still open, <d> need a measurement on the target, <e> rested on a wrong assumption.` Leave out any part whose count is zero.
 
 ## Phase 2: Plan Summary + Approval
 
@@ -164,11 +185,14 @@ What the Q&A answers become:
 
 - **Frontmatter:** `name: <project>-ship-plan`, `status: active`, `created: <date>`, then `stack`, `platform`, and `deployment_target` from the Phase 1 answers, then `test_command`, `build_command`, and `run_command`. `stack` carries the tech-stack half of the category 3 answer. `test_command` and `build_command` are resolved once, here, by reading `skills/verification/SKILL.md` and following its Command Resolution, with the Phase 1 category 6 answer as rule 1 when it names a command. Each holds the command string or `none (<reason>)`, never an empty field. `run_command` holds the launch command category 6 named, or `none`.
 - **Goal:** the category 1 outcomes, as the plan's opening section.
-- **`## Global Constraints`:** the section Step 5 defines, holding the category 3 answer -- the library restrictions and stated limits, one imperative sentence per numbered entry -- and the category 2 scope boundaries as "Do not build ..." entries, which is how Step 4.5 treats out-of-scope items. `/work` copies this section verbatim into every task brief and `/quiver:review --plan` binds its findings to it, so a constraint the plan does not record is one no implementer can honor.
+- **`## Global Constraints`:** the section Step 5 defines, holding the category 3 answer -- the library restrictions and stated limits, one imperative sentence per numbered entry -- and the category 2 scope boundaries as "Do not build ..." entries, which is how `skills/plan/SKILL.md` Step 4.5 treats out-of-scope items. `/work` copies this section verbatim into every task brief and `/quiver:review --plan` binds its findings to it, so a constraint the plan does not record is one no implementer can honor.
+- **Context:** when research ran, the plan carries the Context section `skills/plan/SKILL.md` Step 5 defines, holding each finding with its evidence line and its attribution -- "(from stack-researcher)", "(from code-navigator)". Without research the section carries only a `### Plan Guard Notes` subsection when the Step 6 checks or the plan reviewer leave notes, and is omitted when there are none.
 - **Tasks:** one per row of the approved Phase 2 table, in the task format Step 5 defines, each with its `**Files:**` line, its `**Provides:**` line where another task names what it creates, and its acceptance criterion from the table. A dependency from the `Blocked by` column is written as a `blockedBy: [<task numbers>]` line under the task's `**Files:**` line -- the explicit-dependency field `skills/work/orchestrator.md` Section 1 reads; a task with none carries no line. When `test_command` is not `none`, order each task's steps test-first as Step 5 describes, naming `skills/tdd/SKILL.md`; `/work` follows that cycle when it builds.
 - **Acceptance Criteria:** the category 1 outcomes and the category 6 check, as the plan's closing section.
 
 Then run the checks of `skills/plan/SKILL.md` Step 6 by reading that section. The Q&A answers (and the `--seed` spec, when given) are the source specification Check 3 reads. Apply its action routing; do not present the checks to the user.
+
+Then dispatch the plan reviewer once, as `skills/plan/SKILL.md` Step 6.5 describes -- read that section. Its two skip conditions do not apply: ship assesses no complexity and writes no review-fix plan. The Q&A answers and the `--seed` spec, when given, are the source specification its prompt carries. Wait for the completion notification, then apply items 1-4 of that step's post-agent flow and come back here where they say to proceed: ship never continues to `skills/plan/SKILL.md` Step 7, which is a question to the user, and Phase 2 already asked the last one. When the reviewer added or reordered a task, print one line naming the change before the `> Plan complete` line: `> Plan review changed the task list: <each added or moved task, one clause each>.`
 
 After writing: read the plan back and confirm the `## Global Constraints` heading is present -- category 2 always names something not being built, so it always is -- and that every task another task names by symbol carries a `**Provides:**` line. A plan whose tasks share no symbol carries none, and that is correct: Check 8 is a no-op there, not a miss.
 
