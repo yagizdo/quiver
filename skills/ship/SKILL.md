@@ -16,7 +16,7 @@ when-to-use: "user wants to build a project from scratch or description -- '/shi
 ```
 
 ```
-!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
+!`git log --oneline -5 2>/dev/null || echo "NO_COMMITS"`
 ```
 
 ```
@@ -74,7 +74,7 @@ Used here and by both re-entry modes. Use the Glob tool: `.claude/plans/*-ship-p
 A ship plan's state is read from disk, never remembered:
 
 - **finished** -- the plan's frontmatter reads `status: completed`; `/work` Phase 5c sets it when its run completes. Check this first: it wins over the ledger below.
-- **in progress** -- not finished, and its work ledger exists at `.claude/work/<plan-basename>/progress.md`, where `<plan-basename>` is the plan filename without `.md`. `/work` writes the ledger for plans of 3+ tasks and, in auto mode, keeps it after a finished run as well as after an interrupted one -- the ledger alone does not separate the two, the `status` field does.
+- **in progress** -- not finished, and its work ledger exists at `.claude/work/<plan-basename>/progress.md`, where `<plan-basename>` is the plan filename without `.md`. `/work` writes the ledger for plans of 3+ tasks in a repository with at least one commit and, in auto mode, keeps it after a finished run as well as after an interrupted one -- the ledger alone does not separate the two, the `status` field does.
 - **not started** -- neither of the above.
 
 **Zero plans (first run):** proceed to Phase 0.
@@ -217,7 +217,7 @@ Consent for this phase was given at Phase 2's "Approve -- build it", or by the `
 
 **Continue.** The moment `/work`'s Phase 5d summary is printed, print `> Build finished. Verifying.` and continue into `# Verification` in the same turn -- before the turn ends, before any other question, and however long the run was. A run that stopped for a blocker and resumed on the user's answer is still this run, and its 5d summary is the same signal. A `/work` run that stopped on a blocker or a merge conflict has said so; still run verification -- its report is where the remaining work is listed. A turn that ended on the summary with no report is the case `/ship --verify` re-enters.
 
-**Re-entry.** `/ship --execute` invokes `/work` with the same plan path and `--auto`. For a plan of 3+ tasks `/work` resumes from its ledger at `.claude/work/<plan-basename>/progress.md` and re-dispatches no task carrying a `complete` line. A 1-2 task plan has no ledger; `/work` runs it from the top on the branch that carries the earlier commits.
+**Re-entry.** `/ship --execute` invokes `/work` with the same plan path and `--auto`. For a plan of 3+ tasks `/work` resumes from its ledger at `.claude/work/<plan-basename>/progress.md` and re-dispatches no task carrying a `complete` line. A 1-2 task plan, or a plan started in a repository with no commit yet, has no ledger; `/work` runs it from the top on the branch that carries the earlier commits.
 
 ---
 

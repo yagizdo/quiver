@@ -18,6 +18,7 @@
 11. `/work <plan> --auto` on the default branch reaches no `AskUserQuestion` from load to summary when no task blocks: the branch is created, every commit lands, 5b prints the `/quiver:review` and `/create-pr` commands as text, the 5d summary ends on them, and the workspace is kept.
 12. `--auto` is stripped before the path is read, so `/work .claude/plans/x.md --auto` loads `x.md` through Case A.
 13. A PR requested later in the same session, after either an interactive or an auto run, goes through the `create-pr` skill even when a description was drafted during the run; no bare `gh pr create`.
+14. In a repository made with `git init` and no commit yet, Phase 0 does not report a missing git repository, and a 3+ task plan takes the sequential path with a Reason line saying the repository has no commit yet; no worktree subagent is dispatched.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/work`; plan banner printed before code changes.

@@ -16,7 +16,7 @@ when-to-use: "user wants to execute a saved plan or implement tasks step by step
 ```
 
 ```
-!`git log --oneline -5 2>/dev/null || echo "NO_GIT"`
+!`git log --oneline -5 2>/dev/null || echo "NO_COMMITS"`
 ```
 
 ```
@@ -151,8 +151,9 @@ Verification: test <command | none (<reason>)>, build <command | none (<reason>)
 
 The orchestrator copies the test value into every brief's `Test command:` line. `none` is printed as-is and carried forward -- it is never replaced by a guess.
 
-Then split on the task count:
+Then choose the path; the first line that matches wins:
 
+- **No commit yet** (the `git log` gather block printed `NO_COMMITS`, which it also prints outside a git repository): Sequential, whatever the task count. The Reason line says the repository has no commit yet, or that there is no git repository when Phase 0 detected `NO_GIT`. The working branch does not resolve until a first commit exists, and outside a repository there is no branch at all, so every worktree subagent's first step -- resetting to that branch -- would come back BLOCKED. In a repository, the commits Phase 3 makes give the next run a base to orchestrate from.
 - **1-2 tasks:** Sequential. Proceed to Phase 3 with the verification command resolved above. The ledger below is orchestration-path-only; the sequential path keeps TodoWrite unchanged and writes nothing to disk.
 - **3+ tasks:** Parallel orchestration. Resolve the workspace and check for a ledger (below), then follow `skills/work/orchestrator.md`. Skip Phase 3 entirely -- orchestration replaces it.
 
