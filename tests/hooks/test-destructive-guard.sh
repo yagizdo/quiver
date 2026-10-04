@@ -216,6 +216,15 @@ run_case 'git branch -d feature'               silent
 run_case 'git branch --delete feature'         silent
 
 echo ""
+echo "=== 5d. git switch: the /work worktree sync must stay silent ==="
+# skills/work/orchestrator.md instruction 1 syncs every worktree subagent with these two
+# commands. An ask here stops each subagent on a prompt in an interactive run and is denied
+# outright under claude -p, which is why the sync stopped using reset --hard.
+run_case 'git branch --show-current'                                   silent
+run_case 'git switch -C worktree-agent-abb2c1541f3ac171a feat/x'       silent
+run_case 'git switch --force-create worktree-agent-abb2c1541f3ac171a feat/x' silent
+
+echo ""
 echo "=== 6. Chained commands: classify every segment, not just the first ==="
 run_case 'npm test && rm -rf tmp' ask
 
