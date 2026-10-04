@@ -11,7 +11,7 @@
 # Every git log block falls back to NO_COMMITS instead.
 #
 # /work is the one skill that reads the token: with no commit yet, its working branch
-# does not resolve, so every worktree subagent's first step (reset to that branch) would
+# does not resolve, so every worktree subagent's first step (switch to that branch) would
 # come back BLOCKED. Phase 2.5 routes a NO_COMMITS run to the sequential path, and the
 # second section pins that line so a renamed token cannot leave /work orchestrating.
 #
