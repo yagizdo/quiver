@@ -24,6 +24,9 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$REPO_ROOT/hooks/scripts/pre-tool-use-guard.sh"
 
+# A maintainer who turned the prompts off in their own settings would fail every ask case below.
+unset QUIVER_GUARD_PROMPTS
+
 TMPDIR_TEST="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR_TEST"' EXIT
 OUTFILE="$TMPDIR_TEST/out"
@@ -180,10 +183,43 @@ run_case 'rm -rf build/'         silent
 run_case 'rm -rf "node_modules"' silent
 
 echo ""
+echo "=== 3b. Temp roots: scratch output below one stays silent ==="
+# AI tools write and delete scratch output under a temp root on most long tasks. A prompt on every
+# one of them was approved unread, which spent the prompt a project delete depends on. 9 of the 10
+# rm asks replayed from real transcripts were this shape, 7 of them through a variable.
+run_case 'rm -rf /private/tmp/claude-501/s/after.app'  silent
+run_case 'rm -rf /tmp/build-out'                       silent
+run_case 'rm -rf "/var/folders/xy/T/run"'              silent
+run_case 'SP=/private/tmp/s && rm -rf $SP/after.app'   silent
+run_case 'SP=/tmp/s; rm -rf "$SP"'                     silent
+run_case 'SP=/tmp/s && rm -rf "${SP}/x"'               silent
+run_case 'SP="/tmp/s" && rm -rf "$SP/x"'               silent
+run_case 'SP=/tmp/s
+rm -rf $SP/x'                                          silent
+run_case 'cd ex && SP=/private/tmp/c/scratchpad && flutter build ios 2>&1 | tail -1 && rm -rf $SP/after.app && cp -R b/Runner.app $SP/after.app && echo saved' silent
+
+echo ""
 echo "=== 4. rm ask tier: recoverable but destructive ==="
 run_case 'rm -rf src'    ask
 run_case 'rm -rf .'      ask
 run_case 'rm -r -f data' ask
+
+echo ""
+echo "=== 4b. Temp roots: only below one, and only through a variable proven to hold one ==="
+run_case 'rm -rf /tmp'                                ask
+run_case 'rm -rf /tmp/*'                              ask
+run_case 'rm -rf /tmp//'                              ask
+run_case 'rm -rf /tmp/../Users/me/proj'               ask
+run_case 'rm -rf $SP/x'                               ask
+run_case 'SP=/Users/me/proj && rm -rf $SP'            ask
+run_case 'SP=/tmp/a && SP=/Users/me/p && rm -rf $SP'  ask
+run_case 'SP=/tmp/a && rm -rf $SPX'                   ask
+# The prefix form sets SP for rm's environment only; the shell expands $SP before that.
+run_case 'SP=/tmp/a rm -rf $SP/b'                     ask
+# Single quotes name a file literally called $SP, not the variable.
+run_case "SP=/tmp/a && rm -rf '\$SP'"                 ask
+# TMPDIR is unset on many Linux hosts, and $TMPDIR/x then expands to /x.
+run_case 'rm -rf $TMPDIR/x'                           ask
 
 echo ""
 echo "=== 5. git ask tier: history and working-tree loss ==="
@@ -259,6 +295,26 @@ run_case 'rm -rf /
 echo done' deny
 run_case 'npm run build
 npm test' silent
+
+echo ""
+echo "=== 6d. An environment prefix does not hide the command behind it ==="
+# `NAME=value cmd` puts the assignment in the first-word slot, so every command behind an env
+# prefix once classified silent, rm -rf ~ included.
+run_case 'X=1 rm -rf ~'           deny
+run_case 'A=1 B=2 rm -rf /'       deny
+run_case 'X=1 sudo rm -rf /'      deny
+run_case 'CI=1 git reset --hard'  ask
+run_case 'CI=1 npm test'          silent
+# env and sudo take the same NAME=value words before the command they run.
+run_case 'env X=1 rm -rf ~'          deny
+run_case 'env rm -rf /'              deny
+run_case 'env -i rm -rf /'           deny
+run_case 'env -u PATH rm -rf /'      deny
+run_case 'sudo X=1 rm -rf /'         deny
+run_case 'sudo env X=1 rm -rf /'     deny
+run_case 'env X=1 git push --force'  ask
+run_case 'env X=1 npm test'          silent
+run_case 'env'                       silent
 
 echo ""
 echo "=== 7. False-positive traps: the pattern appears as data, not as a command ==="
@@ -344,6 +400,20 @@ if printf '%s' "$OUT" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/de
 else
   fail "a target carrying quotes emitted unparseable JSON: $OUT"
 fi
+
+echo ""
+echo "=== 8e. QUIVER_GUARD_PROMPTS=off turns the prompts off, never the refusals ==="
+# The opt-out a user sets in the env block of settings.json. A refusal costs nobody anything, so it
+# stays; any value other than off leaves the prompts on.
+export QUIVER_GUARD_PROMPTS=off
+run_case 'rm -rf src'          silent
+run_case 'git push --force'    silent
+run_case 'git reset --hard'    silent
+run_case 'rm -rf /'            deny
+run_case 'X=1 rm -rf ~'        deny
+export QUIVER_GUARD_PROMPTS=on
+run_case 'rm -rf src'          ask
+unset QUIVER_GUARD_PROMPTS
 
 echo ""
 echo "=== 9. ASCII-only (R8) ==="

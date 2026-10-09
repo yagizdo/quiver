@@ -159,6 +159,42 @@ is_catastrophic_target() {
   esac
 }
 
+# Names of variables set to a temp path by a standalone NAME=value segment earlier in this command.
+TEMP_VARS=" "
+
+# A temp root holds disposable output by definition, and AI tools write and delete scratch output
+# there on most long tasks -- a prompt on each one gets approved unread, and then the prompt on a
+# project delete does too. A target strictly below a temp root, or a $NAME / ${NAME} target whose
+# variable holds one, stays silent. The root itself, a glob, // and .. still ask: /tmp/* is every
+# other process's sockets and every other session's scratch. Called with the raw target, because
+# '$SP' in single quotes is a file literally named $SP and normalize_target would hide that.
+is_temp_target() {
+  case "$1" in \'\$*) return 1 ;; esac
+  TT="${1//[\"\']/}"
+  case "$TT" in *..*|*\**|*//*) return 1 ;; esac
+  case "$TT" in
+    /tmp/?*|/private/tmp/?*|/var/folders/?*|/private/var/folders/?*) return 0 ;;
+    \$*) ;;
+    *) return 1 ;;
+  esac
+  TT="${TT#\$}"
+  TT="${TT#\{}"
+  TV="${TT%%[!A-Za-z0-9_]*}"
+  TT="${TT#"$TV"}"
+  TT="${TT#\}}"
+  if [ -z "$TV" ]; then
+    return 1
+  fi
+  case "$TT" in
+    ""|/*) ;;
+    *) return 1 ;;
+  esac
+  case "$TEMP_VARS" in
+    *" $TV "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # Deny wins over ask no matter which segment each was found in, so a deny exits inside the loop
 # while an ask is only recorded and emitted after every segment has been read.
 ASK_REASON=""
@@ -176,6 +212,32 @@ while IFS= read -r SEGMENT; do
   # shellcheck disable=SC2086
   set -- $SEGMENT
   if [ $# -eq 0 ]; then
+    continue
+  fi
+  # Leading NAME=value words. A segment made only of them sets shell variables for the rest of the
+  # command, so each name is recorded as temp or not. Before a command they set that command's
+  # environment only -- `SP=/tmp/a rm -rf $SP` expands $SP before the assignment applies -- so they
+  # are skipped unrecorded and the command behind them classifies. Segmentation drops the separator,
+  # so an assignment inside a pipeline or subshell, which never reaches a later segment, is still
+  # recorded; that costs a missed prompt, never a wrong one.
+  ASSIGNS=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      [A-Za-z_]*=*)
+        case "${1%%=*}" in *[!A-Za-z0-9_]*) break ;; esac
+        ASSIGNS="$ASSIGNS $1"
+        shift
+        ;;
+      *) break ;;
+    esac
+  done
+  if [ $# -eq 0 ]; then
+    for A in $ASSIGNS; do
+      TEMP_VARS="${TEMP_VARS// ${A%%=*} / }"
+      if is_temp_target "${A#*=}"; then
+        TEMP_VARS="$TEMP_VARS${A%%=*} "
+      fi
+    done
     continue
   fi
   if [ "$1" = "sudo" ]; then
@@ -199,6 +261,34 @@ while IFS= read -r SEGMENT; do
     if [ $# -eq 0 ]; then
       continue
     fi
+  fi
+  # env runs the command after its own options, the same shape as sudo. -u, -C, -P and -S take a
+  # value. The command inside an -S string is not reached, which costs a missed prompt.
+  if [ "$1" = "env" ]; then
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -[CPSu])
+          shift
+          if [ $# -gt 0 ]; then
+            shift
+          fi
+          ;;
+        -*) shift ;;
+        *) break ;;
+      esac
+    done
+  fi
+  # sudo and env both accept NAME=value words before the command. These set that command's
+  # environment only, so they are skipped and never recorded.
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      [A-Za-z_]*=*) shift ;;
+      *) break ;;
+    esac
+  done
+  if [ $# -eq 0 ]; then
+    continue
   fi
 
   FIRST_WORD="$1"
@@ -230,7 +320,7 @@ while IFS= read -r SEGMENT; do
         if is_catastrophic_target "$NORM_TARGET"; then
           emit deny "REFUSED, NOT ASKED -- recursive force delete of $NORM_TARGET. This erases the whole filesystem or the whole home directory and nothing recovers it."
         fi
-        if ! is_safe_target "$NORM_TARGET"; then
+        if ! is_safe_target "$NORM_TARGET" && ! is_temp_target "$TARGET"; then
           UNSAFE="$UNSAFE $NORM_TARGET"
         fi
       done
@@ -324,7 +414,10 @@ done <<EOF
 $SEGMENTS
 EOF
 
-if [ -n "$ASK_REASON" ]; then
+# QUIVER_GUARD_PROMPTS=off in the env block of settings.json is the user's opt-out. Claude Code
+# offers no switch for one plugin hook, only for the whole plugin or for every hook at once. It
+# turns off the prompts only: a deny has already exited above, and refusing rm -rf / costs nobody.
+if [ -n "$ASK_REASON" ] && [ "${QUIVER_GUARD_PROMPTS:-}" != "off" ]; then
   emit ask "$ASK_REASON"
 fi
 
