@@ -159,8 +159,12 @@ is_catastrophic_target() {
   esac
 }
 
-# Names of variables set to a temp path by a standalone NAME=value segment earlier in this command.
+# Names of variables set to a temp path by a standalone NAME=value segment earlier in this command,
+# and names written any other way. Segmentation drops && and ||, so text order is not run order:
+# in `test -d x && SP=$PWD || SP=/tmp/s` either write may be the one that ran. A name with any
+# non-temp write is never temp again in this command, whatever is written to it afterwards.
 TEMP_VARS=" "
+NONTEMP_VARS=" "
 
 # A temp root holds disposable output by definition, and AI tools write and delete scratch output
 # there on most long tasks -- a prompt on each one gets approved unread, and then the prompt on a
@@ -171,7 +175,7 @@ TEMP_VARS=" "
 is_temp_target() {
   case "$1" in \'\$*) return 1 ;; esac
   TT="${1//[\"\']/}"
-  case "$TT" in *..*|*\**|*//*) return 1 ;; esac
+  case "$TT" in *..*|*[\*\?\[]*|*//*) return 1 ;; esac
   case "$TT" in
     /tmp/?*|/private/tmp/?*|/var/folders/?*|/private/var/folders/?*) return 0 ;;
     \$*) ;;
@@ -189,6 +193,7 @@ is_temp_target() {
     ""|/*) ;;
     *) return 1 ;;
   esac
+  case "$NONTEMP_VARS" in *" $TV "*) return 1 ;; esac
   case "$TEMP_VARS" in
     *" $TV "*) return 0 ;;
     *) return 1 ;;
@@ -215,7 +220,7 @@ while IFS= read -r SEGMENT; do
     continue
   fi
   # Leading NAME=value words. A segment made only of them sets shell variables for the rest of the
-  # command, so each name is recorded as temp or not. Before a command they set that command's
+  # command, so each name is recorded as temp or non-temp. Before a command they set that command's
   # environment only -- `SP=/tmp/a rm -rf $SP` expands $SP before the assignment applies -- so they
   # are skipped unrecorded and the command behind them classifies. Segmentation drops the separator,
   # so an assignment inside a pipeline or subshell, which never reaches a later segment, is still
@@ -233,13 +238,24 @@ while IFS= read -r SEGMENT; do
   done
   if [ $# -eq 0 ]; then
     for A in $ASSIGNS; do
-      TEMP_VARS="${TEMP_VARS// ${A%%=*} / }"
       if is_temp_target "${A#*=}"; then
         TEMP_VARS="$TEMP_VARS${A%%=*} "
+      else
+        NONTEMP_VARS="$NONTEMP_VARS${A%%=*} "
       fi
     done
     continue
   fi
+  # export, read and the declaration builtins write a variable too, in a form the recorder above
+  # never sees. Every name they carry is recorded non-temp: `SP=/tmp/a && read SP && rm -rf $SP`.
+  case "$1" in
+    export|local|declare|typeset|readonly|read)
+      for W in "$@"; do
+        N="${W%%=*}"
+        case "$N" in ""|-*|*[!A-Za-z0-9_]*) ;; *) NONTEMP_VARS="$NONTEMP_VARS$N " ;; esac
+      done
+      ;;
+  esac
   if [ "$1" = "sudo" ]; then
     shift
     # sudo's own options sit between sudo and the real command: sudo -E rm, sudo -u root rm. Skip

@@ -197,6 +197,9 @@ run_case 'SP="/tmp/s" && rm -rf "$SP/x"'               silent
 run_case 'SP=/tmp/s
 rm -rf $SP/x'                                          silent
 run_case 'cd ex && SP=/private/tmp/c/scratchpad && flutter build ios 2>&1 | tail -1 && rm -rf $SP/after.app && cp -R b/Runner.app $SP/after.app && echo saved' silent
+# A value that extends a temp variable is still below the temp root.
+run_case 'SP=/tmp/a && SP=$SP/b && rm -rf $SP'         silent
+run_case 'OUT=/tmp/x; OUT=${OUT}/build; rm -rf "$OUT"' silent
 
 echo ""
 echo "=== 4. rm ask tier: recoverable but destructive ==="
@@ -208,12 +211,19 @@ echo ""
 echo "=== 4b. Temp roots: only below one, and only through a variable proven to hold one ==="
 run_case 'rm -rf /tmp'                                ask
 run_case 'rm -rf /tmp/*'                              ask
+run_case 'rm -rf /tmp/?'                              ask
+run_case 'rm -rf /tmp/[a-z]'                          ask
 run_case 'rm -rf /tmp//'                              ask
 run_case 'rm -rf /tmp/../Users/me/proj'               ask
 run_case 'rm -rf $SP/x'                               ask
 run_case 'SP=/Users/me/proj && rm -rf $SP'            ask
 run_case 'SP=/tmp/a && SP=/Users/me/p && rm -rf $SP'  ask
 run_case 'SP=/tmp/a && rm -rf $SPX'                   ask
+# Segmentation drops && and ||, so the write that ran is unknown; any non-temp write keeps the ask.
+run_case '[ -d "$OUT" ] && SP=$PWD || SP=/tmp/s; rm -rf $SP' ask
+# export and read write the variable in a form the assignment recorder does not see.
+run_case 'SP=/tmp/a && export SP=/Users/me && rm -rf $SP'   ask
+run_case 'SP=/tmp/a && read SP && rm -rf $SP'               ask
 # The prefix form sets SP for rm's environment only; the shell expands $SP before that.
 run_case 'SP=/tmp/a rm -rf $SP/b'                     ask
 # Single quotes name a file literally called $SP, not the variable.
