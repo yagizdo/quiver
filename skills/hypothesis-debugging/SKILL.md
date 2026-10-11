@@ -250,13 +250,14 @@ If user selects "None": stop on the Step 8 summary. After a fix, step 5's eviden
 
 ## Step 8 -- Closing Summary
 
-Every run ends on this summary, whichever step it stops at: the Step 4 bound, "None" at Step 7, a verified fix, or a second failed run. It carries one line per hypothesis from Step 2 and Step 4, then the `path:` line of the proposal that was applied, verbatim:
+Every run ends on this summary, whichever step it stops at: the Step 4 bound, "None" at Step 7, a verified fix, or a second failed run. For each hypothesis from Step 2 and Step 4 it carries an `H<n> <statement>` line, then every check line Step 3 recorded for that hypothesis, verbatim, or `untested:  H<n>` when there is none. The `path:` line of the proposal that was applied comes last, verbatim:
 
 ```
-H<n> <statement> -- confirmed by: <check> -> <observed>
-H<n> <statement> -- refuted: <check> -> <observed>
-H<n> <statement> -- survived: <check> -> <observed>
-H<n> <statement> -- untested
+H<n> <statement>
+refuted:   H<n> -- <check> -> <observed>
+survived:  H<n> -- <check> -> <observed>
+confirmed by: H<n> -- <check> -> <observed>
+untested:  H<n>
 path: <check> -> <observed>
 ```
 

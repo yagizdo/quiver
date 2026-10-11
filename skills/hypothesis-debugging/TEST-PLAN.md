@@ -18,7 +18,7 @@
 9. After fix review, skill presents approved proposals to user via AskUserQuestion.
 10. On user selection, skill writes a reproducing test and prints its `red:` line, applies the fix, runs the resolved test command and reports its evidence line -- or names the reason once when no command resolves.
 11. If the run after the fix fails, skill reverses the code change, records the root cause as refuted, and re-enters Step 2 once; a second failure ends the run with the ruled-out list and, when the refutations point at one, a named design assumption with its evidence.
-12. Every run ends on the Step 8 summary: one `H<n>` line per hypothesis carrying its `confirmed by:`, `refuted:`, `survived:` or `untested` record, then the applied proposal's `path:` line.
+12. Every run ends on the Step 8 summary: an `H<n> <statement>` line per hypothesis followed by every `refuted:`, `survived:` and `confirmed by:` line Step 3 recorded for it, verbatim, or `untested:  H<n>` when there is none, then the applied proposal's `path:` line.
 
 **Verification checklist:**
 - [ ] Slash menu shows `/hypothesis-debugging`.
@@ -44,7 +44,7 @@
 - [ ] The stop report names a design assumption only together with the evidence that undercuts it, never as a bare label.
 - [ ] A symptom that names a component by description ("the rename button") gets that component identified in code, or a question asking which one, before Step 2 -- never an assumed one.
 - [ ] Every fix proposal carries a `path:` line in `<check> -> <observed>` form; a defect with no such line appears only under "Not on this bug's path" and is not applied.
-- [ ] The last message of the run, whichever step it stops at, carries one `H<n>` line per hypothesis with its record verbatim, never a prose restatement; after an applied fix it ends with that fix's `path:` line.
+- [ ] The last message of the run, whichever step it stops at, carries an `H<n> <statement>` line per hypothesis followed by every check line Step 3 recorded for it, verbatim, never a prose restatement; after an applied fix it ends with that fix's `path:` line.
 - [ ] All user decision points use AskUserQuestion, not plain text.
 
 **Known gotchas:**
