@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Behavior eval for /review: does a fast review find three planted defects
-# without reporting three deliberate false-positive baits?
+# without reporting five deliberate false-positive baits?
 #
 # Costs real money. Not named test-*.sh on purpose -- tests/run-all.sh globs
 # test-*.sh, so neither the local runner nor CI can pick this up by accident.
@@ -17,7 +17,9 @@
 #   tests/eval/review-golden/   ->  evals/review-golden/
 #     build-fixture.sh          ->  the suite's fixture/setup step
 #     expectations.txt          ->  regex graders; "+" is a match grader and
-#                                   "-" is a not-match grader, one per line
+#                                   "-" is a not-match grader, one per line;
+#                                   "~" is a not-match grader plus an
+#                                   informational line with no grader
 #     the prompt at PROBE below ->  prompt.md
 #
 # The one piece that does not port verbatim is the "## Findings" extraction
@@ -95,6 +97,9 @@ find_report() {
 }
 
 echo "Running /quiver:review (fast mode, 5 agents)..."
+# 8 was set against runs of $3.66 and $4.34 before reviews verified each
+# finding. Verification adds agents per run and raises the cost; re-measure
+# with a paid run and reset this value before trusting it.
 claude -p "$PROBE" \
   --plugin-dir "$repo_root" \
   --max-budget-usd 8 \
@@ -138,6 +143,10 @@ echo "Report: $report"
 findings="$tmp/findings.txt"
 awk '/^## Findings[[:space:]]*$/{inside=1; next} inside && /^## /{exit} inside{print}' "$report" > "$findings"
 
+# "~" expectations also look here, for information only.
+filtered="$tmp/filtered.txt"
+awk '/^## Filtered Findings[[:space:]]*$/{inside=1; next} inside && /^## /{exit} inside{print}' "$report" > "$filtered"
+
 if [ ! -s "$findings" ]; then
   echo "WARNING: '## Findings' section is empty or absent in the report."
 fi
@@ -165,14 +174,23 @@ while IFS= read -r line; do
         printf '%-6s %-28s %s\n' "FAIL" "+ $pattern" "not reported"
       fi
       ;;
-    '-')
+    '-'|'~')
       hit=$(grep -Eim1 "$pattern" "$findings" || true)
       if [ -n "$hit" ]; then
         fails=$((fails + 1))
-        printf '%-6s %-28s %s\n' "FAIL" "- $pattern" "false positive: $(echo "$hit" | cut -c1-72)"
-      else
+        printf '%-6s %-28s %s\n' "FAIL" "$sign $pattern" "false positive: $(echo "$hit" | cut -c1-72)"
+      elif [ "$sign" = '-' ]; then
         passes=$((passes + 1))
         printf '%-6s %-28s %s\n' "PASS" "- $pattern" "not reported"
+      else
+        passes=$((passes + 1))
+        # No -q: an early exit would SIGPIPE the first grep and pipefail would read it as no match.
+        if grep -Ei "$pattern" "$filtered" | grep -i 'refuted-by-verification' > /dev/null; then
+          note="refuted by verification"
+        else
+          note="no refuted-by-verification line"
+        fi
+        printf '%-6s %-28s %s\n' "PASS" "~ $pattern" "not reported; $note"
       fi
       ;;
     *)

@@ -3,7 +3,7 @@
 #
 # Creates a throwaway git repo with two branches:
 #   main    -- clean baseline, tests pass
-#   feature -- the diff under review (three planted defects, three bait items)
+#   feature -- the diff under review (three planted defects, five bait items)
 #
 # The fixture source lives beside this script as plain files (fixture/main,
 # fixture/feature) so it is reviewable in the Quiver repo and never a nested
