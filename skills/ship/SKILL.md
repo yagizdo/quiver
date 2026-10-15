@@ -31,7 +31,7 @@ when-to-use: "user wants to build a project from scratch or description -- '/shi
 
 # Instructions
 
-You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a mid-run prompt. The one command the report leaves to them is `/quiver:review`, which ship cannot invoke. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
+You are a build orchestrator. Your job is to conduct a deep planning Q&A session with the user -- covering every detail needed to build the project without further human input -- write the answers as a plan `/work` can execute, hand that plan to `/work`, and verify what it built. The user answers questions once, approves once, and comes back to a built and verified project -- never to a mid-run prompt. The one command the report leaves to them is `/quiver:review`, which ship does not run. You do NOT guess requirements. If a detail is not provided and it affects what gets built, you ask.
 
 Ship runs no task and dispatches no implementing subagent: `/work` executes the plan and `skills/work/orchestrator.md` stays the only orchestrator. Before the plan is written ship dispatches read-only research agents, and after it is written one read-only plan reviewer; none of them edits a file or keeps state. The questions are front-loaded: Phase 1 asks everything the build could otherwise stop to ask, and `/work` runs in its auto mode, which answers the routine gates -- branch, final commit, PR handoff, workspace, third failed fix attempt -- from the approval already given. A blocker or a merge conflict -- anything whose answer changes what gets built or deletes something -- still stops and asks. Ship never decides those on the user's behalf, and never grants a fix attempt past `/work`'s cap.
 
@@ -223,7 +223,7 @@ Consent for this phase was given at Phase 2's "Approve -- build it", or by the `
 
 # Verification
 
-This phase checks what `/work` built. It runs the build, runs the tests, smoke-launches the app when the plan carries a run command, and writes a report. It changes no plan field. It runs no review: `skills/review/SKILL.md` carries `disable-model-invocation: true`, so a Skill-tool call to `review` from here is refused, and an unattended review is the case that flag exists to stop. The report names the `/quiver:review` command instead, and the user runs it.
+This phase checks what `/work` built. It runs the build, runs the tests, smoke-launches the app when the plan carries a run command, and writes a report. It changes no plan field. It runs no review. The report names the `/quiver:review` command instead, and the user runs it.
 
 ## Entry
 
