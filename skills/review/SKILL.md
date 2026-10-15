@@ -245,6 +245,7 @@ Then continue the fast review without Codex.
 - **`report-checker`**: Never dispatched in Step 2. This agent is a post-synthesis quality gate, dispatched only in Step 3.5 after the report is assembled. Skip silently during agent discovery.
 - **`senior-reviewer`**: Never dispatched in Step 2. This agent is a post-quality-check senior review, dispatched only in Step 3.75 after report-checker completes. Skip silently during agent discovery.
 - **`fix-reviewer`**: Never dispatched in Step 2. This agent is a post-senior-review fix-proposal check, dispatched only in Step 3.9 after senior-reviewer completes. It lives under `agents/debug/`, so Step 2a's discovery never sees it. Skip silently during agent discovery.
+- **`finding-verifier`**: Never dispatched in Step 2 -- it runs at Step 3.3, once per synthesized finding. Skip silently during agent discovery.
 - **Future agents**: Add a row to the `## Dispatch Gates` table in `.claude/rules/review-agent-rules.md` before the agent's first review run, then restate that row here. The table row is the gate. Until a row exists, the agent is dispatched on every diff regardless of what changed, and `tests/skills/test-review-dispatch-contract.sh` fails until one is added -- dispatching too much is recoverable, silently reviewing nothing is not.
 
 Spawn qualifying agents simultaneously using multiple Agent tool calls in a single response. Use the `quiver:{name}` identifier format described above as the `subagent_type`.

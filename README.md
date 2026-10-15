@@ -97,7 +97,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 |-----------|-------|
 | Hooks | 3 |
 | Skills | 21 |
-| Agents | 21 |
+| Agents | 22 |
 
 ## What Do I Use?
 
@@ -230,11 +230,13 @@ Review, research, and debug agents run with the `Edit`, `Write`, `NotebookEdit`,
 report findings, not to change it. `Bash` stays enabled because these agents need
 `git diff`, `git log`, and `git blame`, so the denial is a guardrail against
 accidental edits rather than a sandbox: a shell command can still write a file or
-reach the network. Three agents carry a narrower denylist: `best-practices-researcher`
+reach the network. Four agents carry a narrower denylist: `best-practices-researcher`
 keeps web access so it can check library versions against upstream release notes,
 `stack-researcher` keeps it because it answers open questions from current docs
-and package registries, and `codex-code-reviewer` can write because it persists
-the raw output of the external reviewer it wraps.
+and package registries, `codex-code-reviewer` can write because it persists
+the raw output of the external reviewer it wraps, and `finding-verifier` can write
+inside its own git worktree so it can run a scratch check against a review finding,
+then undoes every edit before it returns.
 
 <!-- agents-start -->
 
@@ -253,6 +255,7 @@ the raw output of the external reviewer it wraps.
 | `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed. Uses whatever model your local codex is configured for: Quiver does not override `--model` |
 | `report-checker` (`quiver:report-checker`) | Independent quality auditor for review reports -- detects noise, false positives, overkill, and findings that exist to appear thorough |
 | `senior-reviewer` (`quiver:senior-reviewer`) | Language-aware senior developer review -- evaluates code through a pragmatic team lead lens with optional meta-review of other agents' findings in the pipeline |
+| `finding-verifier` (`quiver:finding-verifier`) | Checks one review finding against the code and returns it confirmed, refuted, or unverifiable, with the command output or file lines that settled it |
 
 <!-- agents:review-end -->
 

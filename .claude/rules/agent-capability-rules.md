@@ -4,7 +4,7 @@ Hard rules and learned lessons for the capability contract carried by every file
 
 For skill authoring rules, see `skill-rules.md`. For review-agent discipline, see `review-agent-rules.md`. For CLI overlay rules, see `cli-overlay-rules.md`.
 
-**Scope:** The contract is enforced at runtime on Claude Code only. `.cursor-plugin/plugin.json` registers all 21 agents -- parity with the Claude manifest is asserted by `tests/manifests/test-manifest-parity.sh` -- and `.codex-plugin/plugin.json` registers none, so on that CLI the `disallowedTools` and `effort` fields are documentation rather than enforcement. This is a coverage limitation of the overlays, not a violation of the contract -- the same values ship to every CLI, and no overlay forks them. The verifier checks text, not behavior: it proves the frontmatter matches the assignment, not that the runtime honored it. Behavioral confirmation is a manual `/quiver:review --deep` transcript read.
+**Scope:** The contract is enforced at runtime on Claude Code only. `.cursor-plugin/plugin.json` registers all 22 agents -- parity with the Claude manifest is asserted by `tests/manifests/test-manifest-parity.sh` -- and `.codex-plugin/plugin.json` registers none, so on that CLI the `disallowedTools` and `effort` fields are documentation rather than enforcement. This is a coverage limitation of the overlays, not a violation of the contract -- the same values ship to every CLI, and no overlay forks them. The verifier checks text, not behavior: it proves the frontmatter matches the assignment, not that the runtime honored it. Behavioral confirmation is a manual `/quiver:review --deep` transcript read.
 
 The verifier runs in CI. `.github/workflows/tests.yml` calls `tests/run-all.sh` on every pull request and on every push to `master`, and the runner discovers this test along with the rest of `tests/`. It also stays directly invocable on its own: `bash tests/agents/test-capability-profile-contract.sh`. The deferral to sub-project B's hook layer is resolved -- CI is the enforcement point, and no PostToolUse hook is needed for it.
 
@@ -43,14 +43,17 @@ Measured on Claude Code 2.1.233: `claude plugin validate ./ --strict` does not i
 | `read-only` | `Edit, Write, NotebookEdit, AskUserQuestion, WebSearch, WebFetch` |
 | `read-only-web` | `Edit, Write, NotebookEdit, AskUserQuestion` |
 | `adapter` | `AskUserQuestion, WebSearch, WebFetch` |
+| `worktree-write` | `AskUserQuestion, WebSearch, WebFetch` |
 
 `read-only` reads code and git history and emits findings. It has no reason to modify files, prompt the user from a subagent, or reach the network. context7 and codegraph stay available because they are MCP tools, not web tools, and CP4 keeps them out of every denylist.
 
 `read-only-web` is `read-only` with `WebSearch` and `WebFetch` restored. It has two members. `best-practices-researcher` validates library versions against upstream release notes that context7 does not always carry. `stack-researcher` answers open technical questions before code exists, from current docs and registries: every answer quotes a versioned doc page, a registry entry, or source at a release tag, and context7 counts only as a lead for it. `WebSearch` is how it finds a page it cannot already name, and `WebFetch` is how it reads one.
 
-`adapter` belongs to `codex-code-reviewer`, which shells out to the Codex CLI and persists the wrapped reviewer's raw output. It is the only agent that writes, and it writes a transcript, not source.
+`adapter` belongs to `codex-code-reviewer`, which shells out to the Codex CLI and persists the wrapped reviewer's raw output. It is the only agent that writes outside a worktree, and it writes a transcript, not source.
 
-`Bash` stays in all three profiles. Frontmatter denies tools by name and cannot scope a command pattern, and read-only agents need `git diff`, `git log`, and `git blame`. `AskUserQuestion` is denied everywhere because a subagent that tries to prompt the user stalls instead of returning a result.
+`worktree-write` belongs to `finding-verifier`, which settles one review finding by running a scratch check or mutating the cited line. It writes only inside its own worktree: its frontmatter sets `isolation: worktree`, it compares `git rev-parse --git-dir` with `--git-common-dir` before any write and stays read-only when the two are equal, and it restores every edit before it returns. The string matches `adapter` on purpose. It is a separate profile because the two agents write for different reasons, and a change to one must not move the other.
+
+`Bash` stays in all four profiles. Frontmatter denies tools by name and cannot scope a command pattern, and read-only agents need `git diff`, `git log`, and `git blame`. `AskUserQuestion` is denied everywhere because a subagent that tries to prompt the user stalls instead of returning a result.
 
 ---
 
@@ -68,6 +71,7 @@ Effort tiers: `low` = mechanical lookup or single-pass parsing with no hypothesi
 | `test-reviewer` | `read-only` | `medium` |
 | `stress-tester` | `read-only` | `high` |
 | `codex-code-reviewer` | `adapter` | `medium` |
+| `finding-verifier` | `worktree-write` | `high` |
 | `report-checker` | `read-only` | `medium` |
 | `senior-reviewer` | `read-only` | `high` |
 | `best-practices-researcher` | `read-only-web` | `medium` |
