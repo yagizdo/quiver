@@ -19,6 +19,31 @@ fi
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 HANDOVER_DIR="${PROJECT_DIR}/.claude/handovers"
 
+# Keep handovers out of git: the bash copy of the keep-local rule in
+# skills/local-files/SKILL.md (bound by tests/skills/test-local-files-contract.sh).
+# A hook cannot read project instructions, so tracked files under the directory are
+# its only "track this" signal. Every git call sits in a condition: under set -e a
+# nonzero exit (check-ignore 1, ls-files 128 outside a repo) would end the hook.
+if git -C "$PROJECT_DIR" rev-parse --git-dir >/dev/null 2>&1 \
+  && [[ -z "$(git -C "$PROJECT_DIR" ls-files .claude/handovers 2>/dev/null)" ]] \
+  && ! git -C "$PROJECT_DIR" check-ignore -q .claude/handovers/x 2>/dev/null; then
+  # Exclude patterns are relative to the repo top; the project dir may sit below it.
+  PREFIX=$(git -C "$PROJECT_DIR" rev-parse --show-prefix 2>/dev/null) || PREFIX=""
+  EXCLUDE_FILE=$(git -C "$PROJECT_DIR" rev-parse --git-path info/exclude 2>/dev/null) || EXCLUDE_FILE=""
+  if [[ -n "$EXCLUDE_FILE" ]]; then
+    # --git-path can print a path relative to the project dir, not the hook's cwd.
+    [[ "$EXCLUDE_FILE" == /* ]] || EXCLUDE_FILE="${PROJECT_DIR}/${EXCLUDE_FILE}"
+    {
+      mkdir -p "$(dirname "$EXCLUDE_FILE")"
+      # Append, never rewrite; a missing final newline would join the user's last line.
+      if [[ -s "$EXCLUDE_FILE" && -n "$(tail -c 1 "$EXCLUDE_FILE")" ]]; then
+        printf '\n' >> "$EXCLUDE_FILE"
+      fi
+      printf '%s\n' "${PREFIX}.claude/handovers/" >> "$EXCLUDE_FILE"
+    } 2>/dev/null || true
+  fi
+fi
+
 # Ensure handover directory exists
 mkdir -p "$HANDOVER_DIR"
 

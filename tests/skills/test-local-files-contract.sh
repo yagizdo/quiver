@@ -90,6 +90,21 @@ for c in "${CONSUMERS[@]}"; do
 done
 
 echo ""
+echo "=== 4. The PreCompact hook carries the bash copy of the rule ==="
+
+# The hook cannot read a skill file, so it is the one place the rule is restated.
+# Its behavior is tested by tests/hooks/test-handover-local-exclude.sh; this ties
+# the copy to the rule's own commands, so a hook that drops a step fails here.
+HOOK="$REPO_ROOT/hooks/scripts/pre-compact-handover.sh"
+for term in 'info/exclude' 'ls-files'; do
+  if grep -qF -- "$term" "$HOOK"; then
+    pass "hooks/scripts/pre-compact-handover.sh names $term"
+  else
+    fail "hooks/scripts/pre-compact-handover.sh does not name $term -- the hook's copy of the keep-local rule is gone"
+  fi
+done
+
+echo ""
 echo "================================"
 if [ $EXIT -eq 0 ]; then
   echo "All tests passed."
