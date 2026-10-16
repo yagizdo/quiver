@@ -96,7 +96,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 | Component | Count |
 |-----------|-------|
 | Hooks | 3 |
-| Skills | 21 |
+| Skills | 22 |
 | Agents | 22 |
 
 ## What Do I Use?
