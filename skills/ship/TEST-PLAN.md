@@ -55,7 +55,7 @@
 *Review and fix*
 25. The review stage applies the keep-local rule to `.claude/reports/` and invokes `quiver:review` through the Skill tool with `--base <default branch> --run-checks --plan <plan path> --output .claude/reports`. After its Step 4b summary prints, in the same turn, ship records `review_report:`, writes `stage: fix`, and continues.
 26. On the fixture, only findings carrying `Verification: confirmed` go into the fix plan at `.claude/plans/<date>-<project>-<phase-id>-fix-plan.md`, whose frontmatter carries `review_source: <report path>`, `review_iteration: 1`, and `status: active`, one task per finding naming its report ID and title. The README sentence and the `app/ledger.py` comment, when the review lists them as `refuted-by-verification`, are not in it, and `git diff` after the fix round shows no change to `README.md` or that comment.
-27. `/work <fix plan> --auto` runs, and after its Phase 5d summary ship sets `fix_rounds: 1` and reviews once more in the same turn; that review covers only the changes since the first report.
+27. `/work <fix plan> --auto` runs, and after its Phase 5d summary ship sets `fix_rounds: 1`, runs the build, test, and smoke checks again, records them under `## Measurements`, and reviews once more in the same turn; that review covers only the changes since the first report.
 28. In the Critical variant, ship asks one question for the finding, options in the order "Fix it", "Leave it and list it", "Stop this phase here". "Stop this phase here" sets `status: blocked` in the phase file and the roadmap row, writes the final report, and terminates; `/ship 1` later resumes the phase at its recorded stage. A finding whose fix would change specced behavior gets "Leave it and list it" first.
 29. In the cap variant, ship fixes nothing, writes `stage: done`, and the final report lists the confirmed finding as open. No third `/work` run and no third review happen in any setup.
 
@@ -64,6 +64,8 @@
 31. The final report is written under `## Final Report` and printed, covering the eight items the done stage lists, and names `/ship` for the next phase and `/quiver:create-pr` for the pull request without running either.
 32. `/ship --verify` on a finished phase prints the three check lines, records them under `## Measurements`, and terminates with `stage` and `status` unchanged.
 33. Without git, the review and fix stages are skipped; the final report says the branch was not reviewed and names `/quiver:review --base <default branch> --run-checks --plan <plan path>`.
+34. A phase the done stage left `blocked` on a failing check carries `stage: verify`. After the test is fixed by hand, `/ship <phase-id>` re-runs the checks and continues to the review of the new changes; it does not stop again on the old check line. `/ship --verify` on that phase records the three lines and leaves it `blocked`.
+35. With `stage: fix`, `fix_rounds: 0`, and `fix_plan:` naming a plan reading `status: active` (a fix round that stopped partway), `/ship` asks no question again, writes no `-2` fix plan, and invokes `/work <fix_plan> --auto` on the recorded plan.
 
 **Verification checklist:**
 - [ ] Gather blocks exit 0 in all three directory kinds.

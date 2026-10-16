@@ -74,7 +74,7 @@ Read `.claude/ship/roadmap.md` at the project root with the Read tool. When it e
 **Before resuming, re-derive the stage from the artifacts.** A turn can end on a callee's summary before ship wrote the next stage, so the recorded stage can lag. Check in order and move the stage forward, with a `## Log` line for each move:
 
 1. Recorded `build`, and the file in `plan:` has frontmatter `status: completed` (`/work` Phase 5c sets it): the build is done. Record `branch:` as the current branch and resume at `verify`.
-2. Recorded `fix`, `fix_rounds: 0`, and the file in `fix_plan:` has frontmatter `status: completed`: the fix round is done. Set `fix_rounds: 1` and resume at `review`.
+2. Recorded `fix`, `fix_rounds: 0`, and the file in `fix_plan:` has frontmatter `status: completed`: the fix round is done. Set `fix_rounds: 1` and resume at `verify`.
 3. Recorded `review`, and a `review-*.md` in `.claude/reports/` whose `## Review Context` carries `- **Branch**:` equal to the current branch and `- **HEAD at review**:` equal to `git rev-parse --short HEAD`: the review is done. Record that path in `review_report:` and resume at `fix`.
 
 Print one line when resuming: `> Picking up phase <id> (<name>) where the last run stopped.` Do not name the stage.
@@ -334,7 +334,7 @@ Ship implements nothing here: it hands the plan to `/work`.
 
 ## Stage: verify
 
-This stage checks what `/work` built. It runs the build, runs the tests, and smoke-launches the app when the plan carries a run command. It changes no plan field. `--verify` re-enters here: when the phase's recorded stage is `verify`, the run continues to the review stage as usual; otherwise it prints the three lines, records them, and terminates without changing `stage` or `status`.
+This stage checks what `/work` built. It runs the build, runs the tests, and smoke-launches the app when the plan carries a run command. It changes no plan field. `--verify` re-enters here: when the phase's recorded stage is `verify` and its status is `in-progress`, the run continues to the review stage as usual; otherwise it prints the three lines, records them, and terminates without changing `stage` or `status`.
 
 Read `test_command`, `build_command`, and `run_command` from the frontmatter of the file in `plan:`. A field that is absent resolves to `none (field missing)`; do not write it back. Verification runs on the branch `/work` left the session on.
 
@@ -385,6 +385,8 @@ Read the report in `review_report:`. A confirmed finding is one in `## Findings`
 
 **When `fix_rounds` is already 1,** this report came from the review after the fix round. Fix nothing: write `stage: done` and go to the done stage, which lists its confirmed findings as open. One fix round per phase.
 
+**Re-entry.** When `fix_plan:` is not `none`, an earlier run already asked the questions below and wrote the fix plan. Ask nothing, write no plan, and go to the hand-off with the plan in `fix_plan:`. For a plan of 3+ tasks `/work` resumes from its ledger and re-dispatches no task carrying a `complete` line, as the build stage's re-entry describes; a new plan name would key a new ledger and run the committed tasks again.
+
 **With no confirmed finding,** write `stage: done` and go to the done stage.
 
 **Stop for the user only here.** When a confirmed finding is Critical, or its fix would change behavior the phase spec defines, ask one question per such finding in a single `AskUserQuestion` call (at most four questions per call; ask any beyond four in a second call):
@@ -392,7 +394,7 @@ Read the report in `review_report:`. A confirmed finding is one in `## Findings`
 > The review found a problem it confirmed against the code: <the finding in one plain sentence> (<file:line>). What should happen?
 
 Options, in this order for a Critical finding; for a behavior change, put "Leave it and list it" first:
-- "Fix it" -- The next round of code changes fixes it, and the branch is reviewed once more afterwards.
+- "Fix it" -- The next round of code changes fixes it, and the branch is built, tested, and reviewed once more afterwards.
 - "Leave it and list it" -- Nothing changes for this problem; the final report lists it as open, and it does not stop the phase from finishing.
 - "Stop this phase here" -- Nothing else runs; the phase is saved as stopped with this problem as the reason. Run /ship <phase-id> later to continue it.
 
@@ -400,13 +402,13 @@ Record each answer under `## Decisions` with `(user, <date>)`. On any "Stop this
 
 **Write the fix plan** at `.claude/plans/<date>-<project>-<phase-id>-fix-plan.md` (the first free `-2`, `-3` name when taken), in the format `skills/plan/SKILL.md` Step 5 defines with its review-fix frontmatter: `review_source: <review_report path>` and `review_iteration: 1`, plus `status: active` and the `test_command`, `build_command`, and `run_command` of the phase plan. It holds only the confirmed findings to fix -- not the ones the user chose to leave -- one task per finding, each task naming the finding's report ID and title so `/work` matches it to the finding, and one acceptance criterion per finding as that step requires. Read it back (L3) and record the path in `fix_plan:`.
 
-**Hand off.** Print `> Fixing <N> confirmed problems.` Invoke the `work` skill through the Skill tool with `<fix plan path> --auto` as its arguments. `/work` detects the review-fix plan by its `review_source` frontmatter and checks each finding against the report before it finishes; it keeps its own stops, and those questions are the user's. The moment `/work`'s Phase 5d summary is printed, set `fix_rounds: 1`, write `stage: review` and its `## Log` line, and run the review stage once more in the same turn.
+**Hand off.** Print `> Fixing <N> confirmed problems.` Invoke the `work` skill through the Skill tool with `<fix plan path> --auto` as its arguments. `/work` detects the review-fix plan by its `review_source` frontmatter and checks each finding against the report before it finishes; it keeps its own stops, and those questions are the user's. The moment `/work`'s Phase 5d summary is printed, set `fix_rounds: 1`, write `stage: verify` and its `## Log` line, and run the verify stage once more in the same turn; it continues to the review. The done stage reads the check lines of the last verify, so the fix commits are built and tested before the phase can be `done` -- a fix task `/work` accepted after three failed attempts leaves a failing test line there.
 
 ## Stage: done
 
 **Set the status from evidence.** Set `status: done` only when every verify line under `## Measurements` from this phase's last check is a pass or a skip, and the last review left no unaddressed Critical finding -- a Critical in its `## Findings` that the fix round did not fix and the user did not choose to leave. Otherwise set `status: blocked` with the reason (the failing check line, or the open Critical). Without git, the review did not run; the phase can still be `done` on its check lines, and the final report says it was not reviewed.
 
-Update the roadmap: the phase's row in `## Phases`, the `## Now` line, and the `## Next` line (the next `pending` phase whose dependencies are now `done`, or the pull request). Append to `decisions.md` every decision from this phase that applies beyond it, as `D<n>` entries with `phase <id>`. Write `stage: done` and its `## Log` line.
+Update the roadmap: the phase's row in `## Phases`, the `## Now` line, and the `## Next` line (the next `pending` phase whose dependencies are now `done`, or the pull request). Append to `decisions.md` every decision from this phase that applies beyond it, as `D<n>` entries with `phase <id>`. Write `stage: done` and its `## Log` line when the status is `done`. When it is `blocked`, write `stage: verify` instead, so `/ship <id>` checks the branch again and reviews the changes made since the phase stopped rather than re-reading the results that stopped it.
 
 **Final report.** Write it under `## Final Report` in the phase file and print it. Write it in the user's language and in plain words, for a reader who has not read the code or this file:
 

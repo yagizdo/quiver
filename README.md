@@ -142,7 +142,7 @@ State lives in `.claude/ship/`:
 
 Every step of a phase is saved to its file before the next one starts. After `/clear`, or in a new session, `/ship` picks up where the last run stopped. When a phase's plan is large or the session is already full, `/ship` suggests moving to a fresh session before the code is written; everything is saved, so `/clear` then `/ship` continues it.
 
-After the build and the checks, `/ship` runs `/quiver:review` on the branch. Each problem the review confirms against the code is fixed in one more `/work` round, and the branch is reviewed once more. A Critical problem, or a fix that would change behavior the phase spec defines, stops for your choice: fix it, leave it listed as open, or stop the phase. Problems the review could not confirm are listed in the report, not fixed.
+After the build and the checks, `/ship` runs `/quiver:review` on the branch. Each problem the review confirms against the code is fixed in one more `/work` round, and the branch is built, tested, and reviewed once more. A Critical problem, or a fix that would change behavior the phase spec defines, stops for your choice: fix it, leave it listed as open, or stop the phase. Problems the review could not confirm are listed in the report, not fixed.
 
 `/ship` commits through `/work` but never pushes and never opens a pull request. The final report names `/quiver:create-pr` when you are ready.
 
