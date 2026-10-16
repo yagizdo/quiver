@@ -342,7 +342,7 @@ Extract all symbol names (functions, types, variables, file names) from every ta
 
 ### Check 3: Spec coverage (bidirectional)
 
-If the plan has a brainstorm spec reference (Context section referencing `docs/brainstorms/*.md`) or a review source (frontmatter `review_source`), read the source and verify:
+If the plan has a brainstorm spec reference (frontmatter `spec_source`, or a Context section referencing `.claude/specs/*.md`) or a review source (frontmatter `review_source`), read the source and verify:
 - **Forward:** each spec requirement maps to at least one plan task. Add a task for any gap. (ADD)
 - **Reverse:** each plan task maps to a spec requirement or explicit infrastructure need. Flag tasks that do not trace back. (NOTE -- potential scope creep)
 
