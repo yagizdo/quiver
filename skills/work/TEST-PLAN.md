@@ -27,6 +27,7 @@
 - [ ] Review-fix plans: verification table and convergence verdict shown; non-review-fix plans skip Phase 4c.
 - [ ] A review-fix run whose report carries `Verification:` lines and has one finding marked `Verification: unverified --` in a file the plan touches, with no plan task naming that finding, lists it as Not in scope in the 4c table, not Addressed; the same run with an unverified Critical that a plan task names, left unfixed, stops at the item 5 question; a report with no `Verification:` line maps findings exactly as before.
 - [ ] Commit and PR steps both go through `AskUserQuestion`; skill never auto-pushes.
+- [ ] In a 3+ task run, every task brief ends with a `## Commit Messages` section copied from `skills/commit/SKILL.md`, and every commit the run makes, on a worktree branch or the working branch, has a subject line only, with its type and scope picked from that file's table.
 - [ ] Interrupting a run after Group 0 and re-invoking /work on the same plan re-dispatches no task carrying a complete line, and prints which tasks it skipped.
 - [ ] A ledger whose identity line names a different plan file is left untouched and a suffixed workspace is used instead.
 - [ ] Every `complete` line in the ledger names a branch that `git rev-parse --verify` resolves and a head commit that is on that branch; a DONE return naming a missing branch or commit writes no `complete` line -- before the agent's completion notification it prints the waiting notice, after it the task is reported as blocked with that branch and commit named.
