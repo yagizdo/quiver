@@ -13,6 +13,7 @@ Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skill
   - [Building Something](#building-something)
   - [How /work runs a large plan](#how-work-runs-a-large-plan)
   - [Building a Whole Project](#building-a-whole-project)
+  - [How /ship runs a project](#how-ship-runs-a-project)
   - [Implementing a Design](#implementing-a-design)
   - [Reviewing Code](#reviewing-code)
   - [Fixing a Bug](#fixing-a-bug)
@@ -127,7 +128,23 @@ After the last group merges, the resolved test command runs once on the combined
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| I want to build a project from a description without touching it myself | `/ship` | Deep planning Q&A (outcomes, scope, stack, verification), written as a plan to `.claude/plans/` and handed to `/work --auto` for a build that stops only for a genuine blocker, then a build, test, and smoke pass and a report naming the `/quiver:review` command to run before merging. `--execute` and `--verify` re-enter a paused run |
+| I want to build a project from a description without touching it myself | `/ship "<description>"` | Asks one batch of project questions, proposes a split into phases, and on your approval saves a roadmap and one file per phase under `.claude/ship/`. Builds nothing yet |
+| The phases are saved, build the next one | `/ship` | Runs the next phase end to end: its questions, research, a spec and a plan written without approval prompts, the build through `/work --auto`, a build, test, and smoke check, `/quiver:review`, an automatic fix of the problems the review confirmed, and a plain-language report |
+| Run a specific phase, or re-check one | `/ship <phase-id>`, `/ship --verify` | Starts or continues that phase, including one that stopped; `--verify` runs the build, test, and smoke checks again |
+
+### How /ship runs a project
+
+State lives in `.claude/ship/`:
+
+- `roadmap.md` lists the phases, each with its status and what it depends on.
+- `decisions.md` collects the numbered project decisions, so a later phase reads them instead of asking again.
+- `phases/<id>-<slug>.md` holds one phase: its goal, scope, and done criteria, the answers you gave, where it stopped, the paths to its spec, plan, and review report, the check results, and its final report.
+
+Every step of a phase is saved to its file before the next one starts. After `/clear`, or in a new session, `/ship` picks up where the last run stopped. When a phase's plan is large or the session is already full, `/ship` suggests moving to a fresh session before the code is written; everything is saved, so `/clear` then `/ship` continues it.
+
+After the build and the checks, `/ship` runs `/quiver:review` on the branch. Each problem the review confirms against the code is fixed in one more `/work` round, and the branch is reviewed once more. A Critical problem, or a fix that would change behavior the phase spec defines, stops for your choice: fix it, leave it listed as open, or stop the phase. Problems the review could not confirm are listed in the report, not fixed.
+
+`/ship` commits through `/work` but never pushes and never opens a pull request. The final report names `/quiver:create-pr` when you are ready.
 
 ### Implementing a Design
 
