@@ -157,6 +157,29 @@ assert_not_in "$SHIP" '--terminal' "ship never passes --terminal to the review"
 assert_not_in "$SHIP" '.claude/reports/ship-' "ship writes no separate ship report; the phase file holds it"
 assert_in "$WORK" '`review_source`' "work 1c still detects a review-fix plan by review_source"
 
+# The review after the fix round is a re-review of the changes since the first report, so a
+# Critical the fix round left unfixed is only in the first report. The done stage reads that
+# report through the fix plan's review_source: and the fix stage's `fix: not fixed:` log line.
+# A rename on either side raises no error: the phase goes done with the Critical open.
+echo ""
+echo "=== 7. The done stage reads the first report and the fix round's unfixed tasks ==="
+
+DONE="$(sed -n '/^## Stage: done/,$p' "$SHIP" 2>/dev/null)"
+FIX="$(sed -n '/^## Stage: fix/,/^## Stage: done/p' "$SHIP" 2>/dev/null)"
+for s in 'review_source:' 'fix: not fixed:'; do
+  if printf '%s\n' "$DONE" | grep -qF -- "$s"; then
+    pass "done stage reads '$s'"
+  else
+    fail "done stage does not name '$s'"
+  fi
+done
+if printf '%s\n' "$FIX" | grep -qF -- '`fix: not fixed: '; then
+  pass "fix stage writes the 'fix: not fixed:' log line"
+else
+  fail "fix stage does not write the 'fix: not fixed:' log line"
+fi
+assert_in "$WORK" 'still failing after 3 attempts -- accepted' "work still prints the accepted-after-three-attempts line the fix stage records"
+
 echo ""
 echo "================================"
 if [ $EXIT -eq 0 ]; then
