@@ -1,6 +1,6 @@
 #!/bin/bash
 # test-verification-contract.sh
-# Guards the verification contract, which lives in six files by construction:
+# Guards the verification contract, which lives in seven files by construction:
 #   producer   skills/verification/SKILL.md      -- the Command Resolution table, the
 #              Evidence Rule, and the one paragraph consumers copy out of it: the
 #              ### Subagent restatement
@@ -13,6 +13,8 @@
 #                                                   implementing subagent
 #              skills/design-build/SKILL.md      -- the 3d gate command
 #              skills/hypothesis-debugging/SKILL.md -- Step 7 runs the resolved test
+#              skills/review/SKILL.md            -- Step 3.3 passes the resolved test
+#                                                   command to each finding check
 #
 # Each consumer names the producer at its verification step and reads it there. The
 # contract fails silently in two directions. A consumer that stops naming the producer
@@ -37,6 +39,7 @@ ORCH="$REPO_ROOT/skills/work/orchestrator.md"
 SHIP="$REPO_ROOT/skills/ship/SKILL.md"
 DESIGN_BUILD="$REPO_ROOT/skills/design-build/SKILL.md"
 HYPOTHESIS="$REPO_ROOT/skills/hypothesis-debugging/SKILL.md"
+REVIEW="$REPO_ROOT/skills/review/SKILL.md"
 README_RULES="$REPO_ROOT/.claude/rules/readme-structure.md"
 
 pass() { echo "  PASS: $1"; }
@@ -78,7 +81,7 @@ fm() {
 echo ""
 echo "=== 1. Preflight ==="
 MISSING=0
-for f in "$REF" "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS" "$README_RULES"; do
+for f in "$REF" "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS" "$REVIEW" "$README_RULES"; do
   if [ -f "$f" ]; then
     pass "${f#$REPO_ROOT/} exists"
   else
@@ -164,7 +167,7 @@ assert_in "$REF" 'flutter test' "the stack table lives in the producer"
 echo ""
 echo "=== 3. Every consumer names the producer ==="
 
-for f in "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS"; do
+for f in "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS" "$REVIEW"; do
   assert_in "$f" 'skills/verification/SKILL\.md' "${f#$REPO_ROOT/} names skills/verification/SKILL.md"
 done
 
@@ -228,7 +231,7 @@ assert_in "$SHIP" 'build_command' "ship metadata names build_command"
 assert_not_in "$SHIP" 'Detect test command from stack' "no restated test-command table in ship"
 assert_not_in "$SHIP" 'Detect build command from stack' "no restated build-command table in ship"
 
-for f in "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS"; do
+for f in "$WORK" "$ORCH" "$SHIP" "$DESIGN_BUILD" "$HYPOTHESIS" "$REVIEW"; do
   assert_not_in "$f" 'flutter test' "no stack table in ${f#$REPO_ROOT/}"
 done
 

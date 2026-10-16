@@ -16,7 +16,7 @@ assistant: "I'll check out 9c1e2f0 in my worktree, write the smallest check that
 </example>
 <example>
 Context: A finding says a README sentence is unnecessary
-user: "F1: README.md:88 restates the install command and should be removed. Rule and decision sources: CLAUDE.md, .claude/rules/, docs/decisions.md. execution: not allowed."
+user: "F1: README.md:88 restates the install command and should be removed. Rule and decision sources: CLAUDE.md, .claude/rules/, docs/decisions.md. execution: off."
 assistant: "I'll search the sources given and `git log -S` for the sentence. A recorded reason for keeping it refutes the finding; I quote the line that records it."
 <commentary>Judgment claim: a recorded reason refutes it; reasoning alone never confirms it.</commentary>
 </example>
@@ -58,6 +58,8 @@ git rev-parse --show-toplevel
 ## Phase 1 -- Check Out the Reviewed Code
 
 The prompt names `reviewed_sha`, the commit that holds the code under review. Your worktree starts on a different commit, so the files on disk are not the reviewed code until you move.
+
+When the prompt says `reviewed_sha: none` (a pull request review), there is no commit to check out and nothing to run, and the rest of this phase does not apply. Read the changed lines from the diff hunks in the prompt and the surrounding code from the files on disk, read-only; where the two disagree, the hunk is the reviewed code. Wherever Phase 2 says `reviewed_sha`, use these two sources instead.
 
 - In a worktree with `execution: allowed`: run `git checkout --detach <reviewed_sha>`, then confirm with `git rev-parse HEAD`.
 - Otherwise: read the reviewed code with `git show <reviewed_sha>:<path>` and never from the files on disk.
