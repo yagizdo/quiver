@@ -71,7 +71,7 @@ The full skill list lives in the `skill` tool. Run `use skill tool to list skill
 | `brainstorm` | Turn a vague idea into a validated spec |
 | `plan` | Research the codebase and produce an implementation plan |
 | `work` | Execute a plan task-by-task |
-| `ship` | Take a project from description to a working, verified app |
+| `ship` | Split a project into phases, then build, check, and review one phase per run |
 | `design` | Turn a Figma selection into a pixel-exact implementation plan |
 | `design-build` | Build a design plan, gating each task on the project's build or tests |
 | `design-fix` | Compare a built screen against its Figma design and fix the deviations you pick |

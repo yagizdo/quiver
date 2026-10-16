@@ -334,7 +334,7 @@ Summarize:
 - The test-first tally, one line: `TDD: <n> red-verified, <m> skipped (<distinct reasons>)`. The sequential path counts the lines Phase 3 printed; the orchestration path counts the `TDD` lines the group-completion announcements printed. Include this line whenever the run implemented anything.
 - The Phase 2.5 lines, verbatim: `Strategy:`, `Reason:`, and `Verification:` as resolved. They are the only record of which path ran and whether the test command came from the rule or a guess, and a prose restatement ("no test script") drops the source. Include them whenever the run reached Phase 2.5.
 
-This summary ends `/work`. It does not end the turn when another skill loaded `/work` through the Skill tool -- `/ship` does, and continues into its verification here -- because that skill's instructions are still in this conversation and its next step runs now. Before ending the turn on this summary, check whether a skill invoked `/work` and follow its continuation step.
+This summary ends `/work`. It does not end the turn when another skill loaded `/work` through the Skill tool: check whether a skill invoked `/work` and follow its continuation step.
 
 ---
 

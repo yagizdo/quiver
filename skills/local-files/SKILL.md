@@ -14,9 +14,10 @@ Reference skill read by every skill that writes into one of the directories belo
 |-----------|------------|
 | `.claude/plans/` | `/plan`, `/quiver:design` (with `assets/` for its screenshots), `/ship` |
 | `.claude/reports/` | `/quiver:review` (default location only), `/senior-review`, `/ship` |
-| `.claude/specs/` | `/brainstorm`, and `visual-companion` mockups copied beside a spec |
+| `.claude/specs/` | `/brainstorm`, `/ship` (one spec per phase), and `visual-companion` mockups copied beside a spec |
 | `.claude/handovers/` | `/handover`, the PreCompact hook |
 | `.claude/work/` | `/work` and its orchestrator |
+| `.claude/ship/` | `/ship` |
 
 A review written to a path the user chose with `--output` or `--set-output` is the user's location, not one of these, and the rule does not apply to it.
 
