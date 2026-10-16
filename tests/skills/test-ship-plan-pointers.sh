@@ -1,27 +1,28 @@
 #!/bin/bash
 # test-ship-plan-pointers.sh
-# Guards every /plan step that /ship reads at runtime by name:
-#   pointer   skills/ship/SKILL.md  -- names each section as `skills/plan/SKILL.md` Step <N>
-#   target    skills/plan/SKILL.md  -- carries that section as a "## Step <N> -- " heading
+# Guards every skill step that /ship reads at runtime by name:
+#   pointer   skills/ship/SKILL.md    -- names each section as `skills/<name>/SKILL.md` Step <N>
+#   target    skills/<name>/SKILL.md  -- carries that section as a "## Step <N> -- " heading
 #
-# Ship does not restate /plan's plan format, its inline checks, or its dispatch blocks. It
+# Ship does not restate another skill's formats, inline checks, or dispatch blocks. It
 # names the step that holds each one and tells the model to read that section when it gets
-# there. The pointer is the whole interface. A /plan step that is renamed or renumbered with
-# no matching edit in ship leaves ship naming a section that does not exist, and the model
+# there. The pointer is the whole interface. A step that is renamed or renumbered with no
+# matching edit in ship leaves ship naming a section that does not exist, and the model
 # then improvises the format or skips the check with NO error anywhere. This test is the
-# only thing that catches that.
+# only thing that catches that. Every skill ship points into is covered, not only /plan.
 #
 # The step number is extracted as [0-9]+(\.[0-9]+)?, so a sentence ending "Step 6." yields 6.
 # The heading match is literal and keeps the trailing " -- ", so Step 6 is not satisfied by
 # "## Step 6.5 -- ".
 #
 # Finding no pointer is a failure, not a pass. A reworded pointer form would otherwise leave
-# this test asserting nothing.
+# this test asserting nothing. Section 0 runs the rule over a fixture it must reject, so a
+# rule that stopped matching pointers into other skills cannot pass the real file forever.
 #
-# Overrides, for running the rule against a fixture:
+# Override, for running the rule against a fixture:
 #   SHIP_FILE  default skills/ship/SKILL.md
-#   PLAN_FILE  default skills/plan/SKILL.md
-# A relative value resolves from the repo root, so the test runs from any directory.
+# A relative value resolves from the repo root, so the test runs from any directory. The
+# named skill files always resolve from the repo root.
 #
 # Run directly: bash tests/skills/test-ship-plan-pointers.sh
 
@@ -37,11 +38,9 @@ resolve() {
 }
 
 SHIP="$(resolve "${SHIP_FILE:-skills/ship/SKILL.md}")"
-PLAN="$(resolve "${PLAN_FILE:-skills/plan/SKILL.md}")"
 SHIP_REL="${SHIP#"$REPO_ROOT"/}"
-PLAN_REL="${PLAN#"$REPO_ROOT"/}"
 
-POINTER_RE='`skills/plan/SKILL\.md` Step [0-9]+(\.[0-9]+)?'
+POINTER_RE='`skills/[a-z0-9-]+/SKILL\.md` Step [0-9]+(\.[0-9]+)?'
 
 EXIT=0
 pass() { echo "  PASS: $1"; }
@@ -58,49 +57,63 @@ finish() {
   exit $EXIT
 }
 
+# --- Self-check ---
+# The rule runs once over a fixture it must reject: one valid /plan pointer and one
+# /brainstorm pointer to a step that file does not have. A rule that stopped reading
+# pointers into other skills would pass the real file forever. The nested run sets
+# SHIP_POINTERS_SELFCHECK so it does not recurse.
+if [ -z "${SHIP_POINTERS_SELFCHECK:-}" ]; then
+  echo ""
+  echo "=== 0. The rule rejects a dangling pointer into another skill ==="
+  FIXTURE="$(mktemp)"
+  trap 'rm -f "$FIXTURE"' EXIT
+  printf '%s\n' 'Write the plan by `skills/plan/SKILL.md` Step 5.' 'Write the spec by `skills/brainstorm/SKILL.md` Step 6.' > "$FIXTURE"
+  OUT="$(SHIP_POINTERS_SELFCHECK=1 SHIP_FILE="$FIXTURE" bash "$0" 2>&1)"
+  CODE=$?
+  if [ "$CODE" -ne 0 ] && printf '%s\n' "$OUT" | grep -qF 'FAIL: skills/brainstorm/SKILL.md Step 6 -- '; then
+    pass "a fixture naming \`skills/brainstorm/SKILL.md\` Step 6 fails with that pointer named"
+  else
+    fail "a fixture naming \`skills/brainstorm/SKILL.md\` Step 6, which that file does not have, exited $CODE without a FAIL line for it -- the rule no longer checks pointers into skills other than /plan"
+  fi
+fi
+
 # --- Preflight ---
-# A missing plan file would report every step as dangling, which reads as a renamed step
-# rather than as a moved file.
 echo ""
 echo "=== 1. Preflight ==="
-MISSING=0
 if [ ! -f "$SHIP" ]; then
-  fail "missing $SHIP -- the ship skill whose /plan pointers this test checks."
-  MISSING=1
-fi
-if [ ! -f "$PLAN" ]; then
-  fail "missing $PLAN -- the /plan skill whose step headings the pointers name."
-  MISSING=1
-fi
-if [ "$MISSING" -ne 0 ]; then
+  fail "missing $SHIP -- the ship skill whose step pointers this test checks."
   finish
 fi
-pass "ship and plan files present"
+pass "ship file present"
 
 # --- Extraction ---
-# One "<ship line> <step>" pair per pointer, so a dangling step can name every ship line
-# that points at it.
+# One "<ship line> <skill file> <step>" triple per pointer, so a dangling step can name
+# every ship line that points at it.
 echo ""
-echo "=== 2. Ship names /plan steps ==="
-POINTERS="$(grep -noE "$POINTER_RE" "$SHIP" | sed -E 's/^([0-9]+):.* Step /\1 /')"
-STEPS="$(printf '%s\n' "$POINTERS" | awk 'NF == 2 { print $2 }' | sort -u | sort -t. -k1,1n -k2,2n)"
-if [ -z "$STEPS" ]; then
-  fail "$SHIP_REL has no \`skills/plan/SKILL.md\` Step <N> pointer -- the pointer form was reworded or removed, and with no pointer this test asserts nothing"
+echo "=== 2. Ship names skill steps ==="
+POINTERS="$(grep -noE "$POINTER_RE" "$SHIP" | sed -E 's/^([0-9]+):`([^`]+)` Step /\1 \2 /')"
+TARGETS="$(printf '%s\n' "$POINTERS" | awk 'NF == 3 { print $2, $3 }' | sort -u | sort -k1,1 -k2,2n)"
+if [ -z "$TARGETS" ]; then
+  fail "$SHIP_REL has no \`skills/<name>/SKILL.md\` Step <N> pointer -- the pointer form was reworded or removed, and with no pointer this test asserts nothing"
   finish
 fi
-pass "$SHIP_REL names Steps $(printf '%s\n' "$STEPS" | paste -sd, - | sed 's/,/, /g')"
+pass "$SHIP_REL names $(printf '%s\n' "$TARGETS" | awk '{ printf "%s%s Step %s", sep, $1, $2; sep = ", " }')"
 
 # --- Targets ---
 # Every step is checked, so one run names every dangling pointer instead of the first.
 echo ""
-echo "=== 3. Every named step exists in /plan ==="
-for N in $STEPS; do
-  if awk -v h="## Step $N -- " 'index($0, h) == 1 { found = 1 } END { exit found ? 0 : 1 }' "$PLAN"; then
-    pass "Step $N -- $PLAN_REL has a line starting '## Step $N -- '"
+echo "=== 3. Every named step exists in its skill ==="
+while read -r F N; do
+  WHERE="$(printf '%s\n' "$POINTERS" | awk -v f="$F" -v n="$N" -v s="$SHIP_REL" '$2 == f && $3 "" == n "" { printf "%s%s:%s", sep, s, $1; sep = ", " }')"
+  if [ ! -f "$REPO_ROOT/$F" ]; then
+    fail "$F Step $N -- $F does not exist, named at $WHERE; ship tells the model to read a file that is not there"
+  elif awk -v h="## Step $N -- " 'index($0, h) == 1 { found = 1 } END { exit found ? 0 : 1 }' "$REPO_ROOT/$F"; then
+    pass "$F Step $N -- has a line starting '## Step $N -- '"
   else
-    WHERE="$(printf '%s\n' "$POINTERS" | awk -v n="$N" -v f="$SHIP_REL" '$2 "" == n "" { printf "%s%s:%s", sep, f, $1; sep = ", " }')"
-    fail "Step $N -- $PLAN_REL has no line starting '## Step $N -- ', named at $WHERE; ship tells the model to read a section that does not exist, and the model improvises in its place"
+    fail "$F Step $N -- $F has no line starting '## Step $N -- ', named at $WHERE; ship tells the model to read a section that does not exist, and the model improvises in its place"
   fi
-done
+done <<EOF2
+$TARGETS
+EOF2
 
 finish
