@@ -70,7 +70,7 @@ esac
 # code-review skill, and a bare /review resolves to that one: measured
 # 2026-09-13, the run emitted ReportFindings-shaped output, wrote no report
 # file, and spawned 0 subagents where quiver:review fans out to 5.
-PROBE='/quiver:review --base main --output ./review-out'
+PROBE='/quiver:review --base main --run-checks --output ./review-out'
 
 # What the run actually did, for the blocked path. A typed slash command is
 # expanded into the prompt by the CLI -- it does not travel through the Skill

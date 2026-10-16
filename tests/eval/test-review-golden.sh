@@ -45,7 +45,7 @@ class ReviewGoldenTest(unittest.TestCase):
                 claude.write_text('''#!/usr/bin/env bash
 set -eu
 [ "$1" = "-p" ]
-[ "$2" = "/quiver:review --base main --output ./review-out" ]
+[ "$2" = "/quiver:review --base main --run-checks --output ./review-out" ]
 echo called >> "$CALL_LOG"
 if [ -n "$REPORT_BODY" ]; then
   mkdir -p review-out
