@@ -50,8 +50,8 @@ HOOKS_JSON="$REPO_ROOT/hooks/hooks.json"
 
 # The names readme-structure.md keeps out of user-facing docs. Section 2 holds this
 # list to the rule text; it is restated here so the arithmetic below is readable.
-EXCLUDED="code-navigation verification tdd visual-companion"
-EXCLUDED_COUNT=4
+EXCLUDED="code-navigation verification tdd visual-companion local-files"
+EXCLUDED_COUNT=5
 
 EXIT=0
 pass() { echo "  PASS: $1"; }

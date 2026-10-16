@@ -200,7 +200,7 @@ Break the plan into TodoWrite tasks (specific, dependency-ordered, with testing 
 
 Every task on this path is subject to the plan's `## Global Constraints` when the plan carries one: a task that cannot be completed without violating a constraint is a blocker, handled by the Blockers rule below.
 
-**Commits:** After each logical unit, commit if the evidence line is a pass and the change is meaningful (`git add <specific files>` -- never `git add .`). Wait if tests fail or the message would say "WIP". Heuristic: "Can I write a message describing a complete, valuable change?"
+**Commits:** After each logical unit, commit if the evidence line is a pass and the change is meaningful (`git add <specific files>` -- never `git add .`). Wait if tests fail or the message would say "WIP". Heuristic: "Can I write a message describing a complete, valuable change?" Write each message by the rules in the `# Commit Message Generation` section of `skills/commit/SKILL.md`, read once per run at the first commit.
 
 **Blockers:** Stop immediately. Note in TodoWrite. Ask the user. Do not proceed until resolved.
 
@@ -288,7 +288,7 @@ For **non-review-fix plans** with large, risky, or security-sensitive changes, c
 
 #### 5a -- Final commit
 
-If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then invoke the `commit` skill. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly with a Conventional Commits message -- the same rule Phase 3 commits under -- instead of delegating to the prompt.
+If there are uncommitted changes after Phase 4, stage the relevant files (specific files only -- never `git add .`) then invoke the `commit` skill. If the user cancels, do not re-ask or proceed to 5b. In auto mode, commit directly instead of delegating to the prompt, writing the message by the same `# Commit Message Generation` section of `skills/commit/SKILL.md` that Phase 3 commits under.
 
 #### 5b -- Create PR
 

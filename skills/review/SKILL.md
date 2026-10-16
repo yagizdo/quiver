@@ -680,7 +680,7 @@ Evaluate in order:
 
 ### 4b -- Write and summarize
 
-1. Create the chosen directory if it does not exist.
+1. Create the chosen directory if it does not exist. When it is the default `.claude/reports/` from 4a item 5, before the first write, apply the keep-local rule in `skills/local-files/SKILL.md`; a path from `--output`, `--set-output`, or a saved preference is the user's choice and is left as it is.
 2. Write the full synthesized report as `review-{timestamp}.md` (use `date '+%Y-%m-%d_%H-%M-%S'`).
 3. Draft a short terminal summary with these elements:
    - One-line verdict

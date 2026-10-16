@@ -179,7 +179,7 @@ On "Add or change something": ask what to change, update the table, re-present. 
 
 ## Phase 3: Plan Write
 
-Get the date via the Bash tool (`date '+%Y-%m-%d'`) and write `.claude/plans/<date>-<project>-ship-plan.md`, creating `.claude/plans/` if it does not exist. When that path already exists, write `<date>-<project>-ship-plan-2.md`, then `-3`, and so on -- the first free name. An existing plan is never overwritten: its basename keys its `/work` ledger at `.claude/work/<plan-basename>/`, and a rewrite under the same name would resume that ledger's `complete` lines against tasks it never built. The file is a plan in the format `skills/plan/SKILL.md` Step 5 defines -- read that section before writing, and do not improvise a format of your own. `/work` reads this file exactly as it reads a `/plan` output; the format has one home, and this skill does not restate it.
+Get the date via the Bash tool (`date '+%Y-%m-%d'`) and write `.claude/plans/<date>-<project>-ship-plan.md`, creating `.claude/plans/` if it does not exist. Before the first write, apply the keep-local rule in `skills/local-files/SKILL.md`. When that path already exists, write `<date>-<project>-ship-plan-2.md`, then `-3`, and so on -- the first free name. An existing plan is never overwritten: its basename keys its `/work` ledger at `.claude/work/<plan-basename>/`, and a rewrite under the same name would resume that ledger's `complete` lines against tasks it never built. The file is a plan in the format `skills/plan/SKILL.md` Step 5 defines -- read that section before writing, and do not improvise a format of your own. `/work` reads this file exactly as it reads a `/plan` output; the format has one home, and this skill does not restate it.
 
 What the Q&A answers become:
 
@@ -255,7 +255,7 @@ Record `Smoke: pass`, `Smoke: fail -- <first error line>`, or `Smoke: timeout --
 
 ## Step 4 -- Report
 
-Get a timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`) and write `.claude/reports/ship-<project>-<timestamp>.md`, creating the directory if needed:
+Get a timestamp via the Bash tool (`date '+%Y-%m-%d_%H-%M-%S'`) and write `.claude/reports/ship-<project>-<timestamp>.md`, creating the directory if needed. Before the first write, apply the keep-local rule in `skills/local-files/SKILL.md`:
 
 ```
 # Ship Report: <project>

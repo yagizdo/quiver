@@ -26,6 +26,7 @@ Quiver is a development lifecycle plugin for AI coding CLIs. Purpose-built skill
   - [Debug](#debug)
   - [Workflow](#workflow)
 - [External Dependencies](#external-dependencies)
+- [Setup](#setup)
 - [CLI Notes](#cli-notes)
 - [Uninstall](#uninstall)
 - [Contributing](#contributing)
@@ -96,7 +97,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 | Component | Count |
 |-----------|-------|
 | Hooks | 3 |
-| Skills | 21 |
+| Skills | 22 |
 | Agents | 22 |
 
 ## What Do I Use?
@@ -325,6 +326,12 @@ Add the server to your MCP config:
 The Figma plugin side is a manual import from the bridge's [releases page](https://github.com/gethopp/figma-mcp-bridge/releases), and its README carries the current steps. Leave the plugin running inside the file you are reading -- it holds the WebSocket, and closing it drops the connection mid-extraction.
 
 `/quiver:design` and `/design-fix` only call the bridge's read tools, and `/design-fix` also runs with the bridge absent when you point it at an existing `/quiver:design` plan. `/design-build` never calls it at all. Every other Quiver skill works without it.
+
+## Setup
+
+Quiver writes its working files into your project: specs from `/brainstorm` in `.claude/specs/` (earlier releases used `docs/brainstorms/`), plans in `.claude/plans/`, review reports in `.claude/reports/`, handovers in `.claude/handovers/`, and `/work` progress in `.claude/work/`. They stay out of git with no setup. The first time a skill writes one of these folders in a git repository, it adds the folder to `.git/info/exclude` and prints a line saying so. That file is git's local ignore list for your clone: the folder drops out of `git status`, and no file in the repository changes.
+
+To keep a folder in git instead, commit a file in it, or say so in the project's `CLAUDE.md` or `AGENTS.md`. The handover hook that runs before compaction cannot read those files, so for `.claude/handovers/` commit a file. A folder already listed in `.git/info/exclude` stays out of git until you delete its line there.
 
 ## CLI Notes
 
