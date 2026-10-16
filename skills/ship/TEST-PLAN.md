@@ -66,6 +66,7 @@
 33. Without git, the review and fix stages are skipped; the final report says the branch was not reviewed and names `/quiver:review --base <default branch> --run-checks --plan <plan path>`.
 34. A phase the done stage left `blocked` on a failing check carries `stage: verify`. After the test is fixed by hand, `/ship <phase-id>` re-runs the checks and continues to the review of the new changes; it does not stop again on the old check line. `/ship --verify` on that phase records the three lines and leaves it `blocked`.
 35. With `stage: fix`, `fix_rounds: 0`, and `fix_plan:` naming a plan reading `status: active` (a fix round that stopped partway), `/ship` asks no question again, writes no `-2` fix plan, and invokes `/work <fix_plan> --auto` on the recorded plan.
+36. A phase the done stage left `blocked` on a Critical from the review after the fix round carries `stage: verify`. With no code change since, `/ship <phase-id>` asks one question for that finding, options in the order "I fixed it", "Leave it and list it", "Keep it stopped", before it runs anything. "Keep it stopped" leaves `status: blocked` and terminates. "Leave it and list it" records the answer under `## Decisions`, and the final report lists the finding as open. A phase stopped through the fix stage's "Stop this phase here" (`stage: fix`) gets the fix stage's question instead, not this one.
 
 **Verification checklist:**
 - [ ] Gather blocks exit 0 in all three directory kinds.

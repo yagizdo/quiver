@@ -71,6 +71,16 @@ Read `.claude/ship/roadmap.md` at the project root with the Read tool. When it e
 | Every phase `done` | Print one line per phase (id, name, the first line of its final report), then the next step: `/quiver:create-pr` when the last phase's branch has no pull request (`gh pr view <branch> --json url` prints no URL, or `gh` is unavailable), otherwise `> Every phase is finished.` Terminate. |
 | Anything else (pending phases wait on a `blocked` one) | Print `> Phase <id> is stopped: <reason from its Log>. Run /ship <id> to continue it.` for each blocked phase, and terminate. |
 
+**A phase the done stage stopped on an open Critical.** When the phase id given names a `blocked` phase whose recorded stage is `verify` and whose block reason is an open Critical, ask before it goes back to `in-progress`. The review that runs next covers only the changes since the report that stopped the phase (its re-review scope), so it cannot report that Critical again, and the done stage would read its silence as fixed. Ask one question per such finding in a single `AskUserQuestion` call (at most four questions per call):
+
+> Phase <id> stopped because the review found a problem: <the finding in one plain sentence> (<file:line>). The next review only looks at changes made since then, so it will not check this problem again. What should happen?
+
+- "I fixed it" -- Your change is built, tested, and reviewed, and the phase can finish.
+- "Leave it and list it" -- Nothing changes for this problem; the final report lists it as open, and it does not stop the phase from finishing.
+- "Keep it stopped" -- Nothing runs, and the phase stays stopped. Run /ship <phase-id> again when the problem is fixed.
+
+Record each answer under `## Decisions` with `(user, <date>)`. On any "Keep it stopped", leave `status: blocked` and terminate. Otherwise resume the phase at `verify`. A phase the fix stage stopped keeps `stage: fix` and asks its own question again when resumed, so it skips this one.
+
 **Before resuming, re-derive the stage from the artifacts.** A turn can end on a callee's summary before ship wrote the next stage, so the recorded stage can lag. Check in order and move the stage forward, with a `## Log` line for each move:
 
 1. Recorded `build`, and the file in `plan:` has frontmatter `status: completed` (`/work` Phase 5c sets it): the build is done. Record `branch:` as the current branch and resume at `verify`.

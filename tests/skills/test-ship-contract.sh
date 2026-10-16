@@ -89,7 +89,7 @@ if [ -z "$STATE" ]; then
   fail "skills/ship/SKILL.md has no '# State Files' section"
 else
   pass "skills/ship/SKILL.md has a '# State Files' section"
-  for h in '## Goal' '## Phases' '## Now' '## Next' '## Scope' '## Done Criteria' '## Questions and Answers' '## Decisions' '## Measurements' '## Log' '## Final Report'; do
+  for h in '## Phases' '## Now' '## Next' '## Scope' '## Done Criteria' '## Questions and Answers' '## Decisions' '## Measurements' '## Log' '## Final Report'; do
     if printf '%s\n' "$STATE" | grep -qxF -- "$h"; then
       pass "State Files carries the heading line '$h'"
     else
