@@ -137,6 +137,22 @@ assert_in "$WORK" 'Verification: confirmed' "work skill 4c names 'Verification: 
 assert_in "$WORK" 'skips `finding-verifier`' "work skill 4d skips finding-verifier"
 assert_in "$REPORT_CHECK" 'Verification:' "report-check skill names the 'Verification:' line"
 
+# --- 7. No caller gives the review flag as its reason ---
+# /work, /design-build and /ship print the review command instead of running it. Their reason
+# is that the review covers the finished branch, not the review skill's frontmatter flag: a
+# sentence naming the flag turns false the day the flag is removed.
+echo ""
+echo "=== 7. Callers do not name the review skill's flag ==="
+
+for d in work design-build ship; do
+  HITS="$(grep -rnF 'disable-model-invocation' "$REPO_ROOT/skills/$d" 2>/dev/null)"
+  if [ -z "$HITS" ]; then
+    pass "skills/$d does not name disable-model-invocation"
+  else
+    fail "skills/$d names disable-model-invocation: ${HITS#$REPO_ROOT/}"
+  fi
+done
+
 echo ""
 echo "================================"
 if [ $EXIT -eq 0 ]; then

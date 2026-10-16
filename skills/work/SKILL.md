@@ -294,7 +294,7 @@ If there are uncommitted changes after Phase 4, stage the relevant files (specif
 
 After committing (or if all commits were already made during Phase 3), print the review command as text:
 > Review before merging: /quiver:review --base <default branch>
-Add `--plan <plan path>` to that line when the run had a plan file; `<default branch>` is `main` or `master`, whichever the repository has. `skills/review/SKILL.md` carries `disable-model-invocation: true`: the Skill tool blocks a `review` call from this skill and tells the model not to reproduce the review another way, so the review is the user's to run and never a button here. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
+Add `--plan <plan path>` to that line when the run had a plan file; `<default branch>` is `main` or `master`, whichever the repository has. The run starts no review: a review reads the finished branch and is the user's step before merging, so the command is printed as text and is never a button here. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
 
 Then use `AskUserQuestion`:
 > All work is committed on `{branch_name}`. What would you like to do next?

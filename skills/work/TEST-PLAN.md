@@ -10,7 +10,7 @@
 3. Phase 0 NO_GIT handling skips branch creation, commits, and PR steps cleanly.
 4. The 5d summary carries the Phase 2.5 `Strategy:` and `Reason:` lines verbatim, naming the strategy (sequential or parallel) and the task count.
 5. For review-fix plans, Phase 4c parses findings, applies BLOCKING/WARNING gates, and prints the convergence verdict; Phase 4d is skipped automatically.
-6. Phase 5 invokes the `commit` and `create-pr` skills, gating each action with `AskUserQuestion`. 5b prints the `/quiver:review --base <default branch>` command as text before its question and never invokes it -- `review` carries `disable-model-invocation: true`, so the Skill tool blocks the call -- and the question offers only the PR button and Done.
+6. Phase 5 invokes the `commit` and `create-pr` skills, gating each action with `AskUserQuestion`. 5b prints the `/quiver:review --base <default branch>` command as text before its question and never invokes it, and the question offers only the PR button and Done.
 7. A 3+ task plan creates `.claude/work/<plan-basename>/progress.md` with the identity line before the first group dispatches; a successful run through Phase 5 offers to delete it.
 8. The 5d summary carries the Phase 2.5 `Verification:` line verbatim, naming the resolved test and build commands or `none` with a reason, and the source.
 9. Phase 3 prints a `red:` line naming the new test before each task's implementation edit, then a pass line; a `none` resolution prints one `skipped:` line for the run and no `red:` line.
