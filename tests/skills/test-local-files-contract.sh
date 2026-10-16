@@ -73,6 +73,11 @@ CONSUMERS=(
   skills/plan/SKILL.md
   skills/brainstorm/SKILL.md
   skills/review/SKILL.md
+  skills/senior-review/SKILL.md
+  skills/handover/SKILL.md
+  skills/design/SKILL.md
+  skills/work/orchestrator.md
+  skills/ship/SKILL.md
 )
 for c in "${CONSUMERS[@]}"; do
   if [ ! -f "$REPO_ROOT/$c" ]; then
