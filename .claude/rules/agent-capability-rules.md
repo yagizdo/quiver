@@ -51,7 +51,7 @@ Measured on Claude Code 2.1.233: `claude plugin validate ./ --strict` does not i
 
 `adapter` belongs to `codex-code-reviewer`, which shells out to the Codex CLI and persists the wrapped reviewer's raw output. It is the only agent that writes outside a worktree, and it writes a transcript, not source.
 
-`worktree-write` belongs to `finding-verifier`, which settles one review finding by running a scratch check or mutating the cited line. It writes only inside its own worktree: its frontmatter sets `isolation: worktree`, it compares `git rev-parse --git-dir` with `--git-common-dir` before any write and stays read-only when the two are equal, and it restores every edit before it returns. The string matches `adapter` on purpose. It is a separate profile because the two agents write for different reasons, and a change to one must not move the other.
+`worktree-write` belongs to `finding-verifier`, which settles one review finding by running a scratch check or mutating the cited line. It writes only inside its own worktree: its frontmatter sets `isolation: worktree`, it compares the absolute `git rev-parse --git-dir` with `--git-common-dir` before any write and stays read-only when the two are equal, and it restores every edit before it returns. The string matches `adapter` on purpose. It is a separate profile because the two agents write for different reasons, and a change to one must not move the other.
 
 `Bash` stays in all four profiles. Frontmatter denies tools by name and cannot scope a command pattern, and read-only agents need `git diff`, `git log`, and `git blame`. `AskUserQuestion` is denied everywhere because a subagent that tries to prompt the user stalls instead of returning a result.
 

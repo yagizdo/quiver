@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-agent code review. Default fast mode (5 agents); pass --deep for full pipeline (all agents + quality check + senior review). Pass --with-codex for cross-model coverage.
-argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--plan <path>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
+argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--plan <path>] [--run-checks] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
 when-to-use: "user wants a multi-agent code review of a PR or diff -- '/review', '/quiver:review', 'review my changes', 'review this PR', 'code review', 'audit the diff' (not: 'senior review')"
 ---
 
@@ -33,13 +33,14 @@ Print: `> No git repository detected. /quiver:review requires a git repo.`
 
 ## Step 0.5 -- Detect Review Depth
 
-Parse `$ARGUMENTS` for the `--deep` and `--plan` flags:
+Parse `$ARGUMENTS` for the `--deep`, `--plan`, and `--run-checks` flags:
 
 1. If `$ARGUMENTS` contains `--deep`, set `review_mode = deep`. Strip `--deep` from `$ARGUMENTS` before passing to subsequent steps.
 2. Otherwise, set `review_mode = fast`.
 3. If `$ARGUMENTS` contains `--plan <path>`, set `constraints_plan_path` to the path token that follows the flag, and strip both `--plan` and that path from `$ARGUMENTS` before passing to subsequent steps. Otherwise leave `constraints_plan_path` unset.
+4. If `$ARGUMENTS` contains `--run-checks`, set `run_checks` and strip the flag from `$ARGUMENTS` before passing to subsequent steps. Otherwise leave `run_checks` unset.
 
-`--deep` affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, 3.75, and 3.9 only. `--plan` affects Step 1.8 only -- it names the plan whose Global Constraints bind this review, and never changes which diff is reviewed. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes. Fast mode includes Step 3.3: every finding is checked against the code in both modes.
+`--deep` affects Steps 2 (agent dispatch), 3 (synthesis), 3.5, 3.75, and 3.9 only. `--plan` affects Step 1.8 only -- it names the plan whose Global Constraints bind this review, and never changes which diff is reviewed. `--run-checks` affects Step 3.3 only -- it lets a branch review run the project's tests to check a finding. All other steps (diff source detection, manifest building, LSP detection, report saving, PR posting) are identical in both modes. Fast mode includes Step 3.3: every finding is checked against the code in both modes.
 
 Announce the mode:
 - Fast: `Running review (5 core agents)...`
@@ -490,7 +491,7 @@ Every finding checked at Step 3.3 carries a `Verification:` line under its `Disp
 
 - [brief reason for each, e.g., "~~[M3] [Medium] (waste-detector) config/routes.rb:15 -- Consider extracting nested routes~~ -- Aspirational: working code, no concrete problem"]
 - [constraint-blocked entries name the constraint, e.g., "~~[M4] [Medium] (logic-reviewer) skills/plan/SKILL.md:212 -- Compute the newest plan inline in the shell block~~ -- Constraint-blocked: Global Constraint 2 (no new shell logic in `!` blocks)"]
-- [refuted-by-verification entries carry the evidence, e.g., "- [M2] refuted-by-verification -- README sentence restates the install command -- docs/decisions.md:14: \"keep the install line in both places\""]
+- [refuted-by-verification entries carry the evidence, e.g., "- [M2] refuted-by-verification -- README.md:12 -- README sentence restates the install command -- docs/decisions.md:14: \"keep the install line in both places\""]
 
 (Omit this section entirely if no findings were filtered.)
 
@@ -512,7 +513,7 @@ With zero findings in `## Findings`, print nothing, do nothing, and go to Step 3
    - Its `file:line` citations, and the diff hunks of every cited file from the diff in Step 1.
    - **Rule and decision sources to search:** `CLAUDE.md`, `AGENTS.md`, `.claude/rules/`, the Step 1.8 Global Constraints block when it is non-empty, and any decision log the project instructions name. List the paths that exist; pass the Global Constraints block as text.
    - **Test command:** read `skills/verification/SKILL.md` and follow its `## Command Resolution` section once per run, then pass the resolved `test:` line as a literal.
-   - `execution: allowed` in Mode 2 and Mode 3; `execution: off` in Mode 1. A pull request link can carry someone else's code, so a Mode 1 review runs none of it.
+   - `execution: allowed` in Mode 3, and in Mode 2 only when `run_checks` is set; `execution: off` otherwise, Mode 1 included. A branch can be someone else's code checked out locally, and a pull request link can fall back to Mode 2, so a branch review runs project code only when the user passed `--run-checks`. Mode 3 reviews edits not yet committed in the user's own checkout, so it runs checks without the flag.
    - `reviewed_sha`: Mode 2, the output of `git rev-parse HEAD`. Mode 3, the output of `git stash create`, which records tracked staged and unstaged changes as a commit without touching the working tree or the stash list; when it prints nothing there is no tracked change, so use `git rev-parse HEAD`. Mode 1, `none`.
    - Mode 3 only: the main checkout path (`git rev-parse --show-toplevel`) and the cited files that `git ls-files --others --exclude-standard` lists. Untracked files are in no commit, so the check reads them from that path.
    - **Project safety rules:** every line in the project instructions that limits what may be run or touched (devices, simulators, databases, external services, destructive commands), quoted. A checking agent does not inherit this session's rules, so the prompt is the only place they reach it.
@@ -524,7 +525,7 @@ With zero findings in `## Findings`, print nothing, do nothing, and go to Step 3
    If the Agent call fails because `quiver:finding-verifier` is not an available agent type, mark every finding `Verification: unverified -- the check could not run in this session`, print `Could not check the findings against the code in this session; the report marks them as unchecked.`, and go to Step 3.5.
 
 3. **Apply each verdict.** Each agent returns `### F<n> -- CONFIRMED`, `### F<n> -- REFUTED`, or `### F<n> -- UNVERIFIABLE`, each followed by `- evidence:` lines, then a closing `WORKTREE: <path>|none` line. Map `F<n>` back to the report ID.
-   - **REFUTED:** remove the finding from `## Findings` and add it to `## Filtered Findings` as `- [<report ID>] refuted-by-verification -- <title> -- <one evidence line>`.
+   - **REFUTED:** remove the finding from `## Findings` and add it to `## Filtered Findings` as `- [<report ID>] refuted-by-verification -- <file:line> -- <title> -- <one evidence line>`, where `<file:line>` is the finding's first citation as written in `## Findings`.
    - **CONFIRMED:** add `Verification: confirmed -- <one evidence line>` under the finding's `Disposition:` line.
    - **UNVERIFIABLE:** add `Verification: unverified -- <reason>` under the `Disposition:` line, the reason taken from its `- evidence:` line (what would settle it).
    - A finding with no verdict block in its agent's output gets `Verification: unverified -- no result returned`.

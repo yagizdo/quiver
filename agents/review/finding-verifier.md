@@ -47,10 +47,12 @@ These rules override all phase-specific guidance.
 Run, each as its own command:
 
 ```
-git rev-parse --git-dir
-git rev-parse --git-common-dir
+git rev-parse --path-format=absolute --git-dir
+git rev-parse --path-format=absolute --git-common-dir
 git rev-parse --show-toplevel
 ```
+
+Both paths must be absolute: without the flag, a subdirectory of the user's checkout prints one absolute and one relative path, and the two differ there too.
 
 - The two values differ: you are in your own worktree. Commands that write are allowed inside it, and only inside it. Record `--show-toplevel` as the worktree path for the closing `WORKTREE:` line.
 - The two values are equal: you are in the user's checkout, not a worktree. Run no command that writes -- no checkout, no edit, no scratch file, no build. Verify read-only (Read, grep, `git show`, `git log`) and close with `WORKTREE: none`.
@@ -59,7 +61,7 @@ git rev-parse --show-toplevel
 
 The prompt names `reviewed_sha`, the commit that holds the code under review. Your worktree starts on a different commit, so the files on disk are not the reviewed code until you move.
 
-When the prompt says `reviewed_sha: none` (a pull request review), there is no commit to check out and nothing to run, and the rest of this phase does not apply. Read the changed lines from the diff hunks in the prompt and the surrounding code from the files on disk, read-only; where the two disagree, the hunk is the reviewed code. Wherever Phase 2 says `reviewed_sha`, use these two sources instead.
+When the prompt says `reviewed_sha: none` (a pull request review), there is no commit to check out and nothing to run, and the rest of this phase does not apply. Read the changed lines from the diff hunks in the prompt and the surrounding code from the files on disk, read-only; where the two disagree, the hunk is the reviewed code. Wherever Phase 2 says `reviewed_sha`, use these two sources instead. An absence or count claim is UNVERIFIABLE here unless a hunk in the prompt contradicts it, which is REFUTED with the hunk quoted: the files on disk are not the pull request's tree, so a search that finds nothing there proves nothing. Quote the search under `- tried:`, and under `- evidence:` name the pull request's full tree as what would settle it.
 
 - In a worktree with `execution: allowed`: run `git checkout --detach <reviewed_sha>`, then confirm with `git rev-parse HEAD`.
 - Otherwise: read the reviewed code with `git show <reviewed_sha>:<path>` and never from the files on disk.

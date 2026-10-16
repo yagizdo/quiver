@@ -241,7 +241,7 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
 
 1. **Parse findings.** Extract all non-filtered findings from the review report, grouped by severity (Critical, High, Medium, Low). Skip the `## Filtered Findings` section entirely.
 
-2. **Map findings to plan steps.** Match each finding to a plan task by file path or title/description. Findings with no matching plan step are marked "Not in scope." When the review report carries any `Verification:` line, a finding without `Verification: confirmed` is Not in scope for this plan: the review could not show it holds against the code.
+2. **Map findings to plan steps.** Match each finding to a plan task by file path or title/description. Findings with no matching plan step are marked "Not in scope." When the review report carries any `Verification:` line, a finding without `Verification: confirmed` matches a plan task only by its ID or title, never by file path alone: the review could not show it holds against the code, so a change to its file does not address it. A plan that names such a finding keeps it in scope, and an unfixed Critical among them still blocks in item 5.
 
 3. **Check addressed status.** For each in-scope finding, verify the referenced file was modified (`git diff`) and the corresponding TodoWrite task is `completed`. Both conditions met = **Addressed**; otherwise = **Not addressed**.
 
@@ -293,8 +293,8 @@ If there are uncommitted changes after Phase 4, stage the relevant files (specif
 #### 5b -- Create PR
 
 After committing (or if all commits were already made during Phase 3), print the review command as text:
-> Review before merging: /quiver:review --base <default branch>
-Add `--plan <plan path>` to that line when the run had a plan file; `<default branch>` is `main` or `master`, whichever the repository has. The run starts no review: a review reads the finished branch and is the user's step before merging, so the command is printed as text and is never a button here. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
+> Review before merging: /quiver:review --base <default branch> --run-checks
+Add `--plan <plan path>` to that line when the run had a plan file; `<default branch>` is `main` or `master`, whichever the repository has. `--run-checks` lets the review run the project's tests to check its findings, which a branch review does only on request because the branch could be someone else's; this one is the run's own work. The run starts no review: a review reads the finished branch and is the user's step before merging, so the command is printed as text and is never a button here. This is the whole review story for `/work`: the run itself dispatches no review agents, because `/quiver:review` on the finished branch sees every task's change together with the synthesis filters a per-task pass would not have.
 
 Then use `AskUserQuestion`:
 > All work is committed on `{branch_name}`. What would you like to do next?

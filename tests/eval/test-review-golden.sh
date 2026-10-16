@@ -21,8 +21,8 @@ FINDINGS = """## Findings
 FILTERED = """## Filtered Findings
 average_price app/tiers.py tier_labels app/checksum.py rotate_checksum
 """
-REFUTED = """[F1] refuted-by-verification -- README sentence is unnecessary
-[F2] refuted-by-verification -- app/ledger.py pack_records size comment is wrong
+REFUTED = """- [L1] refuted-by-verification -- README.md:5 -- sentence is unnecessary -- DECISIONS.md:4: "the kiosk build greps for this line"
+- [M3] refuted-by-verification -- app/ledger.py:9 -- pack_records size comment is wrong -- `python3 tools/measure_ledger.py` -> exit 0: 600000 bytes
 """
 
 REPORTS = {

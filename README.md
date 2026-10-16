@@ -181,7 +181,7 @@ After the last group merges, the resolved test command runs once on the combined
 
 Pass `--comment-pr` to post the report as a PR comment. Use `--deep --with-codex` for cross-model coverage (requires `codex` CLI).
 
-Every review, fast or deep, checks each finding against the code before it saves the report. A finding the code rules out moves to the report's Filtered Findings section with the evidence that ruled it out: file lines, command output, or a recorded project decision. Each remaining finding is marked confirmed, with its evidence, or not checked, with the reason. A review can also be started by another skill or by a plain request such as "review my changes".
+Every review, fast or deep, checks each finding against the code before it saves the report. A finding the code rules out moves to the report's Filtered Findings section with the evidence that ruled it out: file lines, command output, or a recorded project decision. Each remaining finding is marked confirmed, with its evidence, or not checked, with the reason. A branch review runs the project's tests for this only when you pass `--run-checks`, because the branch checked out may be someone else's; a review of uncommitted changes runs them without the flag, and a pull request link never runs them. A review can also be started by another skill or by a plain request such as "review my changes".
 
 Re-review detection: if you run `/quiver:review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
 

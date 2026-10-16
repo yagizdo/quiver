@@ -154,8 +154,8 @@ for d in work design-build ship; do
 done
 
 # --- 8. The review skill is model-invocable and hands the turn back ---
-# /ship invokes /quiver:review through the Skill tool, which refuses a skill carrying the
-# flag. The Skill tool does not return, so Step 4b must send the model on to the caller's
+# The review must be model-invocable so another skill can load it through the Skill tool,
+# which refuses a skill carrying the flag. The Skill tool does not return, so Step 4b must send the model on to the caller's
 # continuation step, in the phrase /work 5d already uses for the same handoff.
 echo ""
 echo "=== 8. The review skill can be invoked by another skill and hands back ==="
@@ -178,6 +178,19 @@ else
   fail "review Step 4b does not say 'follow its continuation step' -- a skill that invoked the review stops at the summary"
 fi
 assert_in "$WORK" 'follow its continuation step' "work skill still says 'follow its continuation step'"
+
+# --- 9. Running project code is opt-in on a branch review ---
+# A branch review can be of someone else's branch checked out locally, so the checks run the
+# project's tests there only when --run-checks is passed. /work prints the flag on the review
+# line because that branch is the user's own work. A rename on one side leaves /work's printed
+# command passing a flag the review ignores, and every behavior check silently goes read-only.
+echo ""
+echo "=== 9. --run-checks is parsed by the review and printed by /work ==="
+
+assert_in "$REVIEW" '[--run-checks]' "review argument-hint names [--run-checks]"
+assert_in "$REVIEW" 'If `$ARGUMENTS` contains `--run-checks`' "review Step 0.5 parses --run-checks"
+assert_in "$REVIEW" 'Mode 2 only when `run_checks` is set' "review Step 3.3 gates Mode 2 execution on run_checks"
+assert_in "$WORK" '/quiver:review --base <default branch> --run-checks' "work skill prints --run-checks on its review line"
 
 echo ""
 echo "================================"
