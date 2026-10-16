@@ -20,24 +20,18 @@ set -u
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
 HOOK="$REPO_ROOT/hooks/scripts/pre-compact-handover.sh"
 EXIT=0
-TMPDIRS=""
 
 pass() { echo "  PASS: $1"; }
 fail() { echo "  FAIL: $1"; EXIT=1; }
 
-cleanup() {
-  for d in $TMPDIRS; do
-    [ -d "$d" ] && rm -rf "$d"
-  done
-}
-trap cleanup EXIT
+# One root made in this shell: new_dir runs inside $(...), a subshell, so any
+# list it appended to would never reach the cleanup trap.
+TMPROOT="$(mktemp -d "${TMPDIR:-/tmp}/quiver-handover-test.XXXXXX")"
+TMPROOT="$(cd "$TMPROOT" && pwd -P)"
+trap 'rm -rf "$TMPROOT"' EXIT
 
 new_dir() {
-  local d
-  d="$(mktemp -d "${TMPDIR:-/tmp}/quiver-handover-test.XXXXXX")"
-  d="$(cd "$d" && pwd -P)"
-  TMPDIRS="$TMPDIRS $d"
-  printf '%s' "$d"
+  mktemp -d "$TMPROOT/d.XXXXXX"
 }
 
 export GIT_CONFIG_GLOBAL=/dev/null
@@ -155,7 +149,40 @@ N="$(grep -cxF 'app/.claude/handovers/' "$R6/.git/info/exclude" 2>/dev/null)"
   || fail "exclude file holds app/.claude/handovers/ once after two runs (got ${N:-0})"
 
 echo ""
-echo "=== 6. Outside a git repository the hook exits 0 ==="
+echo "=== 6. A .gitignore negation of the directory still gets one entry ==="
+
+# .gitignore outranks .git/info/exclude, so check-ignore keeps reporting the
+# directory as not ignored after the entry is in. Only the exact-line check
+# stops the hook from appending again on every compaction.
+R7="$(new_dir)"
+git -C "$R7" init -q
+printf '.claude/*\n!.claude/handovers/\n' > "$R7/.gitignore"
+run_hook "$R7"
+run_hook "$R7"
+RC=$?
+[ "$RC" -eq 0 ] && pass "negation run exits 0" || fail "negation run exits 0 (got $RC)"
+N="$(entry_count "$R7")"
+[ "$N" = "1" ] && pass "exclude file holds the entry once after two runs" \
+  || fail "exclude file holds the entry once after two runs (got ${N:-0})"
+
+echo ""
+echo "=== 7. A symlinked .claude gains no entry ==="
+
+# check-ignore exits 128 ("beyond a symbolic link") here. That is an error, not
+# "not ignored", so the hook must not append.
+R8="$(new_dir)"
+git -C "$R8" init -q
+ln -s "$(new_dir)" "$R8/.claude"
+run_hook "$R8"
+run_hook "$R8"
+RC=$?
+[ "$RC" -eq 0 ] && pass "symlink run exits 0" || fail "symlink run exits 0 (got $RC)"
+N="$(entry_count "$R8")"
+[ "${N:-0}" = "0" ] && pass "exclude file gains no entry" \
+  || fail "exclude file gains no entry (got $N)"
+
+echo ""
+echo "=== 8. Outside a git repository the hook exits 0 ==="
 
 R5="$(new_dir)"
 run_hook "$R5"

@@ -18,6 +18,7 @@
 - [ ] Lines already in the exclude file before the run are still there after it, in the same order.
 - [ ] A second run adds no duplicate line and prints nothing.
 - [ ] A directory with tracked files is left alone; the exclude file is unchanged.
+- [ ] With `.claude/*` and `!.claude/plans/` in `.gitignore`, two runs leave exactly one `.claude/plans/` line and print the keep-local line once.
 - [ ] A project whose `CLAUDE.md` says to track `.claude/plans/` is left alone.
 - [ ] Run from a linked worktree, the line lands in the shared exclude file and `git check-ignore -q .claude/plans/x` exits 0 in the main checkout too.
 - [ ] Outside a git repository nothing is created besides the written file.
