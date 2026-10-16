@@ -4,9 +4,10 @@ Hard rules and learned lessons for writing agents that participate in `/quiver:r
 
 **Scope:** This file governs two things for the agents named below -- the authoring discipline in `## Hard Rules` and the dispatch policy in `## Dispatch Gates`; an agent exempted from a discipline rule by one of the classes below is not thereby exempted from carrying a dispatch gate.
 
-- Everything under `agents/review/` is covered by the full rule set (RA1-RA8) without exception.
+- Everything under `agents/review/` is covered by the full rule set (RA1-RA8), except the adapter-shaped and verdict-shaped exemption classes below.
 - Cross-category research agents dispatched by `skills/review/SKILL.md` (currently `agents/research/best-practices-researcher.md` and `agents/research/project-context-analyst.md`) are a research-shaped exemption class, analogous to RA3's adversarial-agent exemptions. They MUST carry RA2 (hypothetical ban) in its canonical form, and SHOULD carry an RA1-equivalent discipline section, an RA5 zero-findings clause, an RA7 relevance/diff-scoping clause, and an RA8-equivalent citation rule. RA4 (stability test) and RA6 (severity earned, not assigned) do not apply because these agents surface context and facts rather than severity-graded findings -- the stability and severity-tier framings have no target to act on. When writing or editing a research agent, name this exemption explicitly in its discipline section so reviewers do not treat the missing rules as drift.
 - Transport-adapter agents (currently `agents/review/codex-code-reviewer.md`) are an adapter-shaped exemption class. These agents do NOT review the diff -- they relay another reviewer's findings verbatim (e.g., the OpenAI Codex CLI). Because the agent emits no judgment of its own, RA1-RA8 review-discipline rules have no target and do not apply: there is no discipline section governing trace methodology (the agent traces nothing), no hypothetical-language ban applicable to passthrough output, no stability test on findings the agent did not author, no severity-tier rubric on severities the agent did not assign. The adapter's own discipline -- a passthrough contract forbidding interpretation, summarization, filtering, or rephrasing of the wrapped reviewer's output -- replaces the standard review discipline. When writing a transport-adapter agent, the agent file MUST contain a top-level "Adapter Discipline" section that names this exemption explicitly, so reviewers do not treat the missing review-discipline rules as drift. If a future adapter starts emitting its own analysis on top of the wrapped reviewer's findings, the exemption no longer holds and RA1-RA8 apply automatically.
+- Finding-verifier agents (currently `agents/review/finding-verifier.md`) are a verdict-shaped exemption class. These agents do not review the diff -- they receive one finding from the synthesized report and return CONFIRMED, REFUTED, or UNVERIFIABLE with quoted evidence. They MUST carry RA1 (a discipline section), RA2 in its canonical form, RA4 (the stability test, applied to the verdict), and RA8. RA5 (zero findings is success) and RA6 (severity earned) do not apply because the agent emits one verdict per claim and no severity. RA7 becomes claim-scoped: the agent judges only the claim it was given and never reports a new finding. When writing or editing such an agent, name this exemption in its discipline section. If it starts emitting findings or severities of its own, the exemption no longer holds and RA1-RA8 apply automatically.
 
 For skill authoring rules, see `skill-rules.md`. For agent capability profiles, see `agent-capability-rules.md`.
 
@@ -62,6 +63,7 @@ Which agents `/quiver:review` Step 2 dispatches, and what must be true of the di
 | `report-checker` | `NEVER` | -- |
 | `senior-reviewer` | `NEVER` | -- |
 | `fix-reviewer` | `NEVER` | -- |
+| `finding-verifier` | `NEVER` | -- |
 
 The `Gate` cell takes one of four forms.
 
@@ -71,7 +73,7 @@ A class list dispatches when the manifest contains at least one file of any list
 
 `PRECONDITION` means the gate is not manifest-expressible. The conditions are documented at that agent's bullet in `skills/review/SKILL.md` Step 2b, because they read state no manifest carries; this table records only that a gate exists and which modes it applies in.
 
-`NEVER` means the agent is not a Step 2 participant. `report-checker`, `senior-reviewer` and `fix-reviewer` run at later steps of `/quiver:review`, so their `Modes` cell is `--`: naming a mode would imply a fan-out they never join. `fix-reviewer` lives under `agents/debug/` because `/quiver:hypothesis-debugging` dispatches it too; the row is here because `/quiver:review` Step 3.9 dispatches it as well, and an agent two skills share still needs one gate.
+`NEVER` means the agent is not a Step 2 participant. `report-checker`, `senior-reviewer` and `fix-reviewer` run at later steps of `/quiver:review`, so their `Modes` cell is `--`: naming a mode would imply a fan-out they never join. `fix-reviewer` lives under `agents/debug/` because `/quiver:hypothesis-debugging` dispatches it too; the row is here because `/quiver:review` Step 3.9 dispatches it as well, and an agent two skills share still needs one gate. `finding-verifier` runs at Step 3.3, after synthesis, once per synthesized finding.
 
 `PROMPT`, `DOCS`, and `CONFIG-MANIFEST` satisfy no class gate. A diff made only of those classes dispatches the `UNCONDITIONAL` agents and nothing else.
 

@@ -1,6 +1,9 @@
 # Graded against the report's "## Findings" section only (heading to the next "## ").
 #   + <regex>   must match at least one line in that section
 #   - <regex>   must not match any line in that section
+#   ~ <regex>   must not match any line in that section; the grader also prints,
+#               as information only, whether it matches a line under
+#               "## Filtered Findings" that carries "refuted-by-verification"
 # Regexes are extended (grep -E), case-insensitive.
 
 # --- Planted defect 1: off-by-one. bulk_discount uses ">" where the docstring
@@ -50,3 +53,16 @@
 # --- three tests including a known-value assertion.
 - app/checksum\.py
 - rotate_checksum
+
+# --- Bait 4 (decision log): the feature adds the README sentence "The package
+# --- imports nothing outside the Python standard library." It reads as filler.
+# --- DECISIONS.md on main, which the fixture's CLAUDE.md names as the decision
+# --- log, records that the kiosk build greps for that exact line.
+~ README
+
+# --- Bait 5 (measured number): the comment in app/ledger.py says a
+# --- 100,000-record day packs to 600,000 bytes. "<HI" has no alignment padding,
+# --- so 6 bytes per record is right, and tools/measure_ledger.py prints
+# --- "600000 bytes".
+~ app/ledger\.py
+~ pack_records

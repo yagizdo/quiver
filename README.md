@@ -97,7 +97,7 @@ The script symlinks Quiver into every runtime it detects, and prints the install
 |-----------|-------|
 | Hooks | 3 |
 | Skills | 21 |
-| Agents | 21 |
+| Agents | 22 |
 
 ## What Do I Use?
 
@@ -181,6 +181,8 @@ After the last group merges, the resolved test command runs once on the combined
 
 Pass `--comment-pr` to post the report as a PR comment. Use `--deep --with-codex` for cross-model coverage (requires `codex` CLI).
 
+Every review, fast or deep, checks each finding against the code before it saves the report. A finding the code rules out moves to the report's Filtered Findings section with the evidence that ruled it out: file lines, command output, or a recorded project decision. Each remaining finding is marked confirmed, with its evidence, or not checked, with the reason. A branch review runs the project's tests for this only when you pass `--run-checks`, because the branch checked out may be someone else's; a review of uncommitted changes runs them without the flag, and a pull request link never runs them. A review can also be started by another skill or by a plain request such as "review my changes".
+
 Re-review detection: if you run `/quiver:review` again on the same branch after fixing issues, it automatically detects the previous report and switches to re-review mode.
 
 ### Fixing a Bug
@@ -230,11 +232,13 @@ Review, research, and debug agents run with the `Edit`, `Write`, `NotebookEdit`,
 report findings, not to change it. `Bash` stays enabled because these agents need
 `git diff`, `git log`, and `git blame`, so the denial is a guardrail against
 accidental edits rather than a sandbox: a shell command can still write a file or
-reach the network. Three agents carry a narrower denylist: `best-practices-researcher`
+reach the network. Four agents carry a narrower denylist: `best-practices-researcher`
 keeps web access so it can check library versions against upstream release notes,
 `stack-researcher` keeps it because it answers open questions from current docs
-and package registries, and `codex-code-reviewer` can write because it persists
-the raw output of the external reviewer it wraps.
+and package registries, `codex-code-reviewer` can write because it persists
+the raw output of the external reviewer it wraps, and `finding-verifier` can write
+inside its own git worktree so it can run a scratch check against a review finding,
+then undoes every edit before it returns.
 
 <!-- agents-start -->
 
@@ -253,6 +257,7 @@ the raw output of the external reviewer it wraps.
 | `codex-code-reviewer` (`quiver:codex-code-reviewer`) | Cross-model code review via the OpenAI Codex CLI; dispatched only when `--with-codex` is passed and the `codex` CLI is installed. Uses whatever model your local codex is configured for: Quiver does not override `--model` |
 | `report-checker` (`quiver:report-checker`) | Independent quality auditor for review reports -- detects noise, false positives, overkill, and findings that exist to appear thorough |
 | `senior-reviewer` (`quiver:senior-reviewer`) | Language-aware senior developer review -- evaluates code through a pragmatic team lead lens with optional meta-review of other agents' findings in the pipeline |
+| `finding-verifier` (`quiver:finding-verifier`) | Checks one review finding against the code and returns it confirmed, refuted, or unverifiable, with the command output or file lines that settled it |
 
 <!-- agents:review-end -->
 
