@@ -450,7 +450,7 @@ Handle each response:
 
 **Part A -- Save the plan:**
 
-1. Create `.claude/plans/` if it does not exist.
+1. Create `.claude/plans/` if it does not exist. Before the first write, apply the keep-local rule in `skills/local-files/SKILL.md`.
 2. Write the plan as `.claude/plans/YYYY-MM-DD-<descriptive-name>-plan.md` (use `date '+%Y-%m-%d'` for the date prefix).
 3. **Verify:** Read the file back and confirm it was written correctly.
 

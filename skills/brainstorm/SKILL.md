@@ -161,7 +161,7 @@ Write the validated design as a spec document. Scale section depth to complexity
 
 ### Save the spec:
 
-1. Create `.claude/specs/` if it does not exist.
+1. Create `.claude/specs/` if it does not exist. Before the first write, apply the keep-local rule in `skills/local-files/SKILL.md`.
 2. Write the spec as `.claude/specs/YYYY-MM-DD-<descriptive-name>.md` (use `date '+%Y-%m-%d'` for the date prefix).
 3. **Verify:** Read the file back and confirm it was written correctly. Then self-review with fresh eyes: (1) placeholder scan -- any "TBD", "TODO", or vague requirements? Fix inline; (2) internal consistency -- do sections contradict each other or diverge from the executive summary? Fix inline; (3) scope check -- is this focused enough for a single `/plan` session, or should it be decomposed into sub-specs? (4) ambiguity check -- can any requirement be read two ways? Pick one interpretation and make it explicit. Fix any issues by editing the saved file.
 
