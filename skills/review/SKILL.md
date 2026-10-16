@@ -530,7 +530,7 @@ With zero findings in `## Findings`, print nothing, do nothing, and go to Step 3
    - **UNVERIFIABLE:** add `Verification: unverified -- <reason>` under the `Disposition:` line, the reason taken from its `- evidence:` line (what would settle it).
    - A finding with no verdict block in its agent's output gets `Verification: unverified -- no result returned`.
 
-   A finding that Step 3.5 or 3.75 later adds or rewrites carries no `Verification:` line and counts as unverified: this check covered the text as it stood here.
+   A finding that Step 3.75 later adds carries no `Verification:` line and counts as unverified: this check covered the findings as they stood here. A REWRITE at Step 3.5 or 3.75 changes only the recommendation text, so the finding keeps its line.
 
    Then recompute the report by applying the recalculation list in Step 3.5 item 2 ("After applying fixes, recalculate"), in fast mode as well, together with the count line at the top of `## Filtered Findings`.
 
@@ -558,7 +558,7 @@ After synthesis, dispatch the `report-checker` agent for an independent quality 
    - **Issues found:** Apply the recommended actions:
      - REMOVE: Delete the finding from the report.
      - DOWNGRADE: Change the finding's severity and move it to the correct section.
-     - REWRITE: Replace the finding's recommendation text with the corrected version.
+     - REWRITE: Replace the finding's recommendation text with the corrected version. It changes only the recommendation text, so the finding keeps its `Verification:` line.
    - After applying fixes, recalculate:
      - Findings overview counts in `## Review Context`
      - Disposition counts in `## Review Context`, and the `**Deferred:**` line under the fix order table
@@ -598,9 +598,9 @@ After the quality check, dispatch the `senior-reviewer` agent for a pragmatic se
    - **Modifications or new findings:** Apply the recommended actions:
      - REMOVE: Delete the finding from the report.
      - DOWNGRADE: Change the finding's severity and move it to the correct section.
-     - REWRITE: Replace the finding's recommendation text with the corrected version.
+     - REWRITE: Replace the finding's recommendation text with the corrected version. It changes only the recommendation text, so the finding keeps its `Verification:` line.
      - PROMOTE: Upgrade the finding's severity and move it to the correct section. The senior-reviewer must provide justification for promotion.
-     - ADD: Insert a new finding into the appropriate severity section, with a `Disposition:` line assigned by the Step 3 item 7 rules. New findings from senior-reviewer use the prefix SR (SR1, SR2, etc.) to distinguish them from original agent findings. The senior-reviewer must cite the file and line for each added finding.
+     - ADD: Insert a new finding into the appropriate severity section, with a `Disposition:` line assigned by the Step 3 item 7 rules and no `Verification:` line. New findings from senior-reviewer use the prefix SR (SR1, SR2, etc.) to distinguish them from original agent findings. The senior-reviewer must cite the file and line for each added finding.
    - After applying fixes, recalculate:
      - Findings overview counts in `## Review Context`
      - Disposition counts in `## Review Context`, and the `**Deferred:**` line under the fix order table

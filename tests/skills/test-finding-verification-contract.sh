@@ -9,6 +9,8 @@
 #                                                    `Verification: confirmed --`,
 #                                                    `Verification: unverified --`, and the
 #                                                    `refuted-by-verification` classification
+# and binds the report lines to their two readers: skills/work/SKILL.md 4c (scope rule, and
+# 4d skipping the verifier) and skills/report-check/SKILL.md (keeps the line on a rewrite).
 #
 # A verdict token renamed on one side and not the other raises no error: Step 3.3 finds no
 # verdict it recognizes, every finding stays in the report unmarked, and that reads exactly
@@ -27,6 +29,8 @@ EXIT=0
 AGENT="$REPO_ROOT/agents/review/finding-verifier.md"
 REVIEW="$REPO_ROOT/skills/review/SKILL.md"
 RA2_REF="$REPO_ROOT/agents/review/logic-reviewer.md"
+WORK="$REPO_ROOT/skills/work/SKILL.md"
+REPORT_CHECK="$REPO_ROOT/skills/report-check/SKILL.md"
 
 pass() { echo "  PASS: $1"; }
 fail() { echo "  FAIL: $1"; EXIT=1; }
@@ -44,7 +48,7 @@ assert_in() {
 echo ""
 echo "=== 1. Preflight ==="
 MISSING=0
-for f in "$AGENT" "$REVIEW" "$RA2_REF"; do
+for f in "$AGENT" "$REVIEW" "$RA2_REF" "$WORK" "$REPORT_CHECK"; do
   if [ -f "$f" ]; then
     pass "${f#$REPO_ROOT/} exists"
   else
@@ -121,6 +125,17 @@ elif [ "$(ra2_hash "$AGENT")" = "$(ra2_hash "$RA2_REF")" ]; then
 else
   fail "ban text in agents/review/finding-verifier.md differs from agents/review/logic-reviewer.md"
 fi
+
+# --- 6. Report consumers ---
+# /work 4c reads `Verification: confirmed` to decide scope, and 4d must skip the verifier;
+# /report-check rewrites findings in a saved report and must keep their `Verification:` line.
+# A rename here leaves /work fixing refuted or unchecked findings with no error.
+echo ""
+echo "=== 6. The report consumers carry the new lines ==="
+
+assert_in "$WORK" 'Verification: confirmed' "work skill 4c names 'Verification: confirmed'"
+assert_in "$WORK" 'skips `finding-verifier`' "work skill 4d skips finding-verifier"
+assert_in "$REPORT_CHECK" 'Verification:' "report-check skill names the 'Verification:' line"
 
 echo ""
 echo "================================"

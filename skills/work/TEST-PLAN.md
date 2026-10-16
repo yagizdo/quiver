@@ -25,6 +25,7 @@
 - [ ] Orchestration decision line appears for every plan (including 1-2 task plans).
 - [ ] Non-git directory: plan loads and Phases 3-4 run; Phase 5 exits without commit/PR.
 - [ ] Review-fix plans: verification table and convergence verdict shown; non-review-fix plans skip Phase 4c.
+- [ ] A review-fix run whose report carries `Verification:` lines and has one finding marked `Verification: unverified --` in a file the plan touches lists that finding as Not in scope in the 4c table, not Addressed; a report with no `Verification:` line maps findings exactly as before.
 - [ ] Commit and PR steps both go through `AskUserQuestion`; skill never auto-pushes.
 - [ ] Interrupting a run after Group 0 and re-invoking /work on the same plan re-dispatches no task carrying a complete line, and prints which tasks it skipped.
 - [ ] A ledger whose identity line names a different plan file is left untouched and a suffixed workspace is used instead.

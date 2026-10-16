@@ -241,7 +241,7 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
 
 1. **Parse findings.** Extract all non-filtered findings from the review report, grouped by severity (Critical, High, Medium, Low). Skip the `## Filtered Findings` section entirely.
 
-2. **Map findings to plan steps.** Match each finding to a plan task by file path or title/description. Findings with no matching plan step are marked "Not in scope."
+2. **Map findings to plan steps.** Match each finding to a plan task by file path or title/description. Findings with no matching plan step are marked "Not in scope." When the review report carries any `Verification:` line, a finding without `Verification: confirmed` is Not in scope for this plan: the review could not show it holds against the code.
 
 3. **Check addressed status.** For each in-scope finding, verify the referenced file was modified (`git diff`) and the corresponding TodoWrite task is `completed`. Both conditions met = **Addressed**; otherwise = **Not addressed**.
 
@@ -265,13 +265,13 @@ If Phase 1 identified this as a review-fix plan and the review report was succes
    Review-Fix Cycle Status: Iteration {review_iteration} | Findings {addressed}/{total_in_scope} | Criteria {met}/{total_criteria} | COMPLETE
    ```
 
-<!-- SYNC: This verification parses the report format defined in skills/review/SKILL.md, section `### Synthesized report structure`. If the report structure changes, update the parsing logic here. It reads each finding's severity, file path, title, and text, and nothing else: the What's Working Well, Recommended Fix Order and Senior Assessment sections, each finding's `Disposition:` line, the `Dispositions:` line in Review Context, the `**Deferred:**` line, and the `Fix corrected:`, `Fix flagged:` and `No verified fix` notes are invisible to it. A Critical marked Not addressed blocks in item 5 whatever its disposition. -->
+<!-- SYNC: This verification parses the report format defined in skills/review/SKILL.md, section `### Synthesized report structure`. If the report structure changes, update the parsing logic here. It reads each finding's severity, file path, title, and text, plus each finding's `Verification:` line for the item 2 scope rule only, and nothing else: the What's Working Well, Recommended Fix Order and Senior Assessment sections, each finding's `Disposition:` line, the `Dispositions:` line in Review Context, the `**Deferred:**` line, and the `Fix corrected:`, `Fix flagged:` and `No verified fix` notes are invisible to it. A Critical marked Not addressed blocks in item 5 whatever its disposition. -->
 
 #### 4d -- Optional: Agent-assisted review
 
 **SKIP this phase entirely if this is a review-fix plan.** The Phase 4c verification is the quality gate for review-fix work. Dispatching review agents on review-fix changes creates infinite loops -- the agents will always find new issues that weren't in the original scope.
 
-For **non-review-fix plans** with large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them in parallel -- one `Agent` call per agent, all in a single response, the way `skills/review/SKILL.md` Step 2 does it.
+For **non-review-fix plans** with large, risky, or security-sensitive changes, consider dispatching review agents. Discover available review agents by scanning `agents/review/*.md` and dispatch them in parallel -- one `Agent` call per agent, all in a single response, the way `skills/review/SKILL.md` Step 2 does it. The scan skips `finding-verifier`, which needs a finding and a reviewed commit that this phase never supplies.
 
 **Do not use review agents by default.** Tests + linting + pattern-following is sufficient for most work. Reserve agent reviews for:
 - Large refactors (10+ files) that are NOT review-fix plans
