@@ -18,6 +18,7 @@ Read `CONTRIBUTING.md` before changing anything. `CLAUDE.md` has the architectur
 - `hooks/scripts/pre-compact-handover.sh` -- PreCompact hook implementation; uses `claude -p` for summarization.
 - `skills/handover/SKILL.md` -- the 8 handover headings sit under a `SYNC:` comment that points at the hook script.
 - `hooks/scripts/pre-compact-handover.sh` -- the same 8 headings inside `PROMPT_PREFIX`, under a `SYNC:` comment that points back. `tests/hooks/test-handover-sync-contract.sh` fails when the two lists differ.
+- `skills/local-files/SKILL.md` -- the rule that keeps `.claude/plans/`, `.claude/reports/`, `.claude/specs/`, `.claude/handovers/`, and `.claude/work/` out of git through `.git/info/exclude`. `hooks/scripts/pre-compact-handover.sh` carries its one bash copy. `tests/skills/test-local-files-contract.sh` checks that each writer on its list names the rule; `tests/hooks/test-handover-local-exclude.sh` runs the hook's copy.
 
 ## Change safety rules
 

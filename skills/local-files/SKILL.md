@@ -26,7 +26,7 @@ Apply once per directory per run, before the first write into it. `<dir>` is the
 
 1. Outside a git repository (`git rev-parse --git-dir` fails), do nothing.
 2. When `git ls-files <dir>` prints anything, or the project's instructions (`CLAUDE.md`, `AGENTS.md`, or equivalent) say to track the directory, change nothing. Tracked files mean the project chose to keep them in git.
-3. Otherwise, when `git check-ignore -q <dir>/x` exits nonzero, the directory is not ignored yet. Append the line `<dir>/` to the file printed by `git rev-parse --git-path info/exclude`, creating the file if it is missing. Append, never rewrite: the file may hold the user's own lines. Then print:
+3. Otherwise, when `git check-ignore -q <dir>/x` exits nonzero, the directory is not ignored yet. Append the line `<prefix><dir>/` to the file printed by `git rev-parse --git-path info/exclude`, creating the file if it is missing. `<prefix>` is what `git rev-parse --show-prefix` prints, empty at the repo top: exclude patterns are relative to the repo top, and the project root can sit below it. When the file exists and does not end in a newline, write a newline first so the new line does not join the user's last line. Append, never rewrite: the file may hold the user's own lines. Then print:
 
    > Keeping <dir>/ out of git (added to .git/info/exclude).
 
