@@ -182,8 +182,9 @@ assert_in "$WORK" 'follow its continuation step' "work skill still says 'follow 
 # --- 9. Running project code is opt-in on a branch review ---
 # A branch review can be of someone else's branch checked out locally, so the checks run the
 # project's tests there only when --run-checks is passed. /work prints the flag on the review
-# line because that branch is the user's own work. A rename on one side leaves /work's printed
-# command passing a flag the review ignores, and every behavior check silently goes read-only.
+# line because that branch is the user's own work; /ship passes it when it invokes the review
+# and prints it when a phase ends unreviewed. A rename on one side leaves the callers passing a
+# flag the review ignores, and every behavior check silently goes read-only.
 echo ""
 echo "=== 9. --run-checks is parsed by the review and printed by /work ==="
 
@@ -191,6 +192,8 @@ assert_in "$REVIEW" '[--run-checks]' "review argument-hint names [--run-checks]"
 assert_in "$REVIEW" 'If `$ARGUMENTS` contains `--run-checks`' "review Step 0.5 parses --run-checks"
 assert_in "$REVIEW" 'Mode 2 only when `run_checks` is set' "review Step 3.3 gates Mode 2 execution on run_checks"
 assert_in "$WORK" '/quiver:review --base <default branch> --run-checks' "work skill prints --run-checks on its review line"
+assert_in "$REPO_ROOT/skills/ship/SKILL.md" '/quiver:review --base <default branch> --run-checks' "ship skill prints --run-checks on its review line"
+assert_in "$REPO_ROOT/skills/ship/SKILL.md" '`--base <default branch> --run-checks --plan <plan path> --output .claude/reports`' "ship skill invokes the review with --run-checks"
 
 echo ""
 echo "================================"

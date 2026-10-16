@@ -5,7 +5,7 @@
 #   consumer  skills/work/orchestrator.md -- reproduces the block verbatim in every task brief
 #   consumer  skills/review/SKILL.md      -- Step 1.8 extracts the block and passes it to every agent
 #   consumer  skills/work/SKILL.md        -- states the block binds every task in the run
-#   consumer  skills/ship/SKILL.md        -- Phase 3 writes the section into every ship plan and greps it on read-back
+#   consumer  skills/ship/SKILL.md        -- the plan stage writes the section into every phase plan and greps it on read-back
 #
 # The whole interface between the four skills is one section heading in one file. A rename in
 # the producer with no matching rename in the consumers breaks extraction in both of them with
@@ -91,7 +91,7 @@ for entry in \
   "$ORCH|skills/work/orchestrator.md|task briefs would carry no constraints and read as a run that derived none" \
   "$REVIEW|skills/review/SKILL.md|Step 1.8 would extract nothing and the report's Global Constraints field would read N/A on every run" \
   "$WORK|skills/work/SKILL.md|the run would stop treating the block as binding on its tasks" \
-  "$SHIP|skills/ship/SKILL.md|Phase 3 would write ship plans with no constraints section, and /work would extract nothing from them"
+  "$SHIP|skills/ship/SKILL.md|the plan stage would write phase plans with no constraints section, and /work would extract nothing from them"
 do
   file="${entry%%|*}"
   rest="${entry#*|}"
