@@ -57,7 +57,7 @@ echo "=== 1. /work's continuation line names no caller step ==="
 if [ ! -f "$WORK" ]; then
   fail "skills/work/SKILL.md not found at $WORK"
 else
-  assert_in "$WORK" 'follow its continuation step' "work 5d says 'follow its continuation step'"
+  # The positive pin on 'follow its continuation step' lives in test-finding-verification-contract.sh.
   assert_not_in "$WORK" 'continues into its verification' "work 5d no longer names one /ship step as the continuation"
 fi
 
@@ -96,6 +96,12 @@ else
       fail "State Files has no line reading exactly '$h'"
     fi
   done
+  # The roadmap and the phase file each carry '## Goal', so one match cannot tell them apart.
+  if [ "$(printf '%s\n' "$STATE" | grep -cxF '## Goal')" -eq 2 ]; then
+    pass "State Files carries '## Goal' in both the roadmap and the phase file"
+  else
+    fail "State Files does not carry '## Goal' exactly twice (roadmap and phase file)"
+  fi
   for f in phase name status stage depends_on spec plan fix_plan branch review_report fix_rounds; do
     if printf '%s\n' "$STATE" | grep -qE "^$f:"; then
       pass "phase file frontmatter carries '$f:'"
@@ -142,13 +148,13 @@ assert_in "$WORK" '#### 5d -- ' "work skill still has a 5d heading for ship's co
 echo ""
 echo "=== 6. The review call and the fix stage ==="
 
-for s in 'quiver:review' '--run-checks' '--output .claude/reports' 'Verification: confirmed' 'review_source' 'fix_rounds'; do
+# --run-checks and the review's 'Verification: confirmed --' line are pinned on the full
+# review line in test-finding-verification-contract.sh.
+for s in 'quiver:review' '--output .claude/reports' 'Verification: confirmed' 'review_source' 'fix_rounds'; do
   assert_in "$SHIP" "$s" "ship names $s"
 done
 assert_not_in "$SHIP" '--terminal' "ship never passes --terminal to the review"
 assert_not_in "$SHIP" '.claude/reports/ship-' "ship writes no separate ship report; the phase file holds it"
-REVIEW="$REPO_ROOT/skills/review/SKILL.md"
-assert_in "$REVIEW" 'Verification: confirmed --' "review still writes the 'Verification: confirmed --' line ship filters on"
 assert_in "$WORK" '`review_source`' "work 1c still detects a review-fix plan by review_source"
 
 echo ""
