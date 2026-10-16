@@ -153,6 +153,32 @@ for d in work design-build ship; do
   fi
 done
 
+# --- 8. The review skill is model-invocable and hands the turn back ---
+# /ship invokes /quiver:review through the Skill tool, which refuses a skill carrying the
+# flag. The Skill tool does not return, so Step 4b must send the model on to the caller's
+# continuation step, in the phrase /work 5d already uses for the same handoff.
+echo ""
+echo "=== 8. The review skill can be invoked by another skill and hands back ==="
+
+if grep -qE '^disable-model-invocation:' "$REVIEW"; then
+  fail "skills/review/SKILL.md carries a disable-model-invocation line -- the Skill tool refuses it, so no skill can run the review"
+else
+  pass "skills/review/SKILL.md carries no disable-model-invocation line"
+fi
+
+# Bounded to Step 4b: the phrase elsewhere in the file does not end the review's turn.
+STEP4B="$(awk '
+  index($0, "### 4b -- ") == 1 { on = 1; next }
+  on && (/^## / || /^### / || /^---[[:space:]]*$/) { exit }
+  on { print }
+' "$REVIEW")"
+if printf '%s\n' "$STEP4B" | grep -qF 'follow its continuation step'; then
+  pass "review Step 4b says 'follow its continuation step'"
+else
+  fail "review Step 4b does not say 'follow its continuation step' -- a skill that invoked the review stops at the summary"
+fi
+assert_in "$WORK" 'follow its continuation step' "work skill still says 'follow its continuation step'"
+
 echo ""
 echo "================================"
 if [ $EXIT -eq 0 ]; then

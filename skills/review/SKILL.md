@@ -2,8 +2,7 @@
 name: review
 description: Run a multi-agent code review. Default fast mode (5 agents); pass --deep for full pipeline (all agents + quality check + senior review). Pass --with-codex for cross-model coverage.
 argument-hint: "[PR/MR URL | --base <branch>] [--deep] [--plan <path>] [--output <path>] [--set-output <path>] [--terminal] [--comment-pr] [--with-codex]"
-disable-model-invocation: true
-when-to-use: "user wants a multi-agent code review of a PR or diff -- '/review', 'review my changes', 'review this PR', 'code review', 'audit the diff' (not: 'senior review')"
+when-to-use: "user wants a multi-agent code review of a PR or diff -- '/review', '/quiver:review', 'review my changes', 'review this PR', 'code review', 'audit the diff' (not: 'senior review')"
 ---
 
 # Gather Context
@@ -691,6 +690,8 @@ Evaluate in order:
    - **Fast mode coverage advisory** (only when `review_mode = fast`): If the Diff Manifest shows 3+ `CODE`/`SCRIPT` files changed, OR the diff adds new enum cases/tiers/configuration levels, OR the diff contains UI state management code, append: `Fast review (5 agents). For full coverage including failure scenario analysis and cross-agent validation, run with --deep.` Omit the advisory on small/isolated diffs where fast mode coverage is sufficient.
 4. **Pre-print scan (mandatory gate).** Before printing the drafted summary, run the scan defined in the "Status Messages: Plain Language Required" section against the draft. The summary is a live chat-stream message and is fully covered by the plain-language rule -- it is not exempt because it appears at the end of the run. If the draft contains any rule code, hash prefix, bare commit SHA, or internal invariant name, rewrite it using the plain-English replacement named in that category's own bullet, then re-scan. Only print the summary after the scan passes.
 5. Do **not** print the full review in the terminal unless `--terminal` was used.
+
+This summary ends the review. It does not end the turn when another skill loaded `/quiver:review` through the Skill tool: check whether a skill invoked this review and follow its continuation step.
 
 ---
 
