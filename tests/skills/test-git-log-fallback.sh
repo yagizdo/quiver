@@ -16,8 +16,9 @@
 # sequential path, and the second section pins that line so a renamed token cannot leave
 # /work orchestrating. And `git checkout -b` on a default branch with no commit carries
 # that state to the new branch, so the default branch never exists and a review against
-# it stops on a missing base. Phase 2 makes an empty first commit there first; the third
-# section pins that paragraph, and `--only`, which keeps staged files out of the commit.
+# it stops on a missing base. Phase 2 makes an empty first commit first, and on a
+# non-default branch creates the main branch the user picks from it; the third section
+# pins that section, `--only`, which keeps staged files out of the commit, and `git branch`.
 #
 # Finding no git log block is a failure, not a pass. A reworded block form would
 # otherwise leave this test asserting nothing.
@@ -59,12 +60,14 @@ fi
 
 echo ""
 echo "=== /work makes an empty first commit before branching off a default branch with none ==="
-FIRST="$(grep -E '^\*\*If the default branch has no commit yet\*\*' "$WORK")"
-if printf '%s\n' "$FIRST" | grep -q 'NO_COMMITS' && printf '%s\n' "$FIRST" | grep -qF 'git commit --allow-empty --only'; then
-  pass "skills/work/SKILL.md Phase 2 names NO_COMMITS and 'git commit --allow-empty --only' in its no-commit paragraph"
-else
-  fail "skills/work/SKILL.md Phase 2 has no '**If the default branch has no commit yet**' paragraph naming NO_COMMITS and 'git commit --allow-empty --only' -- the new branch would carry the commit-less state, the default branch would never exist, and the review against it would stop"
-fi
+FIRST="$(sed -n '/^\*\*If the repository has no commit yet\*\*/,/^\*\*If already on a feature branch/p' "$WORK")"
+for s in 'NO_COMMITS' 'git commit --allow-empty --only' 'git branch <name>'; do
+  if printf '%s\n' "$FIRST" | grep -qF -- "$s"; then
+    pass "skills/work/SKILL.md Phase 2 no-commit section names '$s'"
+  else
+    fail "skills/work/SKILL.md Phase 2 has no '**If the repository has no commit yet**' section naming '$s' -- the new branch would carry the commit-less state, the main branch would never exist, and the review against it would stop"
+  fi
+done
 
 echo ""
 echo "================================"

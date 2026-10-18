@@ -374,7 +374,7 @@ Write the three lines under `## Measurements` (`- <date> build: ...`, `- <date> 
 
 ## Stage: review
 
-Without git, skip this stage and the fix stage: write `stage: done` with a `## Log` line saying the branch could not be reviewed, and go to the done stage.
+Without git, or when neither `main` nor `master` resolves (the user told `/work` to create no main branch in a repository with no commit), skip this stage and the fix stage: write `stage: done` with a `## Log` line saying the branch could not be reviewed and why, and go to the done stage.
 
 Before the review writes its report, apply the keep-local rule in `skills/local-files/SKILL.md` to `.claude/reports/`: the review applies it only to its own default location, and ship names the directory explicitly below.
 
