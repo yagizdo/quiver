@@ -139,6 +139,24 @@ for s in '${CLAUDE_SESSION_ID}' 'cache_read_input_tokens' '/work <plan path> --a
 done
 assert_in "$WORK" '#### 5d -- ' "work skill still has a 5d heading for ship's continuation key"
 
+# One /ship carries the project from the approved split through every phase it can finish:
+# Init 4 and the done stage both hand the turn back to Step 1 as a bare /ship. Each is the
+# only line that keeps the run going; reworded into "Run /ship", the run ends after each
+# phase again with no error. Step 1 must be re-entered without the run's arguments, or the
+# project description is read as an unknown phase id and the run stops on "No phase".
+echo ""
+echo "=== 5a. Ship goes on to the first phase and to each next one ==="
+
+for s in 'Starting phase <id> -- <name>.' 'Starting phase <next id> -- <name>.'; do
+  assert_in "$SHIP" "$s" "ship prints '$s' and keeps going"
+done
+if [ "$(grep -cF -- '`## Step 1 -- Route` as a bare `/ship`' "$SHIP")" -eq 2 ]; then
+  pass "Init 4 and the done stage both re-enter Step 1 as a bare /ship"
+else
+  fail "Init 4 and the done stage must each re-enter '\`## Step 1 -- Route\` as a bare \`/ship\`'"
+fi
+assert_not_in "$SHIP" 'Run /ship to start it.' "Init no longer ends on 'Run /ship to start it.'"
+
 # The review is invoked by its qualified name (the bare /review is a bundled alias), with
 # --run-checks so a branch review may run the tests that confirm a finding, and with
 # --output so a saved report preference cannot move the report ship re-reads. The fix stage

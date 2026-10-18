@@ -128,8 +128,8 @@ After the last group merges, the resolved test command runs once on the combined
 
 | Situation | Command | What happens |
 |-----------|---------|--------------|
-| I want to build a project from a description without touching it myself | `/ship "<description>"` | Asks one batch of project questions, proposes a split into phases, and on your approval saves a roadmap and one file per phase under `.claude/ship/`. Builds nothing yet |
-| The phases are saved, build the next one | `/ship` | Runs the next phase end to end: its questions, research, a spec and a plan written without approval prompts, the build through `/work --auto`, a build, test, and smoke check, `/quiver:review`, an automatic fix of the problems the review confirmed, and a plain-language report |
+| I want to build a project from a description without touching it myself | `/ship "<description>"` | Asks one batch of project questions, proposes a split into phases, and on your approval saves a roadmap and one file per phase under `.claude/ship/`, then builds the phases in order, each one starting when the one before it finishes |
+| The phases are saved, build the next one | `/ship` | Runs the next phase end to end and goes on to the one after it: its questions, research, a spec and a plan written without approval prompts, the build through `/work --auto`, a build, test, and smoke check, `/quiver:review`, an automatic fix of the problems the review confirmed, and a plain-language report |
 | Run a specific phase, or re-check one | `/ship <phase-id>`, `/ship --verify` | Starts or continues that phase, including one that stopped; `--verify` runs the build, test, and smoke checks again |
 
 ### How /ship runs a project
