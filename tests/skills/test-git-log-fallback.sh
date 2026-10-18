@@ -10,10 +10,14 @@
 # and /ship treated the setup its own test plan describes as a directory with no git.
 # Every git log block falls back to NO_COMMITS instead.
 #
-# /work is the one skill that reads the token: with no commit yet, its working branch
-# does not resolve, so every worktree subagent's first step (switch to that branch) would
-# come back BLOCKED. Phase 2.5 routes a NO_COMMITS run to the sequential path, and the
-# second section pins that line so a renamed token cannot leave /work orchestrating.
+# /work is the one skill that reads the token, in two places. With no commit yet, its
+# working branch does not resolve, so every worktree subagent's first step (switch to
+# that branch) would come back BLOCKED. Phase 2.5 routes a NO_COMMITS run to the
+# sequential path, and the second section pins that line so a renamed token cannot leave
+# /work orchestrating. And `git checkout -b` on a default branch with no commit carries
+# that state to the new branch, so the default branch never exists and a review against
+# it stops on a missing base. Phase 2 makes an empty first commit there first; the third
+# section pins that paragraph, and `--only`, which keeps staged files out of the commit.
 #
 # Finding no git log block is a failure, not a pass. A reworded block form would
 # otherwise leave this test asserting nothing.
@@ -51,6 +55,15 @@ if grep -E '^- \*\*No commit yet' "$WORK" | grep -q 'NO_COMMITS'; then
   pass "skills/work/SKILL.md Phase 2.5 has a 'No commit yet' line naming NO_COMMITS"
 else
   fail "skills/work/SKILL.md has no '- **No commit yet' line naming NO_COMMITS -- a run in a repository with no commit would orchestrate, and every worktree subagent would come back BLOCKED"
+fi
+
+echo ""
+echo "=== /work makes an empty first commit before branching off a default branch with none ==="
+FIRST="$(grep -E '^\*\*If the default branch has no commit yet\*\*' "$WORK")"
+if printf '%s\n' "$FIRST" | grep -q 'NO_COMMITS' && printf '%s\n' "$FIRST" | grep -qF 'git commit --allow-empty --only'; then
+  pass "skills/work/SKILL.md Phase 2 names NO_COMMITS and 'git commit --allow-empty --only' in its no-commit paragraph"
+else
+  fail "skills/work/SKILL.md Phase 2 has no '**If the default branch has no commit yet**' paragraph naming NO_COMMITS and 'git commit --allow-empty --only' -- the new branch would carry the commit-less state, the default branch would never exist, and the review against it would stop"
 fi
 
 echo ""

@@ -133,6 +133,8 @@ If continuing, move to Phase 2.5. In auto mode, continue on the current branch w
 
 **If on the default branch**, create a new branch by default: `git checkout -b <meaningful-name>` using a descriptive name (e.g., `feat/user-auth`, `fix/email-validation`). Never commit to the default branch without explicit user confirmation.
 
+**If the default branch has no commit yet** (git is available and the `git log` gather block printed `NO_COMMITS`), make an empty first commit on it before creating the branch: `git commit --allow-empty --only -m "chore: initial commit"`. Without it, `git checkout -b` carries the commit-less state over to the new branch, the default branch never comes into existence, and a later `/quiver:review --base <default branch>` stops because that branch is not found. `--only` with no paths leaves anything already staged out of the commit, so the commit holds no file; that is why it is the one commit this skill makes on the default branch without asking. Print `> This repository had no commit yet, so I made an empty first commit on <default branch> for the new branch to start from.` and then create the branch.
+
 ### Phase 2.5: Orchestration Decision
 
 Parse the plan and count top-level tasks (one deliverable = one task, regardless of markup format). Announce before proceeding:
