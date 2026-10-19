@@ -10,10 +10,15 @@
 # and /ship treated the setup its own test plan describes as a directory with no git.
 # Every git log block falls back to NO_COMMITS instead.
 #
-# /work is the one skill that reads the token: with no commit yet, its working branch
-# does not resolve, so every worktree subagent's first step (switch to that branch) would
-# come back BLOCKED. Phase 2.5 routes a NO_COMMITS run to the sequential path, and the
-# second section pins that line so a renamed token cannot leave /work orchestrating.
+# /work is the one skill that reads the token, in two places. With no commit yet, its
+# working branch does not resolve, so every worktree subagent's first step (switch to
+# that branch) would come back BLOCKED. Phase 2.5 routes a NO_COMMITS run to the
+# sequential path, and the second section pins that line so a renamed token cannot leave
+# /work orchestrating. And `git checkout -b` on a default branch with no commit carries
+# that state to the new branch, so the default branch never exists and a review against
+# it stops on a missing base. Phase 2 makes an empty first commit first, and on a
+# non-default branch creates the main branch the user picks from it; the third section
+# pins that section, `--only`, which keeps staged files out of the commit, and `git branch`.
 #
 # Finding no git log block is a failure, not a pass. A reworded block form would
 # otherwise leave this test asserting nothing.
@@ -52,6 +57,17 @@ if grep -E '^- \*\*No commit yet' "$WORK" | grep -q 'NO_COMMITS'; then
 else
   fail "skills/work/SKILL.md has no '- **No commit yet' line naming NO_COMMITS -- a run in a repository with no commit would orchestrate, and every worktree subagent would come back BLOCKED"
 fi
+
+echo ""
+echo "=== /work makes an empty first commit before branching off a default branch with none ==="
+FIRST="$(sed -n '/^\*\*If the repository has no commit yet\*\*/,/^\*\*If already on a feature branch/p' "$WORK")"
+for s in 'NO_COMMITS' 'git commit --allow-empty --only' 'git branch <name>'; do
+  if printf '%s\n' "$FIRST" | grep -qF -- "$s"; then
+    pass "skills/work/SKILL.md Phase 2 no-commit section names '$s'"
+  else
+    fail "skills/work/SKILL.md Phase 2 has no '**If the repository has no commit yet**' section naming '$s' -- the new branch would carry the commit-less state, the main branch would never exist, and the review against it would stop"
+  fi
+done
 
 echo ""
 echo "================================"

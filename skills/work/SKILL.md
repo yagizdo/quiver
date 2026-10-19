@@ -126,6 +126,18 @@ If the plan contains genuine contradictions (e.g., two steps that conflict, a re
 
 **If git is NOT available (Phase 0 detected `NO_GIT`):** Skip this phase entirely -- proceed to Phase 2.5.
 
+**If the repository has no commit yet** (git is available and the `git log` gather block printed `NO_COMMITS`), no branch exists until something is committed. `git checkout -b` then only renames the commit-less branch, so the default branch never comes into existence, and a later `/quiver:review --base <default branch>` stops because that branch is not found. Settle it before the rules below, with an empty first commit: `git commit --allow-empty --only -m "chore: initial commit"`. `--only` with no paths leaves anything already staged out of it, so the commit holds no file; that is why this skill makes it without asking whether to commit.
+
+- On `main` or `master`: make the commit, print `> This repository had no commit yet, so I made an empty first commit on <branch> for the new branch to start from.`, and create the branch as below.
+- On any other branch there is no main branch to compare against, and its name is the user's choice, so ask, in auto mode too. One `AskUserQuestion`, with `main` first unless `git config --get init.defaultBranch` prints `master`:
+  > This repository has no commit yet, and you are on `<branch>`. A review compares this branch against a main branch, and there is none yet. Which one should I create?
+
+  - "Create main" -- An empty first commit becomes `main`, and the work continues on `<branch>` from it.
+  - "Create master" -- An empty first commit becomes `master`, and the work continues on `<branch>` from it.
+  - "Create neither" -- Nothing is committed now; a review will have no main branch to compare this branch against.
+
+  On "Create main" or "Create master", make the commit, then run `git branch <name>`, and continue on `<branch>`. On "Create neither", make no commit.
+
 **If already on a feature branch** (not main/master), use `AskUserQuestion`:
 > You're on `{branch}`. Continue here or create a new branch?
 Buttons: `["Continue on {branch}", "Create new branch"]`
@@ -153,7 +165,7 @@ The orchestrator copies the test value into every brief's `Test command:` line. 
 
 Then choose the path; the first line that matches wins:
 
-- **No commit yet** (the `git log` gather block printed `NO_COMMITS`, which it also prints outside a git repository): Sequential, whatever the task count. The Reason line says the repository has no commit yet, or that there is no git repository when Phase 0 detected `NO_GIT`. The working branch does not resolve until a first commit exists, and outside a repository there is no branch at all, so every worktree subagent's first step -- switching to that branch -- would come back BLOCKED. In a repository, the commits Phase 3 makes give the next run a base to orchestrate from.
+- **No commit yet** (the `git log` gather block printed `NO_COMMITS`, which it also prints outside a git repository, and Phase 2 made no empty first commit): Sequential, whatever the task count. The Reason line says the repository has no commit yet, or that there is no git repository when Phase 0 detected `NO_GIT`. The working branch does not resolve until a first commit exists, and outside a repository there is no branch at all, so every worktree subagent's first step -- switching to that branch -- would come back BLOCKED. That leaves a run outside git and one where the user chose to create no main branch; every other run got its first commit in Phase 2 and takes the rules below.
 - **1-2 tasks:** Sequential. Proceed to Phase 3 with the verification command resolved above. The ledger below is orchestration-path-only; the sequential path keeps TodoWrite unchanged and writes nothing to disk.
 - **3+ tasks:** Parallel orchestration. Resolve the workspace and check for a ledger (below), then follow `skills/work/orchestrator.md`. Skip Phase 3 entirely -- orchestration replaces it.
 
